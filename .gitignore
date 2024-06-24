@@ -1,0 +1,7 @@
+venv/
+saved/
+flake.nix
+flake.lock
+__pycache__/
+*.pyc
+.DS_STORE
