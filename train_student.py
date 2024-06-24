@@ -39,7 +39,7 @@ tf.flags.DEFINE_string('teachers_dir','./saved/train_dir',
 tf.flags.DEFINE_integer('teachers_max_steps', 3000,
                         'Number of steps teachers were ran.')
 tf.flags.DEFINE_integer('max_steps', 3000, 'Number of steps to run student.')
-tf.flags.DEFINE_integer('nb_teachers', 10, 'Teachers in the ensemble.')
+tf.flags.DEFINE_integer('nb_teachers', 250, 'Teachers in the ensemble.')
 tf.flags.DEFINE_integer('stdnt_share', 1000,
                         'Student share (last index) of the test data')
 tf.flags.DEFINE_integer('lap_scale', 10,

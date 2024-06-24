@@ -31,7 +31,7 @@ tf.flags.DEFINE_string('train_dir','./saved/train_dir',
                        'Where model ckpt are saved')
 
 tf.flags.DEFINE_integer('max_steps', 3000, 'Number of training steps to run.')
-tf.flags.DEFINE_integer('nb_teachers', 50, 'Teachers in the ensemble.')
+tf.flags.DEFINE_integer('nb_teachers', 250, 'Teachers in the ensemble.')
 tf.flags.DEFINE_integer('teacher_id', 0, 'ID of teacher being trained.')
 
 tf.flags.DEFINE_boolean('deeper', False, 'Activate deeper CNN model')
