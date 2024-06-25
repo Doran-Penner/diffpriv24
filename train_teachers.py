@@ -93,6 +93,16 @@ def train(training_data, valid_data, arch=[], lr=1e-3, epochs=159, batch_size=16
     for i in range(epochs):
         if i % 10 == 0:
             print("Epoch",i)
+            network.eval()
+            accs = []
+            losses = []
+            for batch_xs, batch_ys in valid_loader:
+                batch_xs = batch_xs.to(device)
+                batch_ys = batch_ys.to(device)
+                preds = network(normalize(batch_xs))
+                accs.append((preds.argmax(dim=1) == batch_ys).float().mean())
+            acc = torch.tensor(accs).mean()
+            print("Acc:",acc)
         network.train()
         train_acc = []
         for batch_xs, batch_ys in train_loader:
@@ -111,6 +121,7 @@ def train(training_data, valid_data, arch=[], lr=1e-3, epochs=159, batch_size=16
 
         acc = torch.tensor(train_acc).mean()
         train_accs.append(acc)
+ 
     network.eval()
     accs = []
     losses = []
