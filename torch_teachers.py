@@ -76,7 +76,7 @@ class CNN(nn.Module):
         return self.model(x)
 
 
-def train(training_data, valid_data, arch=[], lr=1e-3, epochs=159, batch_size=16, momentum=0.9,padding=True):
+def train(training_data, valid_data, arch=[], lr=1e-3, epochs=70, batch_size=16, momentum=0.9,padding=True):
     print("training...")
     #print("training data size:",np.shape(training_data))
     train_loader = torch.utils.data.DataLoader(training_data, shuffle=True, batch_size=batch_size)
@@ -92,7 +92,7 @@ def train(training_data, valid_data, arch=[], lr=1e-3, epochs=159, batch_size=16
     for i in range(epochs):
         if i % 10 == 0:
             print("Epoch",i)
-            network.eval()
+            '''network.eval()
             accs = []
             losses = []
             for batch_xs, batch_ys in valid_loader:
@@ -101,7 +101,7 @@ def train(training_data, valid_data, arch=[], lr=1e-3, epochs=159, batch_size=16
                 preds = network(normalize(batch_xs))
                 accs.append((preds.argmax(dim=1) == batch_ys).float().mean())
             acc = torch.tensor(accs).mean()
-            print("Acc:",acc)
+            print("Acc:",acc)'''
         network.train()
         train_acc = []
         for batch_xs, batch_ys in train_loader:
