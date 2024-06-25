@@ -24,18 +24,15 @@ transform = transforms.Compose([
     transforms.ToTensor(),
 ])
 
-dataset = torchvision.datasets.SVHN('./data/svhn', split='extra', download=True, transform=transform)
+train_dataset = torchvision.datasets.SVHN('./data/svhn', split='train', download=True, transform=transform)
+extra_dataset = torchvision.datasets.SVHN('./data/svhn', split='extra', download=True, transform=transform)
+dataset = torch.utils.data.ConcatDataset([train_dataset,extra_dataset])
+train_size = len(dataset)
 
 num_teachers = 250
 
-train_size = int(0.7 * len(dataset))
-valid_size = int(0.2 * len(dataset))
-train_set, valid_set, test_set = torch.utils.data.random_split(dataset, [train_size, valid_size, len(dataset) - train_size - valid_size])
-
 train_partition = [math.floor(train_size / num_teachers) + 1 for i in range(train_size % num_teachers)] + [math.floor(train_size / num_teachers) for i in range(num_teachers - (train_size % num_teachers))]
-valid_partition = [math.floor(valid_size / num_teachers) + 1 for i in range(valid_size % num_teachers)] + [math.floor(valid_size / num_teachers) for i in range(num_teachers - (valid_size % num_teachers))]
-train_sets = torch.utils.data.random_split(train_set, train_partition)
-valid_sets = torch.utils.data.random_split(valid_set, valid_partition)
+train_sets = torch.utils.data.random_split(dataset, train_partition)
 
 # Normalize 
 normalize = transforms.Normalize((0.1307,), (0.3081,))
@@ -79,19 +76,16 @@ class CNN(nn.Module):
 
 
 
-def train(training_data, valid_data, arch=[], lr=1e-3, epochs=159, batch_size=16, momentum=0.9,padding=True):
+def train(training_data, arch=[], lr=1e-3, epochs=159, batch_size=16, momentum=0.9,padding=True):
     print("training...")
     #print("training data size:",np.shape(training_data))
-    #print("valid data size:",np.shape(valid_data))
     train_loader = torch.utils.data.DataLoader(training_data, shuffle=True, batch_size=batch_size)
-    valid_loader = torch.utils.data.DataLoader(valid_data, shuffle=False, batch_size=batch_size)
 
     network = CNN(arch=arch,padding=padding).to(device)
     opt = optim.SGD(network.parameters(), lr=lr, momentum=momentum)
     loss = nn.CrossEntropyLoss()
 
     train_accs = []
-    valid_accs = []
 
     for i in range(epochs):
         # print("Epoch",i)
@@ -111,26 +105,14 @@ def train(training_data, valid_data, arch=[], lr=1e-3, epochs=159, batch_size=16
             loss_val.backward()
             opt.step()
 
-        train_accs.append(torch.tensor(train_acc).mean())
-        # print("Training accuracy:",train_accs[-1])
-
-        network.eval()
-        accs = []
-        losses = []
-        for batch_xs, batch_ys in valid_loader:
-            batch_xs = batch_xs.to(device)
-            batch_ys = batch_ys.to(device)
-            preds = network(normalize(batch_xs))
-            accs.append((preds.argmax(dim=1) == batch_ys).float().mean())
-        acc = torch.tensor(accs).mean()
-        # print("Valid accuracy:",acc)
-        valid_accs.append(acc)
-    return (network, valid_accs)
+        acc = torch.tensor(train_acc).mean()
+        train_accs.append(acc)
+    return (network, train_accs)
 teachers = []
 for i in range(num_teachers):
     print(f"Training teacher {i} now!")
     start_time = time.time()
-    n, accs = train(train_sets[i],valid_sets[i],arch=arch)
+    n, accs = train(train_sets[i],arch=arch)
     print("TEACHER",i,"ACC",accs[-1])
     teachers.append(n)
     torch.save(n.state_dict(),"./saved/teacher_" + str(i) + ".txt")
