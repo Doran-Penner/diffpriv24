@@ -27,6 +27,7 @@ transform = transforms.Compose([
 train_dataset = torchvision.datasets.SVHN('./data/svhn', split='train', download=True, transform=transform)
 extra_dataset = torchvision.datasets.SVHN('./data/svhn', split='extra', download=True, transform=transform)
 dataset = torch.utils.data.ConcatDataset([train_dataset,extra_dataset])
+valid_dataset = torchvision.datasets.SVHN('./data/svhn', split='test', download=True, transform=transform)
 train_size = len(dataset)
 
 num_teachers = 250
@@ -76,10 +77,12 @@ class CNN(nn.Module):
 
 
 
-def train(training_data, arch=[], lr=1e-3, epochs=159, batch_size=16, momentum=0.9,padding=True):
+def train(training_data, valid_data, arch=[], lr=1e-3, epochs=159, batch_size=16, momentum=0.9,padding=True):
     print("training...")
     #print("training data size:",np.shape(training_data))
     train_loader = torch.utils.data.DataLoader(training_data, shuffle=True, batch_size=batch_size)
+    valid_loader = torch.utils.data.DataLoader(valid_data, shuffle=True, batch_size=batch_size)
+    
 
     network = CNN(arch=arch,padding=padding).to(device)
     opt = optim.SGD(network.parameters(), lr=lr, momentum=momentum)
@@ -88,7 +91,8 @@ def train(training_data, arch=[], lr=1e-3, epochs=159, batch_size=16, momentum=0
     train_accs = []
 
     for i in range(epochs):
-        # print("Epoch",i)
+        if i % 10 == 0:
+            print("Epoch",i)
         network.train()
         train_acc = []
         for batch_xs, batch_ys in train_loader:
@@ -107,13 +111,22 @@ def train(training_data, arch=[], lr=1e-3, epochs=159, batch_size=16, momentum=0
 
         acc = torch.tensor(train_acc).mean()
         train_accs.append(acc)
-    return (network, train_accs)
+    network.eval()
+    accs = []
+    losses = []
+    for batch_xs, batch_ys in valid_loader:
+        batch_xs = batch_xs.to(device)
+        batch_ys = batch_ys.to(device)
+        preds = network(normalize(batch_xs))
+        accs.append((preds.argmax(dim=1) == batch_ys).float().mean())
+    acc = torch.tensor(accs).mean()
+    return (network, acc)
 teachers = []
 for i in range(num_teachers):
     print(f"Training teacher {i} now!")
     start_time = time.time()
-    n, accs = train(train_sets[i],arch=arch)
-    print("TEACHER",i,"ACC",accs[-1])
+    n, acc = train(train_sets[i],valid_dataset,arch=arch)
+    print("TEACHER",i,"ACC",acc)
     teachers.append(n)
     torch.save(n.state_dict(),"./saved/teacher_" + str(i) + ".txt")
     duration = time.time()- start_time
