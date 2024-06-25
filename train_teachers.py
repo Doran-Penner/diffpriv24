@@ -135,4 +135,4 @@ for i in range(num_teachers):
     teachers.append(n)
     torch.save(n.state_dict(),"./saved/teacher_" + str(i) + ".txt")
     duration = time.time()- start_time
-    print(f"{duration//60} minutes and {duration % 60} seconds.")
+    print(f"It took {duration//60} minutes and {duration % 60} seconds to train teacher {i}.")
