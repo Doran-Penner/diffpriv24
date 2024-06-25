@@ -9,6 +9,16 @@ import torch.utils.tensorboard as tb
 import datetime
 import time
 import os
+import random
+
+SEED = 0
+torch.manual_seed(SEED)
+random.seed(SEED)
+np.random.seed(SEED)
+
+#Verify random seed
+#print([i for i in torch.utils.data.random_split([0,1,2,3,4,5,6,7,8,9],[5,5])[0]])
+
 
 #setup device
 if torch.cuda.is_available():
