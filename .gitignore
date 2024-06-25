@@ -5,3 +5,6 @@ flake.lock
 __pycache__/
 *.pyc
 .DS_STORE
+.envrc
+.direnv
+data
