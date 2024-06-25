@@ -7,6 +7,7 @@ import torchvision.transforms.v2 as transforms
 import numpy as np
 import torch.utils.tensorboard as tb
 import datetime
+import time
 import os
 
 #setup device
@@ -80,12 +81,12 @@ class CNN(nn.Module):
 
 def train(training_data, valid_data, arch=[], lr=1e-3, epochs=159, batch_size=16, momentum=0.9,padding=True):
     print("training...")
-    print("training data size:",np.shape(training_data))
-    print("valid data size:",np.shape(valid_data))
+    #print("training data size:",np.shape(training_data))
+    #print("valid data size:",np.shape(valid_data))
     train_loader = torch.utils.data.DataLoader(training_data, shuffle=True, batch_size=batch_size)
     valid_loader = torch.utils.data.DataLoader(valid_data, shuffle=False, batch_size=batch_size)
 
-    network = CNN(arch=arch,padding=padding)
+    network = CNN(arch=arch,padding=padding).to(device)
     opt = optim.SGD(network.parameters(), lr=lr, momentum=momentum)
     loss = nn.CrossEntropyLoss()
 
@@ -93,14 +94,14 @@ def train(training_data, valid_data, arch=[], lr=1e-3, epochs=159, batch_size=16
     valid_accs = []
 
     for i in range(epochs):
-        print("Epoch",i)
+        # print("Epoch",i)
         network.train()
         train_acc = []
         for batch_xs, batch_ys in train_loader:
-            batch_xs = batch_xs.to(device)
+            batch_xs = normalize(batch_xs).to(device)
             batch_ys = batch_ys.to(device)
 
-            preds = network(normalize(batch_xs))
+            preds = network(batch_xs)
             acc = (preds.argmax(dim=1) == batch_ys).float().mean()
             train_acc.append(acc)
 
@@ -111,7 +112,7 @@ def train(training_data, valid_data, arch=[], lr=1e-3, epochs=159, batch_size=16
             opt.step()
 
         train_accs.append(torch.tensor(train_acc).mean())
-        print("Training accuracy:",train_accs[-1])
+        # print("Training accuracy:",train_accs[-1])
 
         network.eval()
         accs = []
@@ -122,13 +123,16 @@ def train(training_data, valid_data, arch=[], lr=1e-3, epochs=159, batch_size=16
             preds = network(normalize(batch_xs))
             accs.append((preds.argmax(dim=1) == batch_ys).float().mean())
         acc = torch.tensor(accs).mean()
-        print("Valid accuracy:",acc)
+        # print("Valid accuracy:",acc)
         valid_accs.append(acc)
     return (network, valid_accs)
-
 teachers = []
 for i in range(num_teachers):
+    print(f"Training teacher {i} now!")
+    start_time = time.time()
     n, accs = train(train_sets[i],valid_sets[i],arch=arch)
     print("TEACHER",i,"ACC",accs[-1])
     teachers.append(n)
     torch.save(n.state_dict(),"./saved/teacher_" + str(i) + ".txt")
+    duration = time.time()- start_time
+    print(f"{duration//60} minutes and {duration % 60} seconds.")
