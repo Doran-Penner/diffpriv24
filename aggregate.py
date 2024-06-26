@@ -10,7 +10,7 @@ def aggregate(votes, scale):
     label = np.argmax(hist)
     return label
 
-def repeat_gnmax(votes, scale1, scale2, p, tau, prev_votes, prev_labels)
+def repeat_gnmax(votes, scale1, scale2, p, tau, prev_votes, prev_labels):
     U = []
     for voter in range(len(votes)):
         if np.random.uniform() < p:
@@ -33,7 +33,7 @@ def repeat_gnmax(votes, scale1, scale2, p, tau, prev_votes, prev_labels)
             seen = True
             break
         which_record += 1
-    if seen_before:
+    if seen:
         return prev_labels[which_record]
     else:
       return aggregate(votes, scale2)
