@@ -3,12 +3,12 @@ import torch
 
 NUM_LABELS = 10  # number of labels: for SHVN (which we're hardcoding rn), it's 10
 
-def lnmax(votes, scale):
+def noisymax(votes, scale, noise_fn=np.random.laplace):
     hist = [0]*NUM_LABELS
     for v in votes:
         hist[v] += 1
     for label in range(NUM_LABELS):
-        hist[label] += np.random.laplace(loc=0.0,scale=float(scale))
+        hist[label] += noise_fn(loc=0.0,scale=float(scale))
     label = np.argmax(hist)
     return label
 
@@ -38,4 +38,4 @@ def repeat_gnmax(votes, scale1, scale2, p, tau, prev_votes, prev_labels):
     if seen:
         return prev_labels[which_record]
     else:
-      return lnmax(votes, scale2)
+      return noisymax(votes, scale2, np.random.gaussian)
