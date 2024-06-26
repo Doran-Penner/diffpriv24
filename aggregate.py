@@ -2,7 +2,7 @@ import numpy as np
 import torch
 
 
-def lnmax(votes, scale, num_labels = 10):
+def noisymax(votes, scale, num_labels = 10, noise_fn=np.random.laplace):
     """
     Function for aggregating teacher votes according to the algorithm described
     in the original PATE paper. This function is essentially ReportNoisyMax with
@@ -25,7 +25,7 @@ def lnmax(votes, scale, num_labels = 10):
     for v in votes:
         hist[v] += 1
     for label in range(num_labels):
-        hist[label] += np.random.laplace(loc=0.0,scale=float(scale))
+        hist[label] += noise_fn(loc=0.0,scale=float(scale))
     label = np.argmax(hist)
     return label
 
@@ -83,4 +83,4 @@ def repeat_gnmax(votes, scale1, scale2, p, tau, prev_votes, prev_labels, num_lab
     if seen:
         return prev_labels[which_record]
     else:
-      return lnmax(votes, scale2)
+      return noisymax(votes, scale2, np.random.gaussian)
