@@ -21,10 +21,12 @@ def getPredictedLabels(data, aggregator, num_models=250):
 
         for p, l in data:
             out = m(p)
-            if torch.argmax(out) == l:
-                correct += 1
-            guessed += 1
-            ballot.append(torch.argmax(out))
+            for (j,row) in enumerate(out):
+                res = torch.argmax(row)
+                if res == l[j]:
+                    correct += 1
+                guessed += 1
+                ballot.append(res)
         votes.append(ballot)
         print(correct/guessed)
     return aggregator.aggregate(torch.transpose(torch.Tensor(votes),0,1))
@@ -44,7 +46,7 @@ transform = transforms.Compose([
 ])
 
 public_dataset = torchvision.datasets.SVHN('./data/svhn', split='test', download=True, transform=transform)
-loader = torch.utils.data.DataLoader(public_dataset, shuffle=True, batch_size=1)
+loader = torch.utils.data.DataLoader(public_dataset, shuffle=False, batch_size=64)
 agg = aggregate.NoisyMaxAggregator(1)
 labels = getPredictedLabels(loader,agg)
 
