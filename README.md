@@ -1,6 +1,6 @@
 ## Attribution
 
-This code is taken from `github:tensorflow/privacy` for our summer research.
+This code is based on code taken from `github:tensorflow/privacy` for our summer research.
 The original PATE paper this is based on is [arXiv:1610.05755](https://arxiv.org/abs/1610.05755).
 
 ## Dependencies
