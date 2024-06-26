@@ -9,16 +9,24 @@ import aggregate
 def getPredictedLabels(data, aggregator, num_models=250):
     votes = [] # final voting record
     for i in range(num_models):
-        state_dict = torch.load('./saved/teacher_'+str(i)+'.txt')
+        print("Model",str(i))
+        state_dict = torch.load('./saved/teacher_'+str(i)+'.txt',map_location=torch.device('cpu'))
         m = CNN()
         m.load_state_dict(state_dict)
         m.eval()
 
         ballot = [] # user i's voting record
+        correct = 0
+        guessed = 0
 
-        for p in data:
-            ballot.append(m(p))
+        for p, l in data:
+            out = m(p)
+            if torch.argmax(out) == l:
+                correct += 1
+            guessed += 1
+            ballot.append(torch.argmax(out))
         votes.append(ballot)
+        print(correct/guessed)
     return aggregator.aggregate(torch.transpose(torch.Tensor(votes),0,1))
 
 #setup device
@@ -36,6 +44,10 @@ transform = transforms.Compose([
 ])
 
 public_dataset = torchvision.datasets.SVHN('./data/svhn', split='test', download=True, transform=transform)
-unlabeled_data = public_dataset[0][0]
+loader = torch.utils.data.DataLoader(public_dataset, shuffle=True, batch_size=1)
 agg = aggregate.NoisyMaxAggregator(1)
-labels = getPredictedLabels(unlabeled_data,agg)
+labels = getPredictedLabels(loader,agg)
+
+with open('./saved/teacher_predictions.txt','w') as f:
+    for label in labels:
+        f.write(f"{label}\n")
