@@ -1,10 +1,8 @@
 # TODO
 - refactor carter's code
-  - refactor `torch_teachers.py`
   - refactor `get_predicted_labels.py`
 - document code
   - update documentation for `aggregate.py`
-  - document `torch_teachers.py`
   - document `get_predicted_labels.py`
   - document `models.py`
 - write code
