@@ -15,4 +15,4 @@ def getPredictedLabels(data, aggregator, num_models=250):
         for p in data:
             ballot.append(m(p))
         votes.append(ballot)
-    return aggregator(torch.transpose(torch.Tensor(votes),0,1))
+    return aggregator.aggregate(torch.transpose(torch.Tensor(votes),0,1))

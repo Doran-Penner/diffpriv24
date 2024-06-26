@@ -1,8 +1,22 @@
 import numpy as np
 import torch
 
+class Aggregator:
+    
+    def __init__(self, num_labels):
+        self.num_labels = num_labels
 
-def noisymax(votes, scale, num_labels = 10, noise_fn=np.random.laplace):
+    def aggregate(self, votes):
+        return 0
+
+def NoisyMaxAggregator(Aggregator):
+    
+    def __init__(self, scale, num_labels=10, noise_fn=np.random.laplace):
+        self.scale = scale
+        self.num_labels = num_labels
+        self.noise_fn=noise_fn
+
+    def aggregate(self,votes):
     """
     Function for aggregating teacher votes according to the algorithm described
     in the original PATE paper. This function is essentially ReportNoisyMax with
@@ -21,15 +35,26 @@ def noisymax(votes, scale, num_labels = 10, noise_fn=np.random.laplace):
     Outputs: The label with the most votes, after adding noise to the votes to
              make it private.
     """
-    hist = [0]*num_labels
-    for v in votes:
-        hist[v] += 1
-    for label in range(num_labels):
-        hist[label] += noise_fn(loc=0.0,scale=float(scale))
-    label = np.argmax(hist)
-    return label
+        hist = [0]*self.num_labels
+        for v in votes:
+            hist[v] += 1
+        for label in range(self.num_labels):
+            hist[label] += self.noise_fn(loc=0.0,scale=float(scale))
+        label = np.argmax(hist)
+        return label
 
-def repeat_gnmax(votes, scale1, scale2, p, tau, prev_votes, prev_labels, num_labels):
+class RepeatGNMax(Aggregator):
+    def __init__(self,scale1,scale2,p,tau,num_labels=10):
+        self.scale1 = scale1
+        self.scale2 = scale2
+        self.p = p
+        self.tau = tau
+        self.num_labels = num_labels
+        self.prev_votes = []
+        self.prev_labels = []
+        self.gnmax = NoisyMaxAggregator(scale2,num_labels,np.random.gaussian)
+
+    def aggregate(self,votes):
     """
     Function for aggregating teacher votes according to the algorithm that Tory
     developed, called Repeat-GNMax.
@@ -58,29 +83,29 @@ def repeat_gnmax(votes, scale1, scale2, p, tau, prev_votes, prev_labels, num_lab
     Outputs: The label with the most votes, after adding noise to the votes to
              make it private.
     """
-    U = []
-    for voter in range(len(votes)):
-        if np.random.uniform() < p:
-            U.append(voter)
-    U = np.array(U)
-    sub_record = votes[U]
-    hist = [0]*num_labels
-    for v in sub_record:
-        hist[v] += 1
-    seen = False
-    which_record = 0
-    for record in prev_votes:
-        new_hist = [0]*num_labels
-        for v in record:
-            new_hist[v] += 1
-        for label in range(num_labels):
-            hist[label] += np.random.gaussian(loc=0.0,scale=float(scale1))
-        divergence = np.max(np.abs(hist-new_hist))
-        if divergence < tau:
-            seen = True
-            break
-        which_record += 1
-    if seen:
-        return prev_labels[which_record]
-    else:
-      return noisymax(votes, scale2, np.random.gaussian)
+        U = []
+        for voter in range(len(votes)):
+            if np.random.uniform() < p:
+                U.append(voter)
+        U = np.array(U)
+        sub_record = votes[U]
+        hist = [0]*self.num_labels
+        for v in sub_record:
+            hist[v] += 1
+        seen = False
+        which_record = 0
+        for record in self.prev_votes:
+            new_hist = [0]*self.num_labels
+            for v in record:
+                new_hist[v] += 1
+            for label in range(self.num_labels):
+                hist[label] += np.random.gaussian(loc=0.0,scale=float(self.scale1))
+            divergence = np.max(np.abs(hist-new_hist))
+            if divergence < self.tau:
+                seen = True
+                break
+            which_record += 1
+        if seen:
+            return self.prev_labels[which_record]
+        else:
+            return self.gnmax.aggregate(votes)
