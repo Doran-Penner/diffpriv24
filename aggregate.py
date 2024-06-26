@@ -38,4 +38,4 @@ def repeat_gnmax(votes, scale1, scale2, p, tau, prev_votes, prev_labels):
     if seen:
         return prev_labels[which_record]
     else:
-      return aggregate(votes, scale2)
+      return lnmax(votes, scale2)
