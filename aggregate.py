@@ -2,14 +2,65 @@ import numpy as np
 import torch
 
 class Aggregator:    
+    """
+    This is a parent class to specific aggregators
+    
+    ...
+
+    Attributes
+    ----------
+    num_labels : int
+        specifying the number of labels to be aggregated
+
+    Methods
+    ----------
+    aggregate(votes)
+        function that returns the result of the aggregation mechanism
+    """
     def __init__(self, num_labels):
         self.num_labels = num_labels
 
     def aggregate(self, votes):
         return 0
 
-def NoisyMaxAggregator(Aggregator):
+class NoisyMaxAggregator(Aggregator):
+    """
+    This is a general class that can do ReportNoisyMax with laplacian noise or 
+    with gaussian noise.
+    
+    ...
+
+    Attributes
+    ----------
+    num_labels : int
+        specifying the number of labels to be aggregated
+    scale : float
+        specifying the amount of noise. The larger the scale 
+        value, the noisier it is. ReportNoisyMax is epsilon 
+        differentially private if scale is equal to 1/epsilon
+    noise_fn : function
+        specifying the distribution that the noise must
+        be drawn from. for basic ReportNoisyMax, this is the
+        Laplacian distribution
+
+    Methods
+    ----------
+    aggregate(votes)
+        function that returns the result of the aggregation mechanism
+    """
     def __init__(self, scale, num_labels=10, noise_fn=np.random.laplace):
+        """
+        Initializer function for NoisyMaxAggregator class
+        :param scale: float specifying the amount of noise. The larger the scale 
+                      value, the noisier it is. ReportNoisyMax is epsilon 
+                      differentially private if scale is equal to 1/epsilon
+        :param num_labels: int specifying the number of labels that the teacher
+                           can vote for. so, for the MNIST dataset, num_labels
+                           is equal to 10
+        :param noise_fn: function specifying the distribution that the noise must
+                         be drawn from. for basic ReportNoisyMax, this is the
+                         Laplacian distribution
+        """
         self.scale = scale
         self.num_labels = num_labels
         self.noise_fn=noise_fn
@@ -21,28 +72,72 @@ def NoisyMaxAggregator(Aggregator):
         Laplacian noise.
 
         Arguments:
-        votes -------- array of labels, where each label is the vote of a single 
+        :param votes: array of labels, where each label is the vote of a single 
                        teacher. so, if there are 250 teachers, the length of votes 
-                       is 250.
-        scale -------- variable affecting the amount of noise. The larger the scale 
-                       value, the noisier it is. ReportNoisyMax is epsilon 
-                       differentially private if scale is equal to 1/epsilon.
-        num_labels --- number of possible labels that the teachers can vote for. so,
-                       for the MNIST dataset, num_labels is equal to 10.
-
-        Outputs: The label with the most votes, after adding noise to the votes to
-                 make it private.
+                       is 250
+        :return: index indicating the max argument in the array passed to the function
         """
         hist = [0]*self.num_labels
         for v in votes:
             hist[v] += 1
         for label in range(self.num_labels):
-            hist[label] += self.noise_fn(loc=0.0,scale=float(scale))
+            hist[label] += self.noise_fn(loc=0.0,scale=float(self.scale))
         label = np.argmax(hist)
         return label
 
 class RepeatGNMax(Aggregator):
+    """
+    This is a class that can aggregate teacher votes according to the algorithm that
+    Tory developed, called Repeat-GNMax.
+    
+    ...
+
+    Attributes
+    ----------
+    num_labels : int
+        specifying the number of labels to be aggregated
+    scale1 : float
+        variable affecting the amount of noise when comparing the 
+        current voting record to the older voting records.
+    scale2 : float
+        variable affecting the amount of noise added to the aggregation function when 
+        releasing the results of queries that don't have similar previous queries.
+    p : float
+        variable affecting the poisson sampling. each teacher hasprobability p of
+        being included in the sample.
+    tau : float 
+        variable determining the threshold of similarity that the vote histograms have 
+        to be to release the same answer. so, the lower the threshold, the more similar
+        the histograms need to be.
+    prev_votes : 2-dimensional tensor 
+        variable where each prev_votes[i] looks like the votes variable. needed to compare
+        current votes histogram to previous ones.
+    prev_labels : array 
+        containing the output of each voting record in prev_votes. needed to output the 
+        result of the previous votes histograms.
+    gnmax : NoisyMaxAggregator instance
+        used to aggregate votes when the histograms are different from previous votes
+
+    Methods
+    ----------
+    aggregate(votes)
+        function that returns the result of the aggregation mechanism
+    """
     def __init__(self,scale1,scale2,p,tau,num_labels=10):
+        """
+        Initializer function for RepeatGNMax class
+        :param num_labels: int specifying the number of labels to be aggregated
+        :param scale1: float variable affecting the amount of noise when comparing the 
+                       current voting record to the older voting records.
+        :param scale2: float variable affecting the amount of noise added to the 
+                       aggregation function when releasing the results of queries that 
+                       don't have similar previous queries.
+        :param p: float variable affecting the poisson sampling. each teacher hasprobability 
+                  p of being included in the sample.
+        :param tau: float variable determining the threshold of similarity that the vote 
+                    histograms have to be to release the same answer. so, the lower the 
+                    threshold, the more similar the histograms need to be.
+        """
         self.scale1 = scale1
         self.scale2 = scale2
         self.p = p
@@ -54,36 +149,17 @@ class RepeatGNMax(Aggregator):
 
     def aggregate(self,votes):
         """
-        Function for aggregating teacher votes according to the algorithm that Tory
-        developed, called Repeat-GNMax.
+        Function for the aggregation mechanism,
 
-        Arguments:
-        votes -------- array of labels, where each label is the vote of a single 
-                       teacher. so, if there are 250 teachers, the length of votes 
-                       is 250.
-        scale1 ------- numeric variable affecting the amount of noise when comparing the
-                       current voting record to the older voting records.
-        scale2 ------- numeric variable affecting the amount of noise added to the
-                       aggregation function when releasing the results of queries that 
-                       don't have similar previous queries.
-        p ------------ numeric variable affecting the poisson sampling. each teacher has
-                       probability p of being included in the sample.
-        tau ---------- numeric variable determining the threshold of similarity that the
-                       vote histograms have to be to release the same answer. so, the
-                       lower the threshold, the more similar the histograms need to be.
-        prev_votes --- 2-dimensional tensor where each prev_votes[i] looks like the votes
-                       variable. needed to compare curret votes histogram to previous ones.
-        prev_labels -- array containing the output of each voting record in prev_votes. 
-                       needed to output the result of the previous votes histograms.
-        num_labels --- number of possible labels that the teachers can vote for. so,
-                       for the MNIST dataset, num_labels is equal to 10.
+        :param votes: array of labels, where each label is the vote of a single teacher. 
+                      so, if there are 250 teachers, the length of votes is 250.
     
-        Outputs: The label with the most votes, after adding noise to the votes to
-                 make it private.
+        :returns: The label with the most votes, after adding noise to the votes to make 
+                  it private.
         """
         U = []
         for voter in range(len(votes)):
-            if np.random.uniform() < p:
+            if np.random.uniform() < self.p:
                 U.append(voter)
         U = np.array(U)
         sub_record = votes[U]
