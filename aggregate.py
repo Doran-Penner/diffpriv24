@@ -8,7 +8,7 @@ class Aggregator:
     def aggregate(self, votes):
         return 0
 
-def NoisyMaxAggregator(Aggregator):
+class NoisyMaxAggregator(Aggregator):
     def __init__(self, scale, num_labels=10, noise_fn=np.random.laplace):
         self.scale = scale
         self.num_labels = num_labels
