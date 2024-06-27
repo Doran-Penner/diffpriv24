@@ -2,14 +2,22 @@ import torch
 from models import CNN
 from torch import nn, optim
 import torchvision
-torchvision.disable_beta_transforms_warning()
 import torchvision.transforms.v2 as transforms
 import numpy as np
 from torch_teachers import train
 
 transform = transforms.Compose([
-    transforms.ToTensor(),
+    transforms.ToImage(),
+    transforms.ToDtype(torch.float32, scale=True)
 ])
+
+if torch.cuda.is_available():
+    device = torch.device('cuda')
+elif torch.backends.mps.is_available():
+    device = torch.device('mps')
+else:
+    device = torch.device('cpu')
+print(device)
 
 dataset = torchvision.datasets.SVHN('./data/svhn', split='test', download=True, transform=transform)
 
@@ -21,10 +29,7 @@ test_set = torch.utils.data.Subset(dataset, range(train_size + valid_size, len(d
 
 batch_size = 64
 
-labels = []
-with open('./saved/teacher_predictions.txt','r') as f:
-    for l in f:
-        labels.append(l)
+labels = np.load("./saved/teacher_predictions.npy", allow_pickle=True)
 
 train_labels = labels[:train_size]
 valid_labels = labels[train_size:train_size + valid_size]
@@ -32,10 +37,10 @@ valid_labels = labels[train_size:train_size + valid_size]
 train_set.targets = train_labels
 valid_set.targets = valid_labels
 
-(n, acc) = train(train_set, valid_set, 'svhn')
+(n, acc) = train(train_set, valid_set, 'svhn', device=device)
 print("Validation Accuracy:", acc)
 
-test_loader = torch.utils.data.DataLoader(test_data, shuffle=True, batch_size=batch_size)
+test_loader = torch.utils.data.DataLoader(test_set, shuffle=True, batch_size=batch_size)
 
 accs = []
 for batch_xs, batch_ys in test_loader:
@@ -46,4 +51,4 @@ for batch_xs, batch_ys in test_loader:
 acc = torch.tensor(accs).mean()
 print("TEST ACCURACY:",acc)
 
-torch.save(n.state_dict(), PATH)
+torch.save(n.state_dict(), "svhn_student.stu")
