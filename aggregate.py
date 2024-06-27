@@ -238,8 +238,8 @@ class RepeatGNMax(Aggregator):
         which_record = 0
         for record in self.prev_votes:
             new_hist = [0]*self.num_labels
-            for v in record:
-                new_hist[v] += 1
+            for v in U:
+                new_hist[record[v]] += 1
             for label in range(self.num_labels):
                 hist[label] += np.random.gaussian(loc=0.0,scale=float(self.scale1))
             divergence = np.max(np.abs(hist-new_hist))
