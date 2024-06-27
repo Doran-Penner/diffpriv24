@@ -51,4 +51,4 @@ for batch_xs, batch_ys in test_loader:
 acc = torch.tensor(accs).mean()
 print("TEST ACCURACY:",acc)
 
-torch.save(n.state_dict(), "svhn_student.stu")
+torch.save(n.state_dict(), "./saved/svhn_student.stu")
