@@ -133,6 +133,8 @@ class NoisyMaxAggregator(Aggregator):
             if label == np.argmax(hist):
                 continue
             tot += math.erfc(max(hist)-hist[label]/(2*self.scale))
+        if tot < 2*10e-16:
+            tot = 2*10e-16
         self.queries.append(tot/2)
         if gnmax_epsilon(self.queries, 2, self.scale, 0.00001) > epsilon:
             return -1
