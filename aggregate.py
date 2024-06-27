@@ -79,7 +79,7 @@ class NoisyMaxAggregator(Aggregator):
         """
         hist = [0]*self.num_labels
         for v in votes:
-            hist[v] += 1
+            hist[int(v)] += 1
         for label in range(self.num_labels):
             hist[label] += self.noise_fn(loc=0.0,scale=float(self.scale))
         label = np.argmax(hist)
