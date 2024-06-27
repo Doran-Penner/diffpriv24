@@ -44,7 +44,10 @@ def getPredictedLabels(data, aggregator, num_models=250):
                 ballot.append(res)
         votes.append(ballot)
         print(correct/guessed)
-    return aggregator.aggregate(torch.transpose(torch.Tensor(votes),0,1))
+    labels = []
+    for prop in torch.transpose(torch.Tensor(votes),0,1):
+        labels.append(aggregator.aggregate(prop))
+    return labels
 
 
 public_dataset = torchvision.datasets.SVHN('./data/svhn', split='test', download=True, transform=transform)
