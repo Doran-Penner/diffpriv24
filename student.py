@@ -1,6 +1,4 @@
 import torch
-from models import CNN
-from torch import nn, optim
 import torchvision
 import torchvision.transforms.v2 as transforms
 import numpy as np

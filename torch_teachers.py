@@ -2,13 +2,8 @@ import torch
 import math
 from torch import nn, optim
 import torchvision
-torchvision.disable_beta_transforms_warning()
 import torchvision.transforms.v2 as transforms
-import numpy as np
-import torch.utils.tensorboard as tb
-import datetime
 import time
-import random
 from models import CNN
 
 def load_partitioned_dataset(dataset, num_teachers):
@@ -101,7 +96,6 @@ def train(training_data, valid_data, dataset, device='cpu', lr=1e-3, epochs=70, 
  
     network.eval()
     accs = []
-    losses = []
     for batch_xs, batch_ys in valid_loader:
         batch_xs = batch_xs.to(device)
         batch_ys = batch_ys.to(device)
