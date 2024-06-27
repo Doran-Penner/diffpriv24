@@ -37,7 +37,7 @@ class NoisyMaxAggregator(Aggregator):
         for v in votes:
             hist[v] += 1
         for label in range(self.num_labels):
-            hist[label] += self.noise_fn(loc=0.0,scale=float(scale))
+            hist[label] += self.noise_fn(loc=0.0,scale=float(self.scale))
         label = np.argmax(hist)
         return label
 
@@ -83,7 +83,7 @@ class RepeatGNMax(Aggregator):
         """
         U = []
         for voter in range(len(votes)):
-            if np.random.uniform() < p:
+            if np.random.uniform() < self.p:
                 U.append(voter)
         U = np.array(U)
         sub_record = votes[U]
