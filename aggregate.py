@@ -1,5 +1,41 @@
 import numpy as np
 import torch
+import math
+import scipy
+
+def epsilon_ma(qs, alpha, sigma):
+    tot = 0
+    for q in qs:
+        mu2 = sigma * math.sqrt(math.log(1/q))
+        mu1 = mu2 + 1
+        e1 = mu1/(sigma**2)
+        e2 = mu2/(sigma**2)
+        Ahat = math.pow(q*math.exp(e2),(mu2-1)/mu2)
+        A = (1-q)/(1-Ahat)
+        B = math.exp(e1)/math.pow(q,1/(mu1-1))
+        data_dep = 1/(alpha-1) * math.log((1-q)*math.pow(A,alpha-1) + q*B)
+        data_ind = alpha/(sigma**2)
+        tot += min(data_dep,data_ind)
+    return tot
+
+def renyi_to_ed(epsilon, delta, alpha):
+    A = max((alpha-1)*epsilon - math.log(delta * alpha/math.pow(1-1/alpha,alpha-1)),0)
+    B = math.log((math.exp((alpha-1)*epsilon)-1)/(alpha*delta)+1)
+    return 1/(alpha - 1) * min(A,B)
+
+
+def repeat_epsilon(qs, K, alpha, sigma1, sigma2, p, delta):
+    tot = 0
+    for k in range(2,alpha + 1):
+        comb = scipy.special.comb(alpha,k)
+        tot += comb * math.pow(1-p,alpha-k)*math.pow(p,k)*math.exp((k-1)*k/(sigma1**2))
+    logarand = math.pow(1-p,alpha-1)*(1+(alpha-1)*p)+tot
+    eprime = 1/(alpha-1) * math.log(logarand)
+    rdp_epsilon = K * eprime + epsilon_ma(qs, alpha, sigma2)
+    return renyi_to_ed(rdp_epsilon, delta, alpha)
+
+def gnmax_epsilon(qs, alpha, sigma, delta):
+    return renyi_to_ed(epsilon_ma(qs,alpha,sigma),delta,alpha)
 
 class Aggregator:    
     """
@@ -21,6 +57,9 @@ class Aggregator:
         self.num_labels = num_labels
 
     def aggregate(self, votes):
+        return 0
+
+    def threshold_aggregate(self, votes, epsilon):
         return 0
 
 class NoisyMaxAggregator(Aggregator):
@@ -64,6 +103,7 @@ class NoisyMaxAggregator(Aggregator):
         self.scale = scale
         self.num_labels = num_labels
         self.noise_fn=noise_fn
+        self.queries = []
 
     def aggregate(self,votes):
         """
@@ -84,6 +124,20 @@ class NoisyMaxAggregator(Aggregator):
             hist[label] += self.noise_fn(loc=0.0,scale=float(self.scale))
         label = np.argmax(hist)
         return label
+
+    def threshold_aggregate(self,votes,epsilon):
+        hist = [0]*self.num_labels
+        for v in votes:
+            hist[int(v)] += 1
+        tot = 0
+        for label in range(self.num_labels):
+            if label == np.argmax(hist):
+                continue
+            tot += math.erfc(max(hist)-hist[label]/(2*self.scale))
+        self.queries.append(tot/2)
+        if gnmax_epsilon(self.queries, 2, self.scale, 0.00001) > epsilon:
+            return -1
+        return self.aggregate(votes)
 
 class RepeatGNMax(Aggregator):
     """
@@ -146,7 +200,20 @@ class RepeatGNMax(Aggregator):
         self.prev_votes = []
         self.prev_labels = []
         self.gnmax = NoisyMaxAggregator(scale2,num_labels,np.random.gaussian)
+        self.queries = []
+        self.total_queries = 0
 
+    def data_dependant_cost(self,votes):
+        hist = [0]*self.num_labels
+        for v in votes:
+            hist[int(v)] += 1
+        tot = 0
+        for label in range(self.num_labels):
+            if label == np.argmax(hist):
+                continue
+            tot += math.erfc(max(hist)-hist[label]/(2*self.scale))
+        return tot/2
+ 
     def aggregate(self,votes):
         """
         Function for the aggregation mechanism,
@@ -157,6 +224,7 @@ class RepeatGNMax(Aggregator):
         :returns: The label with the most votes, after adding noise to the votes to make 
                   it private.
         """
+        self.total_queries += 1
         U = []
         for voter in range(len(votes)):
             if np.random.uniform() < self.p:
@@ -182,4 +250,10 @@ class RepeatGNMax(Aggregator):
         if seen:
             return self.prev_labels[which_record]
         else:
+            self.queries.append(self.data_dependant_cost(votes))
             return self.gnmax.aggregate(votes)
+
+    def threshold_aggregate(self,votes,epsilon):
+        if repeat_epsilon(self.queries + [self.data_dependant_cost(votes)], self.total_queries, 2, self.scale1, self.scale2, 0.00001) > epsilon:
+            return -1
+        return self.aggregate(votes)
