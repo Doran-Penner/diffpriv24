@@ -21,11 +21,11 @@ transform = transforms.Compose([
     transforms.ToDtype(torch.float32, scale=True)
 ])
 
-def getPredictedLabels(data, aggregator, num_models=250):
+def getPredictedLabels(data, aggregator, dataset='svhn', num_models=250):
     votes = [] # final voting record
     for i in range(num_models):
         print("Model",str(i))
-        state_dict = torch.load('./saved/teacher_'+str(i)+'.txt',map_location=device)
+        state_dict = torch.load(f'./saved/{dataset}_teacher_{i}_of_{num_models-1}.tch',map_location=device)
         m = CNN().to(device)
         m.load_state_dict(state_dict)
         m.eval()

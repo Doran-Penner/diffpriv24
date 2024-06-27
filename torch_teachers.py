@@ -130,7 +130,7 @@ def train_all(dataset='svhn', num_teachers=250):
         start_time = time.time()
         n, acc = train(train_sets[i],valid_dataset,dataset,device)
         print("TEACHER",i,"ACC",acc)
-        torch.save(n.state_dict(),f"./saved/{dataset}_teacher_{i}_of_{num_teachers}.txt")
+        torch.save(n.state_dict(),f"./saved/{dataset}_teacher_{i}_of_{num_teachers-1}.tch")
         duration = time.time()- start_time
         print(f"It took {duration//60} minutes and {duration % 60} seconds to train teacher {i}.")
 
