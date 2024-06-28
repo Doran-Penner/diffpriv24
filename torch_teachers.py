@@ -1,9 +1,8 @@
 import torch
 import math
 from torch import nn, optim
-import torchvision
-import torchvision.transforms.v2 as transforms
 import time
+import helper
 from models import CNN
 
 def load_partitioned_dataset(dataset, num_teachers):
@@ -11,30 +10,13 @@ def load_partitioned_dataset(dataset, num_teachers):
     This function loads a specified training dataset, partitioned according to the number of teachers, as well as a validation dataset.
     :param dataset: string specifying which dataset to load (one of svhn, mnist, and cifar-10)
     :param num_teachers: integer specifying the number of teachers, for partitioning the dataset
-    :return: Tuple containing an array containing the partitioned datasets for training and the dataset for validation, or False if anything breaks.
+    :return: Tuple containing an array containing the partitioned datasets for training and the dataset for validation.
     """
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-    ])
-    if dataset == 'svhn':
-        train_dataset = torchvision.datasets.SVHN('./data/svhn', split='train', download=True, transform=transform)
-        extra_dataset = torchvision.datasets.SVHN('./data/svhn', split='extra', download=True, transform=transform)
-        valid_dataset = torchvision.datasets.SVHN('./data/svhn', split='test', download=True, transform=transform)
-        normalize = transforms.Normalize([0.4376821, 0.4437697, 0.47280442], [0.19803012, 0.20101562, 0.19703614])
-        train_dataset, extra_dataset, valid_dataset = normalize(train_dataset), normalize(extra_dataset), normalize(valid_dataset)
-        dataset = torch.utils.data.ConcatDataset([train_dataset,extra_dataset])
-    elif dataset == 'mnist':
-        dataset = torchvision.datasets.MNIST('./data/mnist', train=True, download=True, transform=transform)
-        valid_dataset = torchvision.datasets.MNIST('./data/mnist', train=False, download=True, transform=transform)
-        normalize = transforms.Normalize((0.1307,), (0.3081,))
-        dataset, valid_dataset = normalize(dataset), normalize(valid_dataset)
-    else:
-        print("Check value of dataset flag.")
-        return False
-    train_size = len(dataset)
+    train_data, valid_data, test_data = helper.load_dataset(dataset_name=dataset, make_normal=True)
+    train_size = len(train_data)
     train_partition = [math.floor(train_size / num_teachers) + 1 for i in range(train_size % num_teachers)] + [math.floor(train_size / num_teachers) for i in range(num_teachers - (train_size % num_teachers))]
-    train_sets = torch.utils.data.random_split(dataset, train_partition, generator = torch.Generator().manual_seed(0))
-    return train_sets, valid_dataset
+    train_sets = torch.utils.data.random_split(train_data, train_partition, generator = torch.Generator().manual_seed(0))
+    return train_sets, valid_data
 
 def train(training_data, valid_data, dataset, device='cpu', lr=1e-3, epochs=70, batch_size=16, momentum=0.9,padding=True):
     """
