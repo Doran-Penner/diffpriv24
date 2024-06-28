@@ -1,6 +1,7 @@
 # TODO
-- refactor carter's code
+- refactor code
   - refactor `get_predicted_labels.py`
+  - efficientize `aggregate.py`
 - document code
   - document `get_predicted_labels.py`
   - document `models.py`
@@ -8,3 +9,6 @@
   - finish the teacher labeling
   - figure out how to partition the "public unlabeled dataset"
   - write `student.py`
+- run code
+  - confirm that `RepeatGNMax` works as it should
+  - fiddle with hyperparameters
