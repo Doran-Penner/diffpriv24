@@ -12,7 +12,7 @@ def epsilon_ma(qs, alpha, sigma):
         Ahat = math.pow(q*math.exp(e2),(mu2-1)/mu2)
         A = (1-q)/(1-Ahat)
         B = math.exp(e1)/math.pow(q,1/(mu1-1))
-        data_dep = 1/(alpha-1) * math.log((1-q)*(A**(alpha-1)) + q*B)
+        data_dep = 1/(alpha-1) * math.log((1-q)*(A**(alpha-1)) + q*B**(alpha-1))
         data_ind = alpha/(sigma**2)
         tot += min(data_dep,data_ind)
     return tot
