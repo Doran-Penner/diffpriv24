@@ -3,6 +3,7 @@ import math
 import scipy
 
 def epsilon_ma(qs, alpha, sigma):
+    data_ind = alpha / (sigma ** 2)
     tot = 0
     for q in qs:
         mu2 = sigma * math.sqrt(math.log(1/q))
@@ -13,7 +14,6 @@ def epsilon_ma(qs, alpha, sigma):
         A = (1-q)/(1-Ahat)
         B = math.exp(e1)/math.pow(q,1/(mu1-1))
         data_dep = 1/(alpha-1) * math.log((1-q)*(A**(alpha-1)) + q*B**(alpha-1))
-        data_ind = alpha/(sigma**2)
         tot += min(data_dep,data_ind)
     return tot
 
