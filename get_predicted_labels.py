@@ -35,24 +35,26 @@ def calculate_prediction_matrix(data, device, dataset='svhn', num_models=250):
 
 def load_predicted_labels(aggregator, dataset_name="svhn", num_models=250):
     votes = np.load(f"./saved/{dataset_name}_{num_models}_teacher_predictions.npy", allow_pickle=True)
-    labels = []
-    for prop in torch.transpose(torch.from_numpy(votes),0,1):
-        labels.append(aggregator.threshold_aggregate(prop, 1))
-    return labels
+    # NOTE hard-coded noise scale in line below, change sometime
+    agg = lambda x: aggregator.threshold_aggregate(x, 1)  # noqa: E731
+    return np.apply_along_axis(agg, 0, votes)  # yay parallelizing!
 
 
 def main():
-    train, _valid, _test = load_dataset('svhn', 'student', False)
+    # change these or pass variables in the future
+    dataset = 'svhn'
+    num_teachers = 250
+    agg = aggregate.NoisyMaxAggregator(1, noise_fn=np.random.normal)
+
+    train, _valid, _test = load_dataset(dataset, 'student', False)
     loader = torch.utils.data.DataLoader(train, shuffle=False, batch_size=64)
 
-    if not isfile("./saved/svhn_250_teacher_predictions.npy"):
-        calculate_prediction_matrix(loader, device)
+    if not isfile(f"./saved/{dataset}_{num_teachers}_teacher_predictions.npy"):
+        calculate_prediction_matrix(loader, device, dataset, num_teachers)
     
-    agg = aggregate.NoisyMaxAggregator(1)
-    labels = load_predicted_labels(agg)
+    labels = load_predicted_labels(agg, dataset, num_teachers)
 
-    label_arr = np.asarray(labels)
-    np.save('./saved/svhn_250_agg_teacher_predictions.npy', label_arr)
+    np.save(f'./saved/{dataset}_{num_teachers}_agg_teacher_predictions.npy', labels)
 
 
 if __name__ == "__main__":
