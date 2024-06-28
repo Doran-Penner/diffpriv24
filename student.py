@@ -3,7 +3,7 @@ import numpy as np
 from torch_teachers import train
 from helper import load_dataset, device
 
-train_set, valid_set, test_set = load_dataset('svhn', 'student', False)
+train_set, valid_set, test_set = load_dataset('svhn', 'student', False, False)
 
 batch_size = 64
 
@@ -12,8 +12,8 @@ labels = np.load("./saved/teacher_predictions.npy", allow_pickle=True)
 train_labels = labels[:len(train_set)]
 valid_labels = labels[len(train_set):len(train_set) + len(valid_set)]
 
-train_set.targets = train_labels
-valid_set.targets = valid_labels
+train_set.dataset.labels[:len(train_set)] = train_labels
+valid_set.dataset.labels[len(train_set):len(train_set) + len(valid_set)] = valid_labels
 
 (n, acc) = train(train_set, valid_set, 'svhn', device=device)
 print("Validation Accuracy:", acc)
