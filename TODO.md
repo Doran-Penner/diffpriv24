@@ -2,7 +2,6 @@
 - refactor code
   - refactor `get_predicted_labels.py`
   - efficientize `aggregate.py`
-  - fix data loading
 - document code
   - document `get_predicted_labels.py`
   - document `models.py`
