@@ -12,13 +12,13 @@ def epsilon_ma(qs, alpha, sigma):
         Ahat = math.pow(q*math.exp(e2),(mu2-1)/mu2)
         A = (1-q)/(1-Ahat)
         B = math.exp(e1)/math.pow(q,1/(mu1-1))
-        data_dep = 1/(alpha-1) * math.log((1-q)*math.pow(A,alpha-1) + q*B)
+        data_dep = 1/(alpha-1) * math.log((1-q)*(A**(alpha-1)) + q*B)
         data_ind = alpha/(sigma**2)
         tot += min(data_dep,data_ind)
     return tot
 
 def renyi_to_ed(epsilon, delta, alpha):
-    A = max((alpha-1)*epsilon - math.log(delta * alpha/math.pow(1-1/alpha,alpha-1)),0)
+    A = max((alpha-1)*epsilon - math.log(delta * alpha/((1-1/alpha)**(alpha-1))),0)
     B = math.log((math.exp((alpha-1)*epsilon)-1)/(alpha*delta)+1)
     return 1/(alpha - 1) * min(A,B)
 
@@ -27,8 +27,8 @@ def repeat_epsilon(qs, K, alpha, sigma1, sigma2, p, delta):
     tot = 0
     for k in range(2,alpha + 1):
         comb = scipy.special.comb(alpha,k)
-        tot += comb * math.pow(1-p,alpha-k)*math.pow(p,k)*math.exp((k-1)*k/(sigma1**2))
-    logarand = math.pow(1-p,alpha-1)*(1+(alpha-1)*p)+tot
+        tot += comb * ((1-p)**(alpha-k))*(p**k)*math.exp((k-1)*k/(sigma1**2))
+    logarand = ((1-p)**(alpha-1))*(1+(alpha-1)*p)+tot
     eprime = 1/(alpha-1) * math.log(logarand)
     rdp_epsilon = K * eprime + epsilon_ma(qs, alpha, sigma2)
     return renyi_to_ed(rdp_epsilon, delta, alpha)
