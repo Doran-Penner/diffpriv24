@@ -37,7 +37,7 @@ def load_predicted_labels(aggregator, dataset_name="svhn", num_models=250):
     votes = np.load(f"./saved/{dataset_name}_{num_models}_teacher_predictions.npy", allow_pickle=True)
     labels = []
     for prop in torch.transpose(torch.from_numpy(votes),0,1):
-        labels.append(aggregator.aggregate(prop))
+        labels.append(aggregator.threshold_aggregate(prop, 1))
     return labels
 
 

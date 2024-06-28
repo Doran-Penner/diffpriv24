@@ -136,7 +136,9 @@ class NoisyMaxAggregator(Aggregator):
         if tot < 2*10e-16:
             tot = 2*10e-16
         self.queries.append(tot/2)
-        if gnmax_epsilon(self.queries, 2, self.scale, 0.00001) > epsilon:
+        eps = gnmax_epsilon(self.queries, 2, self.scale, 0.00001)
+        print(eps)
+        if eps > epsilon:
             return -1
         return self.aggregate(votes)
 
