@@ -2,6 +2,7 @@
 - refactor code
   - refactor `get_predicted_labels.py`
   - efficientize `aggregate.py`
+  - fix data loading
 - document code
   - document `get_predicted_labels.py`
   - document `models.py`
@@ -9,6 +10,8 @@
   - finish the teacher labeling
   - figure out how to partition the "public unlabeled dataset"
   - write `student.py`
+  - implement `ConfidentGNMax` and `InteractiveGNMax`
+  - implement `ConfidentRepeatGNMax`
 - run code
   - confirm that `RepeatGNMax` works as it should
   - fiddle with hyperparameters
