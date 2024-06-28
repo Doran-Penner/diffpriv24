@@ -1,6 +1,4 @@
 import torch
-import torchvision
-import torchvision.transforms.v2 as transforms
 import numpy as np
 from torch_teachers import train
 from helper import load_dataset, device

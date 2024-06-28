@@ -1,8 +1,6 @@
 import numpy as np
 import torch
 from models import CNN
-import torchvision
-import torchvision.transforms.v2 as transforms
 import aggregate
 from os.path import isfile
 from helper import load_dataset, device
