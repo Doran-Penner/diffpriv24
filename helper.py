@@ -42,7 +42,6 @@ def load_dataset(dataset_name = 'svhn', split='teach', make_normal=False):
             all_data = torchvision.datasets.SVHN('./data/svhn', split='test', download=True, transform=transform)
             train_length = int(len(all_data)*0.7)
             valid_length = int(len(all_data)*0.2)
-            test_length = len(all_data) - train_length -valid_length
             train_dataset = torch.utils.data.Subset(all_data, torch.arange(train_length))
             valid_dataset = torch.utils.data.Subset(all_data, torch.arange(train_length, train_length + valid_length))
             test_dataset = torch.utils.data.Subset(all_data, torch.arange(train_length + valid_length, len(all_data)))
@@ -61,7 +60,6 @@ def load_dataset(dataset_name = 'svhn', split='teach', make_normal=False):
             all_data = torchvision.datasets.MNIST('./data/mnist', train=False, download=True, transform=transform)
             train_length = int(len(all_data)*0.7)
             valid_length = int(len(all_data)*0.2)
-            # test_length = len(all_data) - train_length -valid_length
             train_dataset = torch.utils.data.Subset(all_data, torch.arange(train_length))
             valid_dataset = torch.utils.data.Subset(all_data, torch.arange(train_length, train_length + valid_length))
             test_dataset = torch.utils.data.Subset(all_data, torch.arange(train_length + valid_length, len(all_data)))
