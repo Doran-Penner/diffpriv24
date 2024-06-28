@@ -252,7 +252,10 @@ class RepeatGNMax(Aggregator):
             return self.prev_labels[which_record]
         else:
             self.queries.append(self.data_dependant_cost(votes))
-            return self.gnmax.aggregate(votes)
+            self.prev_votes.append(votes)
+            label = self.gnmax.aggregate(votes)
+            self.prev_labels.append(label)
+            return label
 
     def threshold_aggregate(self,votes,epsilon):
         if repeat_epsilon(self.queries + [self.data_dependant_cost(votes)], self.total_queries, 2, self.scale1, self.scale2, 0.00001) > epsilon:
