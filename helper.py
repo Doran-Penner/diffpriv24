@@ -42,7 +42,7 @@ def load_dataset(dataset_name = 'svhn', split='teach', make_normal=False):
             train_length = int(len(all_data)*0.7)
             valid_length = int(len(all_data)*0.2)
             test_length = len(all_data) - train_length -valid_length
-            train_dataset, valid_dataset, test_dataset = torch.utils.data.random_split(train_dataset, [train_length, valid_length, test_length], generator = torch.Generator().manual_seed(0))
+            train_dataset, valid_dataset, test_dataset = torch.utils.data.random_split(all_data, [train_length, valid_length, test_length], generator = torch.Generator().manual_seed(0))
         if make_normal:
             normalize = transforms.Normalize([0.4376821, 0.4437697, 0.47280442], [0.19803012, 0.20101562, 0.19703614])
             train_dataset, valid_dataset, test_dataset = normalize(train_dataset), normalize(valid_dataset), normalize(test_dataset)
@@ -58,7 +58,7 @@ def load_dataset(dataset_name = 'svhn', split='teach', make_normal=False):
             train_length = int(len(all_data)*0.7)
             valid_length = int(len(all_data)*0.2)
             test_length = len(all_data) - train_length -valid_length
-            train_dataset, valid_dataset, test_dataset = torch.utils.data.random_split(train_dataset, [train_length, valid_length, test_length], generator = torch.Generator().manual_seed(0))
+            train_dataset, valid_dataset, test_dataset = torch.utils.data.random_split(all_data, [train_length, valid_length, test_length], generator = torch.Generator().manual_seed(0))
         if make_normal:
             normalize = transforms.Normalize((0.1307,), (0.3081,))
             train_dataset, valid_dataset, test_dataset = normalize(train_dataset), normalize(valid_dataset), normalize(test_dataset)
