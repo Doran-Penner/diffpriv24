@@ -93,18 +93,11 @@ def train_all(dataset='svhn', num_teachers=250):
     :param num_teachers: integer specifying the number of teachers to train
     :return: Does not return anything, but saves the models instead
     """
-    if torch.cuda.is_available():
-        device = torch.device('cuda')
-    elif torch.backends.mps.is_available():
-        device = torch.device('mps')
-    else:
-        device = 'cpu'
-    print(device)
     train_sets, valid_dataset = load_partitioned_dataset(dataset, num_teachers)
     for i in range(num_teachers):
         print(f"Training teacher {i} now!")
         start_time = time.time()
-        n, acc = train(train_sets[i],valid_dataset,dataset,device)
+        n, acc = train(train_sets[i],valid_dataset,dataset,helper.device)
         print("TEACHER",i,"ACC",acc)
         torch.save(n.state_dict(),f"./saved/{dataset}_teacher_{i}_of_{num_teachers-1}.tch")
         duration = time.time()- start_time

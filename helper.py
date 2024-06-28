@@ -2,6 +2,20 @@ import torch
 import torchvision
 import torchvision.transforms.v2 as transforms
 
+# set up device; print the first time we use it
+# a bit cursed but it's fine
+if torch.cuda.is_available():
+    device = torch.device('cuda')
+elif torch.backends.mps.is_available():
+    device = torch.device('mps')
+else:
+    device = torch.device('cpu')
+try:
+    already_printed  # noqa: F821
+except:  # noqa: E722
+    already_printed = True
+    print("using device", device)
+
 def load_dataset(dataset_name = 'svhn', split='teach', make_normal=False):
     """
     Function for loading the datasets that we need to load.
@@ -11,7 +25,8 @@ def load_dataset(dataset_name = 'svhn', split='teach', make_normal=False):
     :return: 3-tuple containing the training, validation, and test datasets.
     """
     transform = transforms.Compose([
-        transforms.ToTensor(),
+        transforms.ToImage(),
+        transforms.ToDtype(torch.float32, scale=True)
     ])
     if dataset_name == 'svhn':
         if split == 'teach':
