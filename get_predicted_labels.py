@@ -46,7 +46,7 @@ def main():
     num_teachers = 250
     agg = aggregate.NoisyMaxAggregator(1, noise_fn=np.random.normal)
 
-    train, _valid, _test = load_dataset(dataset, 'student', False, False)
+    train, _valid, _test = load_dataset(dataset, 'student', False)
     loader = torch.utils.data.DataLoader(train, shuffle=False, batch_size=64)
 
     if not isfile(f"./saved/{dataset}_{num_teachers}_teacher_predictions.npy"):

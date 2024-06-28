@@ -3,7 +3,7 @@ import numpy as np
 from torch_teachers import train
 from helper import load_dataset, device
 
-train_set, valid_set, test_set = load_dataset('svhn', 'student', False, False)
+train_set, valid_set, test_set = load_dataset('svhn', 'student', False)
 
 batch_size = 64
 
