@@ -1,6 +1,9 @@
 import numpy as np
 from helper import load_dataset
 
+# NOTE: these are random utility functions for convenience,
+# not part of the pipeline and not guaranteed to work!
+
 ##### prints average teacher accuracy #####
 def avg_teacher_accuracy():
     _train, _valid, test = load_dataset('svhn', 'teach', False)
