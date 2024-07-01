@@ -7,10 +7,15 @@ train_set, valid_set, test_set = load_dataset('svhn', 'student', False)
 
 batch_size = 64
 
-labels = np.load("./saved/teacher_predictions.npy", allow_pickle=True)
+labels = np.load("./saved/svhn_250_agg_teacher_predictions.npy", allow_pickle=True)
+
+print(len(labels))
+print(len(valid_set))
 
 train_labels = labels[:len(train_set)]
 valid_labels = labels[len(train_set):len(train_set) + len(valid_set)]
+
+print(np.sum(train_set.dataset.labels[:len(train_set)] == train_labels))
 
 train_set.dataset.labels[:len(train_set)] = train_labels
 valid_set.dataset.labels[len(train_set):len(train_set) + len(valid_set)] = valid_labels

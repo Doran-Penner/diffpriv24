@@ -44,15 +44,24 @@ def main():
     # change these or pass variables in the future
     dataset = 'svhn'
     num_teachers = 250
-    agg = aggregate.NoisyMaxAggregator(1, noise_fn=np.random.normal)
+    agg = aggregate.NoisyMaxAggregator(1.1, noise_fn=np.random.normal)
 
-    train, _valid, _test = load_dataset(dataset, 'student', False)
+    train, valid, _test = load_dataset(dataset, 'student', False)
+    train = torch.utils.data.ConcatDataset([train, valid])
     loader = torch.utils.data.DataLoader(train, shuffle=False, batch_size=64)
 
     if not isfile(f"./saved/{dataset}_{num_teachers}_teacher_predictions.npy"):
         calculate_prediction_matrix(loader, device, dataset, num_teachers)
     
     labels = load_predicted_labels(agg, dataset, num_teachers)
+
+    correct = 0
+    guessed = 0
+    for i, l in enumerate(labels):
+        guessed += 1
+        if l == train[i][1]:
+            correct += 1
+    print(correct/guessed)
 
     np.save(f'./saved/{dataset}_{num_teachers}_agg_teacher_predictions.npy', labels)
 

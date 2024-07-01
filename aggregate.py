@@ -139,6 +139,7 @@ class NoisyMaxAggregator(Aggregator):
         eps = gnmax_epsilon(self.queries, 2, self.scale, 0.00001)
         print(eps)
         if eps > epsilon:
+            print("uh oh!")
             return -1
         return self.aggregate(votes)
 
