@@ -1,6 +1,7 @@
 import torch
 from torch import nn, optim
 import time
+import math
 import helper
 from models import CNN
 
@@ -13,9 +14,14 @@ def load_partitioned_dataset(dataset, num_teachers):
     """
     train_data, valid_data, _test_data = helper.load_dataset(dataset_name=dataset, split="teach", make_normal=True)
     generator = torch.Generator().manual_seed(0)
-    partition = torch.full((num_teachers,), 1.0 / num_teachers)
-    train_sets = torch.utils.data.random_split(train_data, partition, generator=generator)
-    valid_sets = torch.utils.data.random_split(valid_data, partition, generator=generator)
+    train_size = len(train_data)
+    valid_size = len(valid_data)
+    train_partition = ([math.floor(train_size / num_teachers) + 1 for i in range(train_size % num_teachers)]
+                    + [math.floor(train_size / num_teachers) for i in range(num_teachers - (train_size % num_teachers))])
+    valid_partition = ([math.floor(valid_size / num_teachers) + 1 for i in range(valid_size % num_teachers)]
+                    + [math.floor(valid_size / num_teachers) for i in range(num_teachers - (valid_size % num_teachers))])
+    train_sets = torch.utils.data.random_split(train_data, train_partition, generator=generator)
+    valid_sets = torch.utils.data.random_split(valid_data, valid_partition, generator=generator)
     return train_sets, valid_sets
 
 def train(training_data, valid_data, dataset, device='cpu', lr=1e-3, epochs=70, batch_size=16, momentum=0.9,padding=True):

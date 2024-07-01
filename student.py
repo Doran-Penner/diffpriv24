@@ -9,13 +9,15 @@ batch_size = 64
 
 labels = np.load("./saved/svhn_250_agg_teacher_predictions.npy", allow_pickle=True)
 
-labels = filter(lambda x: x != -1, labels)
+labels = list(filter(lambda x: x != -1, labels))
 label_len = min(len(labels),len(train_set) + len(valid_set))
 
-joint_set = torch.data.utils.ConcatDataset([train_set, valid_set])
-joint_set.dataset.labels[:label_len] = labels[:label_len]
-joint_set = joint_set[:label_len]
-train_set, valid_set = torch.data.utils.random_split(joint_set, [0.8, 0.2])
+train_set.indices = list(filter(lambda i: i < label_len, train_set.indices))
+valid_set.indices = list(filter(lambda i: i < label_len, valid_set.indices))
+
+joint_set = torch.utils.data.ConcatDataset([train_set, valid_set])
+joint_set.datasets[0].dataset.labels[:label_len] = labels[:label_len]  # NOTE this is very sketchy
+train_set, valid_set = torch.utils.data.random_split(joint_set, [0.8, 0.2])
 
 (n, acc) = train(train_set, valid_set, 'svhn', device=device)
 print("Validation Accuracy:", acc)
