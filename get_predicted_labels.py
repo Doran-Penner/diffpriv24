@@ -28,8 +28,7 @@ def calculate_prediction_matrix(data, device, dataset='svhn', num_models=250):
             guessed += len(batch)
             ballot.append(preds.to(torch.device('cpu')))
         
-        # the last batch of data is different size, so we need to concatenate
-        ballot = np.concatenate((np.asarray(ballot[:-1]).flatten(), ballot[-1]))
+        ballot = np.concatenate(ballot)
 
         votes.append(ballot)
         print(correct/guessed)

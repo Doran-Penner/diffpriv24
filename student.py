@@ -30,8 +30,8 @@ for batch_xs, batch_ys in test_loader:
     batch_xs = batch_xs.to(device)
     batch_ys = batch_ys.to(device)
     preds = n(batch_xs)
-    accs.append((preds.argmax(dim=1) == batch_ys).float().mean())
-acc = torch.tensor(accs).mean()
-# print("TEST ACCURACY:",acc)  # we don't see that :)
+    accs.append((preds.argmax(dim=1) == batch_ys).float())
+acc = torch.cat(accs).mean()
+print("TEST ACCURACY:",acc)  # we don't see that :)
 
 torch.save(n.state_dict(), "./saved/svhn_student.stu")
