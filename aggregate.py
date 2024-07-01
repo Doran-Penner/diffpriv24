@@ -1,6 +1,6 @@
 import numpy as np
 import math
-from privacy_accounting import repeat_epsilon, gnmax_epsilon
+import privacy_accounting
 
 class Aggregator:    
     """
@@ -102,7 +102,7 @@ class NoisyMaxAggregator(Aggregator):
         if tot < 2*10e-16:
             tot = 2*10e-16
         self.queries.append(tot/2)
-        eps = gnmax_epsilon(self.queries, 2, self.scale, 0.00001)
+        eps = privacy_accounting.gnmax_epsilon(self.queries, 2, self.scale, 0.00001)
         print(eps)
         if eps > epsilon:
             print("uh oh!")
@@ -227,6 +227,6 @@ class RepeatGNMax(Aggregator):
             return label
 
     def threshold_aggregate(self,votes,epsilon):
-        if repeat_epsilon(self.queries + [self.data_dependant_cost(votes)], self.total_queries, 2, self.scale1, self.scale2, self.p, 0.00001) > epsilon:
+        if privacy_accounting.repeat_epsilon(self.queries + [self.data_dependant_cost(votes)], self.total_queries, 2, self.scale1, self.scale2, self.p, 0.00001) > epsilon:
             return -1
         return self.aggregate(votes)
