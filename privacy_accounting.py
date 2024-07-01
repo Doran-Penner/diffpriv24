@@ -1,4 +1,5 @@
 import math
+import numpy as np
 import scipy
 
 def epsilon_ma(qs, alpha, sigma):
@@ -11,18 +12,53 @@ def epsilon_ma(qs, alpha, sigma):
     :param sigma: float representing the standard deviation for the noise used in GNMax
     :returns: float representing tot, a sum of the total privacy budget spent.
     """
+def epsilon_ma(qs, alpha, sigma):
     data_ind = alpha / (sigma ** 2)
     tot = 0
+    # tot = []
     for q in qs:
-        mu2 = sigma * math.sqrt(math.log(1/q))
+        mu2 = sigma * math.sqrt(math.log(1 / q))
         mu1 = mu2 + 1
-        e1 = mu1/(sigma**2)
-        e2 = mu2/(sigma**2)
-        Ahat = math.pow(q*math.exp(e2),(mu2-1)/mu2)
-        A = (1-q)/(1-Ahat)
-        B = math.exp(e1)/math.pow(q,1/(mu1-1))
-        data_dep = 1/(alpha-1) * math.log((1-q)*(A**(alpha-1)) + q*B**(alpha-1))
-        tot += min(data_dep,data_ind)
+        e1 = mu1 / (sigma ** 2)
+        e2 = mu2 / (sigma ** 2)
+        Ahat = math.pow(q * math.exp(e2), (mu2 - 1) / mu2)
+        A = (1 - q) / (1 - Ahat)
+        B = math.exp(e1) / math.pow(q, 1 / (mu1 - 1))
+        data_dep = 1 / (alpha - 1) * math.log((1 - q) * (A ** (alpha - 1)) + q * (B ** (alpha - 1)))
+        # check conditions
+        if 0 < q < 1 < mu2 and q <= math.exp((mu2 - 1) * e2) / (mu1 * mu2 / ((mu1 - 1) * mu2 - 1)) and mu1 >= alpha:
+            tot += min(data_dep, data_ind)
+            # tot.append(min(data_dep, data_ind))
+        else:
+            tot += data_ind
+            # tot.append(data_ind)
+    return tot
+
+def epsilon_ma_vec(qs0, alpha, sigma):
+    qs = np.array(qs0)
+    data_ind = alpha / (sigma ** 2)
+    mu2 = np.multiply(sigma, np.sqrt(np.log(np.divide(1, qs))))
+    mu1 = np.add(mu2, 1)
+    e1 = np.divide(mu1, (sigma ** 2))
+    e2 = np.divide(mu2, (sigma ** 2))
+    Ahat = np.pow(np.multiply(qs, np.exp(e2)), np.divide(np.subtract(mu2, 1), mu2))
+    A = np.divide(np.subtract(1, qs), np.subtract(1, Ahat))
+    B = np.exp(e1) / np.pow(qs, np.divide(1, np.subtract(mu1, 1)))
+    data_dep = np.multiply(1 / (alpha - 1),
+                           np.log(np.add(
+                               np.multiply(np.subtract(1, qs), np.pow(A, (alpha - 1))),
+                               np.multiply(qs, np.pow(B, (alpha - 1)))))
+                           )
+    tot = 0
+    # tot = []
+    for it in range(len(qs)):  # check conditions
+        if 0 < qs[it] < 1 < mu2[it] and qs[it] <= math.exp((mu2[it] - 1) * e2[it]) / (
+                mu1[it] * mu2[it] / ((mu1[it] - 1) * mu2[it] - 1)) and mu1[it] >= alpha:
+            tot += min(float(data_dep[it]), data_ind)
+            # tot.append(min(float(data_dep[it]), data_ind))
+        else:
+            tot += data_ind
+        # tot.append(data_ind)
     return tot
 
 def renyi_to_ed(epsilon, delta, alpha):
