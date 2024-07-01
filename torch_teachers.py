@@ -1,5 +1,4 @@
 import torch
-import math
 from torch import nn, optim
 import time
 import helper
@@ -12,11 +11,12 @@ def load_partitioned_dataset(dataset, num_teachers):
     :param num_teachers: integer specifying the number of teachers, for partitioning the dataset
     :return: Tuple containing an array containing the partitioned datasets for training and the dataset for validation.
     """
-    train_data, valid_data, test_data = helper.load_dataset(dataset_name=dataset, make_normal=True)
-    train_size = len(train_data)
-    train_partition = [math.floor(train_size / num_teachers) + 1 for i in range(train_size % num_teachers)] + [math.floor(train_size / num_teachers) for i in range(num_teachers - (train_size % num_teachers))]
-    train_sets = torch.utils.data.random_split(train_data, train_partition, generator = torch.Generator().manual_seed(0))
-    return train_sets, valid_data
+    train_data, valid_data, _test_data = helper.load_dataset(dataset_name=dataset, split="teach", make_normal=True)
+    generator = torch.Generator().manual_seed(0)
+    partition = torch.full((num_teachers,), 1.0 / num_teachers)
+    train_sets = torch.utils.data.random_split(train_data, partition, generator=generator)
+    valid_sets = torch.utils.data.random_split(valid_data, partition, generator=generator)
+    return train_sets, valid_sets
 
 def train(training_data, valid_data, dataset, device='cpu', lr=1e-3, epochs=70, batch_size=16, momentum=0.9,padding=True):
     """
@@ -93,18 +93,20 @@ def train_all(dataset='svhn', num_teachers=250):
     :param num_teachers: integer specifying the number of teachers to train
     :return: Does not return anything, but saves the models instead
     """
-    train_sets, valid_dataset = load_partitioned_dataset(dataset, num_teachers)
+    train_sets, valid_sets = load_partitioned_dataset(dataset, num_teachers)
     for i in range(num_teachers):
         print(f"Training teacher {i} now!")
         start_time = time.time()
-        n, acc = train(train_sets[i],valid_dataset,dataset,helper.device)
+        n, acc = train(train_sets[i], valid_sets[i], dataset, helper.device)
         print("TEACHER",i,"ACC",acc)
         torch.save(n.state_dict(),f"./saved/{dataset}_teacher_{i}_of_{num_teachers-1}.tch")
         duration = time.time()- start_time
         print(f"It took {duration//60} minutes and {duration % 60} seconds to train teacher {i}.")
 
 def main():
-    train_all('mnist', 250)
+    dataset = "svhn"
+    num_teachers = 250
+    train_all(dataset, num_teachers)
 
 if __name__ == '__main__':
     main()
