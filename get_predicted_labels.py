@@ -11,22 +11,25 @@ def calculate_prediction_matrix(data, device, dataset='svhn', num_models=250):
     for i in range(num_models):
         print("Model",str(i))
         state_dict = torch.load(f'./saved/{dataset}_teacher_{i}_of_{num_models-1}.tch',map_location=device)
-        m = CNN().to(device)
-        m.load_state_dict(state_dict)
-        m.eval()
+        model = CNN().to(device)
+        model.load_state_dict(state_dict)
+        model.eval()
 
-        ballot = [] # user i's voting record
+        ballot = [] # user i's voting record: 2-axis array
         correct = 0
         guessed = 0
 
-        for p, l in data:
-            out = m(p.to(device))
-            for (j,row) in enumerate(out):
-                res = torch.argmax(row)
-                if res == l[j]:
-                    correct += 1
-                guessed += 1
-                ballot.append(res.to(torch.device('cpu')))
+        for batch, labels in data:
+            batch, labels = batch.to(device), labels.to(device)
+            pred_vectors = model(batch)  # 2-axis arr of model's prediction vectors
+            preds = torch.argmax(pred_vectors, dim=1)  # gets highest-value indices e.g. [2, 4, 1, 1, 5, ...]
+            correct_arr = torch.eq(preds, labels)  # compare to true labels, e.g. [True, False, False, ...]
+            correct += torch.sum(correct_arr)  # finds number of correct labels
+            guessed += len(batch)
+            ballot.append(preds.to(torch.device('cpu')))
+        
+        ballot = np.concatenate((np.asarray(ballot[:-1]).flatten(), ballot[-1]))
+
         votes.append(ballot)
         print(correct/guessed)
     np.save(f"./saved/{dataset}_{num_models}_teacher_predictions.npy", np.asarray(votes))
@@ -57,9 +60,9 @@ def main():
 
     correct = 0
     guessed = 0
-    for i, l in enumerate(labels):
+    for i, label in enumerate(labels):
         guessed += 1
-        if l == train[i][1]:
+        if label == train[i][1]:
             correct += 1
     print(correct/guessed)
 
