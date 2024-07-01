@@ -12,7 +12,6 @@ def epsilon_ma(qs, alpha, sigma):
     :param sigma: float representing the standard deviation for the noise used in GNMax
     :returns: float representing tot, a sum of the total privacy budget spent.
     """
-def epsilon_ma(qs, alpha, sigma):
     data_ind = alpha / (sigma ** 2)
     tot = 0
     # tot = []
