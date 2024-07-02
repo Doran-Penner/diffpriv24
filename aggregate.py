@@ -86,8 +86,7 @@ class NoisyMaxAggregator(Aggregator):
         hist = [0]*self.num_labels
         for v in votes:
             hist[int(v)] += 1
-        for label in range(self.num_labels):
-            hist[label] += self.noise_fn(loc=0.0,scale=float(self.scale))
+        hist += self.noise_fn(loc=0.0, scale=float(self.scale), size=(self.num_labels,))
         label = np.argmax(hist)
         return label
 
@@ -103,13 +102,15 @@ class NoisyMaxAggregator(Aggregator):
                 continue
             tot += math.erfc((max(hist)-hist[label])/(2*self.scale))
         if tot < 2*10e-16:
+            # need a lower bound, otherwise floating-point imprecision
+            # turns this into 0 and then we divide by 0
             tot = 2*10e-16
         self.queries.append(tot/2)
         eps = privacy_accounting.gnmax_epsilon(self.queries, 2, self.scale, 0.00001)
         print(eps)
         if eps > epsilon:
             print("uh oh!")
-            self.hit_max = True
+            self.hit_max = True  # FIXME this is a short & cheap solution, not the best one
             return -1
         return self.aggregate(votes)
 
