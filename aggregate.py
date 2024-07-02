@@ -1,6 +1,8 @@
 import numpy as np
 import math
 import privacy_accounting
+import torch
+from helper import device
 
 class Aggregator:    
     """
@@ -203,6 +205,17 @@ class RepeatGNMax(Aggregator):
         :returns: The label with the most votes, after adding noise to the votes to make 
                   it private.
         """
+        # FIXME BAD CODE
+        # we just needed it to work, but reaaally should change this
+        if self.prev_votes == []:
+            q = self.data_dependent_cost(votes)
+            self.queries.append(q)
+            self.eps_ma += privacy_accounting.single_epsilon_ma(q, self.alpha, self.scale2)
+            self.prev_votes.append(votes)
+            label = self.gnmax.aggregate(votes)
+            self.prev_labels.append(label)
+            return label
+        
         self.total_queries += 1
         U = []
         for voter in range(len(votes)):
@@ -210,23 +223,26 @@ class RepeatGNMax(Aggregator):
                 U.append(voter)
         U = np.array(U)
         sub_record = votes[U]
-        hist = np.zeros((self.num_labels,))
+
+        # using torch so we can do this on the gpu (for speed)
+        hist = torch.zeros((self.num_labels,), device=device)
         for v in sub_record:
             hist[v] += 1
-        seen = False
-        which_record = 0
-        for record in self.prev_votes:
-            new_hist = np.zeros((self.num_labels,))
-            for v in U:
-                new_hist[record[v]] += 1
-            new_hist += np.random.normal(loc=0.0,scale=float(self.scale1))
-            divergence = np.max(np.abs(hist-new_hist))
-            if divergence < self.tau:
-                seen = True
-                break
-            which_record += 1
-        if seen:
-            return self.prev_labels[which_record]
+        
+        prev_votes = torch.tensor(np.asarray(self.prev_votes), device=device)
+        total_hist = torch.zeros((len(prev_votes), self.num_labels), device=device)
+
+        unique, counts = torch.unique(prev_votes, dim=1, return_counts=True)
+        total_hist[:,unique] = counts.float()
+
+        total_hist += torch.normal(0, self.scale1, size=np.shape(total_hist), device=device)
+
+        divergences, _ = torch.max(torch.abs(hist-total_hist), dim=1)
+        min_divergence = torch.argmin(divergences)
+        breakpoint()
+
+        if divergences[min_divergence] < self.tau:
+            return self.prev_labels[min_divergence]
         else:
             q = self.data_dependent_cost(votes)
             self.queries.append(q)
