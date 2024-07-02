@@ -69,6 +69,7 @@ class NoisyMaxAggregator(Aggregator):
         self.num_labels = num_labels
         self.noise_fn=noise_fn
         self.queries = []
+        self.hit_max = False
 
     def aggregate(self,votes):
         """
@@ -91,6 +92,8 @@ class NoisyMaxAggregator(Aggregator):
         return label
 
     def threshold_aggregate(self,votes,epsilon):
+        if self.hit_max:
+            return -1
         hist = [0]*self.num_labels
         for v in votes:
             hist[int(v)] += 1
@@ -106,6 +109,7 @@ class NoisyMaxAggregator(Aggregator):
         print(eps)
         if eps > epsilon:
             print("uh oh!")
+            self.hit_max = True
             return -1
         return self.aggregate(votes)
 
@@ -169,7 +173,7 @@ class RepeatGNMax(Aggregator):
         self.num_labels = num_labels
         self.prev_votes = []
         self.prev_labels = []
-        self.gnmax = NoisyMaxAggregator(scale2,num_labels,np.random.gaussian)
+        self.gnmax = NoisyMaxAggregator(scale2,num_labels,np.random.normal)
         self.queries = []
         self.total_queries = 0
 
@@ -181,7 +185,7 @@ class RepeatGNMax(Aggregator):
         for label in range(self.num_labels):
             if label == np.argmax(hist):
                 continue
-            tot += math.erfc(max(hist)-hist[label]/(2*self.scale))
+            tot += math.erfc((max(hist)-hist[label])/(2*self.scale2))
         return tot/2
  
     def aggregate(self,votes):
@@ -201,17 +205,17 @@ class RepeatGNMax(Aggregator):
                 U.append(voter)
         U = np.array(U)
         sub_record = votes[U]
-        hist = [0]*self.num_labels
+        hist = np.zeros((self.num_labels,))
         for v in sub_record:
             hist[v] += 1
         seen = False
         which_record = 0
         for record in self.prev_votes:
-            new_hist = [0]*self.num_labels
+            new_hist = np.zeros((self.num_labels,))
             for v in U:
                 new_hist[record[v]] += 1
             for label in range(self.num_labels):
-                hist[label] += np.random.gaussian(loc=0.0,scale=float(self.scale1))
+                hist[label] += np.random.normal(loc=0.0,scale=float(self.scale1))
             divergence = np.max(np.abs(hist-new_hist))
             if divergence < self.tau:
                 seen = True
@@ -227,6 +231,6 @@ class RepeatGNMax(Aggregator):
             return label
 
     def threshold_aggregate(self,votes,epsilon):
-        if privacy_accounting.repeat_epsilon(self.queries + [self.data_dependant_cost(votes)], self.total_queries, 2, self.scale1, self.scale2, self.p, 0.00001) > epsilon:
+        if privacy_accounting.repeat_epsilon(self.queries + [self.data_dependant_cost(votes)], self.total_queries, 3, self.scale1, self.scale2, self.p, 0.00001) > epsilon:
             return -1
         return self.aggregate(votes)

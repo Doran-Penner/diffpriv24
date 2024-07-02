@@ -39,15 +39,23 @@ def calculate_prediction_matrix(data, device, dataset='svhn', num_models=250):
 def load_predicted_labels(aggregator, dataset_name="svhn", num_models=250):
     votes = np.load(f"./saved/{dataset_name}_{num_models}_teacher_predictions.npy", allow_pickle=True)
     # NOTE hard-coded noise scale in line below, change sometime
-    agg = lambda x: aggregator.threshold_aggregate(x, 1)  # noqa: E731
+    agg = lambda x: aggregator.threshold_aggregate(x, 10)  # noqa: E731
     return np.apply_along_axis(agg, 0, votes)  # yay parallelizing!
 
 
 def main():
+    # PARAMTER LIST (incomplete?)
+    # alpha (not optimizing yet)
+    # epsilon threshold
+    # delta (fixed for calculation, not optimized)
+    # sigma {1,2}
+    # p (subsample chance)
+    # tau (threshold)
+
     # change these or pass variables in the future
     dataset = 'svhn'
     num_teachers = 250
-    agg = aggregate.NoisyMaxAggregator(1.1, noise_fn=np.random.normal)
+    agg = aggregate.RepeatGNMax(100, 100, 1, 10)
 
     train, valid, _test = load_dataset(dataset, 'student', False)
     train = torch.utils.data.ConcatDataset([train, valid])
@@ -60,14 +68,19 @@ def main():
 
     correct = 0
     guessed = 0
+    unlabeled = 0
     for i, label in enumerate(labels):
         guessed += 1
         if label == train[i][1]:
             correct += 1
+        if label == -1:
+            unlabeled += 1
+    print("data points labeled:", guessed-unlabeled)
     print("label accuracy:", correct/guessed)
+    if unlabeled != guessed:
+        print("label accuracy ON LABELED DATA:", correct/(guessed - unlabeled))
 
     np.save(f'./saved/{dataset}_{num_teachers}_agg_teacher_predictions.npy', labels)
-
 
 if __name__ == "__main__":
     main()

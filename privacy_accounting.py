@@ -16,6 +16,9 @@ def epsilon_ma(qs, alpha, sigma):
     tot = 0
     # tot = []
     for q in qs:
+        if not (0 < q < 1):
+            tot += data_ind
+            continue
         mu2 = sigma * math.sqrt(math.log(1 / q))
         mu1 = mu2 + 1
         e1 = mu1 / (sigma ** 2)
@@ -97,7 +100,10 @@ def repeat_epsilon(qs, K, alpha, sigma1, sigma2, p, delta):
         tot += comb * ((1-p)**(alpha-k))*(p**k)*math.exp((k-1)*k/(sigma1**2))
     logarand = ((1-p)**(alpha-1))*(1+(alpha-1)*p)+tot
     eprime = 1/(alpha-1) * math.log(logarand)
-    rdp_epsilon = K * eprime + epsilon_ma(qs, alpha, sigma2)
+    eps = epsilon_ma_vec(qs, alpha, sigma2)
+    print("first term:", K*eprime)
+    print("second term:",eps)
+    rdp_epsilon = K * eprime + eps
     return renyi_to_ed(rdp_epsilon, delta, alpha)
 
 def gnmax_epsilon(qs, alpha, sigma, delta):
