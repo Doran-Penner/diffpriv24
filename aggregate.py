@@ -152,7 +152,7 @@ class RepeatGNMax(Aggregator):
     aggregate(votes)
         function that returns the result of the aggregation mechanism
     """
-    def __init__(self,scale1,scale2,p,tau,alpha=3,num_labels=10):
+    def __init__(self,scale1,scale2,p,tau,alpha=3,delta=1e-5,num_labels=10):
         """
         Initializer function for RepeatGNMax class
         :param num_labels: int specifying the number of labels to be aggregated
@@ -178,9 +178,10 @@ class RepeatGNMax(Aggregator):
         self.gnmax = NoisyMaxAggregator(scale2,num_labels,np.random.normal)
         self.queries = []
         self.total_queries = 0
-        self.data_dependant_epsilon = 0
+        self.eps_ma = 0
+        self.delta = delta
 
-    def data_dependant_cost(self,votes):
+    def data_dependent_cost(self,votes):
         hist = [0]*self.num_labels
         for v in votes:
             hist[int(v)] += 1
@@ -227,7 +228,7 @@ class RepeatGNMax(Aggregator):
         if seen:
             return self.prev_labels[which_record]
         else:
-            q = self.data_dependant_cost(votes)
+            q = self.data_dependent_cost(votes)
             self.queries.append(q)
             self.eps_ma += privacy_accounting.single_epsilon_ma(q, self.alpha, self.scale2)
             self.prev_votes.append(votes)
@@ -236,6 +237,18 @@ class RepeatGNMax(Aggregator):
             return label
 
     def threshold_aggregate(self,votes,epsilon):
-        if privacy_accounting.renyi_to_ed(self.total_queries * privacy_accounting.epsilon_prime(self.alpha, self.p) + self.eps_ma + privacy_accounting.single_epsilon_ma(self.data_dependant_cost(votes)), self.alpha, self.scale2), self.delta, self.alpha) > self.tau:
+        if (
+            privacy_accounting.renyi_to_ed(
+                self.total_queries
+                * privacy_accounting.epsilon_prime(self.alpha, self.p, self.scale1)
+                + self.eps_ma
+                + privacy_accounting.single_epsilon_ma(
+                    self.data_dependent_cost(votes), self.alpha, self.scale2
+                ),
+                self.delta,
+                self.alpha,
+            )
+            > self.tau
+        ):
             return -1
         return self.aggregate(votes)
