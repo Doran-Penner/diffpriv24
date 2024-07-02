@@ -180,6 +180,7 @@ class RepeatGNMax(Aggregator):
         self.total_queries = 0
         self.eps_ma = 0
         self.delta = delta
+        self.eprime = privacy_accounting.epsilon_prime(self.alpha, self.p, self.scale1)
 
     def data_dependent_cost(self,votes):
         hist = [0]*self.num_labels
@@ -218,8 +219,7 @@ class RepeatGNMax(Aggregator):
             new_hist = np.zeros((self.num_labels,))
             for v in U:
                 new_hist[record[v]] += 1
-            for label in range(self.num_labels):
-                hist[label] += np.random.normal(loc=0.0,scale=float(self.scale1))
+            new_hist += np.random.normal(loc=0.0,scale=float(self.scale1))
             divergence = np.max(np.abs(hist-new_hist))
             if divergence < self.tau:
                 seen = True
@@ -237,16 +237,15 @@ class RepeatGNMax(Aggregator):
             return label
 
     def threshold_aggregate(self,votes,epsilon):
-        eprime = privacy_accounting.epsilon_prime(self.alpha, self.p, self.scale1)
-        print("eprime:", eprime)
+        thing0 = self.eps_ma + privacy_accounting.single_epsilon_ma(
+                    self.data_dependent_cost(votes), self.alpha, self.scale2
+                )
+        print(thing0)
         if (
             privacy_accounting.renyi_to_ed(
                 self.total_queries
-                * eprime
-                + self.eps_ma
-                + privacy_accounting.single_epsilon_ma(
-                    self.data_dependent_cost(votes), self.alpha, self.scale2
-                ),
+                * self.eprime
+                + thing0,
                 self.delta,
                 self.alpha,
             )
