@@ -36,6 +36,27 @@ def epsilon_ma(qs, alpha, sigma):
             # tot.append(data_ind)
     return tot
 
+def single_epsilon_ma(q, alpha, sigma):
+    data_ind = alpha / (sigma ** 2)
+    if not 0 < q < 1:
+        return data_ind
+    mu2 = sigma * math.sqrt(math.log(1 / q))
+    mu1 = mu2 + 1
+    e1 = mu1 / (sigma ** 2)
+    e2 = mu2 / (sigma ** 2)
+    Ahat = math.pow(q * math.exp(e2), (mu2 - 1) / mu2)
+    A = (1 - q) / (1 - Ahat)
+    B = math.exp(e1) / math.pow(q, 1 / (mu1 - 1))
+    data_dep = 1 / (alpha - 1) * math.log((1 - q) * (A ** (alpha - 1)) + q * (B ** (alpha - 1)))
+    # check conditions
+    if 0 < q < 1 < mu2 and q <= math.exp((mu2 - 1) * e2) / (mu1 * mu2 / ((mu1 - 1) * mu2 - 1)) and mu1 >= alpha:
+        return min(data_dep, data_ind)
+        # tot.append(min(data_dep, data_ind))
+    else:
+        return data_ind
+        # tot.append(data_ind)
+ 
+
 def epsilon_ma_vec(qs0, alpha, sigma):
     qs = np.array(qs0)
     data_ind = alpha / (sigma ** 2)
@@ -75,6 +96,14 @@ def renyi_to_ed(epsilon, delta, alpha):
     B = math.log((math.exp((alpha-1)*epsilon)-1)/(alpha*delta)+1)
     return 1/(alpha - 1) * min(A,B)
 
+def epsilon_prime(alpha, p)
+    tot = 0
+    for k in range(2,alpha + 1):
+        comb = scipy.special.comb(alpha,k)
+        tot += comb * ((1-p)**(alpha-k))*(p**k)*math.exp((k-1)*k/(sigma1**2))
+    logarand = ((1-p)**(alpha-1))*(1+(alpha-1)*p)+tot
+    eprime = 1/(alpha-1) * math.log(logarand)
+    return eprime
 
 def repeat_epsilon(qs, K, alpha, sigma1, sigma2, p, delta):
     """
@@ -94,12 +123,7 @@ def repeat_epsilon(qs, K, alpha, sigma1, sigma2, p, delta):
     :returns: float representing the epsilon for the epsilon-delta differential privacy
               of the mechanism
     """
-    tot = 0
-    for k in range(2,alpha + 1):
-        comb = scipy.special.comb(alpha,k)
-        tot += comb * ((1-p)**(alpha-k))*(p**k)*math.exp((k-1)*k/(sigma1**2))
-    logarand = ((1-p)**(alpha-1))*(1+(alpha-1)*p)+tot
-    eprime = 1/(alpha-1) * math.log(logarand)
+    eprime = epsilon_prime(alpha, p)
     eps = epsilon_ma_vec(qs, alpha, sigma2)
     print("first term:", K*eprime)
     print("second term:",eps)
