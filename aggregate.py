@@ -98,7 +98,7 @@ class NoisyMaxAggregator(Aggregator):
         for label in range(self.num_labels):
             if label == np.argmax(hist):
                 continue
-            tot += math.erfc(max(hist)-hist[label]/(2*self.scale))
+            tot += math.erfc((max(hist)-hist[label])/(2*self.scale))
         if tot < 2*10e-16:
             tot = 2*10e-16
         self.queries.append(tot/2)
