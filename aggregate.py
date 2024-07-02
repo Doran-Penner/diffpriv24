@@ -237,10 +237,12 @@ class RepeatGNMax(Aggregator):
             return label
 
     def threshold_aggregate(self,votes,epsilon):
+        eprime = privacy_accounting.epsilon_prime(self.alpha, self.p, self.scale1)
+        print("eprime:", eprime)
         if (
             privacy_accounting.renyi_to_ed(
                 self.total_queries
-                * privacy_accounting.epsilon_prime(self.alpha, self.p, self.scale1)
+                * eprime
                 + self.eps_ma
                 + privacy_accounting.single_epsilon_ma(
                     self.data_dependent_cost(votes), self.alpha, self.scale2
@@ -248,7 +250,7 @@ class RepeatGNMax(Aggregator):
                 self.delta,
                 self.alpha,
             )
-            > self.tau
+            > epsilon
         ):
             return -1
         return self.aggregate(votes)
