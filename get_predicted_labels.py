@@ -7,6 +7,16 @@ from helper import load_dataset, device
 
 
 def calculate_prediction_matrix(data, device, dataset='svhn', num_models=250):
+    """
+    Function for calculating a numpy matrix representing each teacher's vote on each query.
+    :param data: DataLoader for all of the data that the student is going to train on (both student training and 
+                 student valid)
+    :param device: string representing the device that the code is being run on so that pytorch can properly
+                   optimize
+    :param dataset: string representing the dataset that is being labeled (one of `'svhn'` or `'mnist'`)
+    :param num_models: the number of teacher models whose predictions we're getting
+    :returns: nothing, but saves a file containing the teachers' predictions
+    """
     votes = [] # final voting record
     for i in range(num_models):
         print("Model",str(i))
@@ -37,6 +47,15 @@ def calculate_prediction_matrix(data, device, dataset='svhn', num_models=250):
 
 
 def load_predicted_labels(aggregator, dataset_name="svhn", num_models=250):
+    """
+    Function for loading and aggregatingthe predicted labels from the matrix created by 
+    `calculate_prediction_matrix()`.
+    :param aggregator: aggregate.Aggregator subclass used for the private mechanism
+    :param dataset_name: string used to represent which dataset is being trained on, one
+                         of `'svhn'` or `'mnist'`
+    :param num_models: int representing the number of teacher models being used
+    :returns: list containing the privately aggregated labels
+    """
     votes = np.load(f"./saved/{dataset_name}_{num_models}_teacher_predictions.npy", allow_pickle=True)
     # NOTE hard-coded noise scale in line below, change sometime
     agg = lambda x: aggregator.threshold_aggregate(x, 10)  # noqa: E731
