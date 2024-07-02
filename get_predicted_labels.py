@@ -31,7 +31,7 @@ def calculate_prediction_matrix(data, device, dataset='svhn', num_models=250):
         ballot = np.concatenate(ballot)
 
         votes.append(ballot)
-        print(correct/guessed)
+        print(f"teacher {i}'s accuracy:", correct/guessed)
     np.save(f"./saved/{dataset}_{num_models}_teacher_predictions.npy", np.asarray(votes))
     print("done with the predictions!")
 
@@ -51,7 +51,7 @@ def main():
 
     train, valid, _test = load_dataset(dataset, 'student', False)
     train = torch.utils.data.ConcatDataset([train, valid])
-    loader = torch.utils.data.DataLoader(train, shuffle=False, batch_size=64)
+    loader = torch.utils.data.DataLoader(train, shuffle=False, batch_size=256)
 
     if not isfile(f"./saved/{dataset}_{num_teachers}_teacher_predictions.npy"):
         calculate_prediction_matrix(loader, device, dataset, num_teachers)
@@ -64,7 +64,7 @@ def main():
         guessed += 1
         if label == train[i][1]:
             correct += 1
-    print(correct/guessed)
+    print("label accuracy:", correct/guessed)
 
     np.save(f'./saved/{dataset}_{num_teachers}_agg_teacher_predictions.npy', labels)
 
