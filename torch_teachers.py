@@ -89,7 +89,8 @@ def train(training_data, valid_data, dataset, device='cpu', lr=1e-3, epochs=70, 
         train_accs.append(acc)
     
     if model == "student":
-        best_num_epochs = torch.argmax(valid_accs) * 5
+        # NOTE this does not work with multiple students in the same folder at the same time
+        best_num_epochs = torch.argmax(torch.tensor(valid_accs)) * 5
         print("Final num epochs:", best_num_epochs)
         st_dict = torch.load(f"./saved/{dataset}_student_{best_num_epochs}.ckp",map_location=device)
         network.load_state_dict(st_dict)
