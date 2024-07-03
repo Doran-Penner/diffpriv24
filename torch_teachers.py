@@ -24,7 +24,7 @@ def load_partitioned_dataset(dataset, num_teachers):
     valid_sets = torch.utils.data.random_split(valid_data, valid_partition, generator=generator)
     return train_sets, valid_sets
 
-def train(training_data, valid_data, dataset, device='cpu', lr=1e-3, epochs=70, batch_size=16, momentum=0.9,padding=True):
+def train(training_data, valid_data, dataset, device='cpu', lr=1e-3, epochs=70, batch_size=16, momentum=0.9, padding=True, model="teacher"):
     """
     This is a function that trains the model on a specified dataset.
     :param training_data: dataset containing the training data for the model
@@ -49,9 +49,10 @@ def train(training_data, valid_data, dataset, device='cpu', lr=1e-3, epochs=70, 
     loss = nn.CrossEntropyLoss()
 
     train_accs = []
+    valid_accs = []  # only used for student
 
     for i in range(epochs):
-        if i % 10 == 0:
+        if i % 5 == 0:
             print("Epoch",i)
             ### check valid accuracy
             network.eval()
@@ -63,6 +64,9 @@ def train(training_data, valid_data, dataset, device='cpu', lr=1e-3, epochs=70, 
                 accs.append((preds.argmax(dim=1) == batch_ys).float().mean())
             acc = torch.tensor(accs).mean()
             print("Valid acc:",acc)
+            valid_accs.append(acc)
+            if model == "student":
+                torch.save(network.state_dict(),f"./saved/{dataset}_student_{i}.ckp")
             ### end check
         network.train()
         train_acc = []
@@ -83,7 +87,13 @@ def train(training_data, valid_data, dataset, device='cpu', lr=1e-3, epochs=70, 
         acc = torch.tensor(train_acc).mean()
         print(acc)  # see trianing accuracy
         train_accs.append(acc)
- 
+    
+    if model == "student":
+        best_num_epochs = torch.argmax(valid_accs) * 5
+        print("Final num epochs:", best_num_epochs)
+        st_dict = torch.load(f"./saved/{dataset}_student_{best_num_epochs}.ckp",map_location=device)
+        network.load_state_dict(st_dict)
+    
     network.eval()
     accs = []
     for batch_xs, batch_ys in valid_loader:

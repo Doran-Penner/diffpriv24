@@ -50,12 +50,12 @@ def main():
 
     train_set, valid_set, test_set = load_and_part_sets(dataset, num_teachers)
 
-    n, val_acc = train(train_set, valid_set, dataset, device=device, epochs=25)
+    n, val_acc = train(train_set, valid_set, dataset, device=device, epochs=200, model="student")
 
     print(f"Validation Accuracy: {val_acc}")
     test_acc = calculate_test_accuracy(n, test_set)
     print(f"Test Accuracy: {test_acc}")
-    torch.save(n.state_dict(), "./saved/svhn_student.stu")
+    torch.save(n.state_dict(), f"./saved/{dataset}_student_final.ckp")
 
 if __name__ == '__main__':
     main()
