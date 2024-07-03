@@ -183,6 +183,7 @@ class RepeatGNMax(Aggregator):
         self.eps_ma = 0
         self.delta = delta
         self.eprime = privacy_accounting.epsilon_prime(self.alpha, self.p, self.scale1)
+        self.tau_tally = 0
 
     def data_dependent_cost(self,votes):
         hist = [0]*self.num_labels
@@ -235,13 +236,14 @@ class RepeatGNMax(Aggregator):
         unique, counts = torch.unique(prev_votes, dim=1, return_counts=True)
         total_hist[:,unique] = counts.float()
 
-        total_hist += torch.normal(0, self.scale1, size=np.shape(total_hist), device=device)
-
         divergences, _ = torch.max(torch.abs(hist-total_hist), dim=1)
+        divergences += torch.normal(0, self.scale1, size=np.shape(divergences), device=device)
         min_divergence = torch.argmin(divergences)
-        breakpoint()
+
+        print(divergences[min_divergence])
 
         if divergences[min_divergence] < self.tau:
+            self.tau_tally += 1
             return self.prev_labels[min_divergence]
         else:
             q = self.data_dependent_cost(votes)
@@ -252,20 +254,17 @@ class RepeatGNMax(Aggregator):
             self.prev_labels.append(label)
             return label
 
-    def threshold_aggregate(self,votes,epsilon):
-        thing0 = self.eps_ma + privacy_accounting.single_epsilon_ma(
-                    self.data_dependent_cost(votes), self.alpha, self.scale2
-                )
-        print(thing0)
-        if (
-            privacy_accounting.renyi_to_ed(
-                self.total_queries
-                * self.eprime
-                + thing0,
+        def threshold_aggregate(self, votes, epsilon):
+            # NOTE maybe we could squeeze out a couple more tau responses?
+            thing0 = self.eps_ma + privacy_accounting.single_epsilon_ma(
+                self.data_dependent_cost(votes), self.alpha, self.scale2
+            )
+            thing1 = privacy_accounting.renyi_to_ed(
+                (self.total_queries + 1) * self.eprime + thing0,
                 self.delta,
                 self.alpha,
             )
-            > epsilon
-        ):
-            return -1
-        return self.aggregate(votes)
+            print(thing0, thing1)
+            if thing1 > epsilon:
+                return -1
+            return self.aggregate(votes)
