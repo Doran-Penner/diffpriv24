@@ -53,16 +53,17 @@ def train(training_data, valid_data, dataset, device='cpu', lr=1e-3, epochs=70, 
     for i in range(epochs):
         if i % 10 == 0:
             print("Epoch",i)
-            '''network.eval()
+            ### check valid accuracy
+            network.eval()
             accs = []
-            losses = []
             for batch_xs, batch_ys in valid_loader:
                 batch_xs = batch_xs.to(device)
                 batch_ys = batch_ys.to(device)
                 preds = network(batch_xs)
                 accs.append((preds.argmax(dim=1) == batch_ys).float().mean())
             acc = torch.tensor(accs).mean()
-            print("Acc:",acc)'''
+            print("Valid acc:",acc)
+            ### end check
         network.train()
         train_acc = []
         for batch_xs, batch_ys in train_loader:
@@ -80,6 +81,7 @@ def train(training_data, valid_data, dataset, device='cpu', lr=1e-3, epochs=70, 
             opt.step()
 
         acc = torch.tensor(train_acc).mean()
+        print(acc)  # see trianing accuracy
         train_accs.append(acc)
  
     network.eval()

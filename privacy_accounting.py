@@ -51,38 +51,39 @@ def single_epsilon_ma(q, alpha, sigma):
     # check conditions
     if 0 < q < 1 < mu2 and q <= math.exp((mu2 - 1) * e2) / (mu1 * mu2 / ((mu1 - 1) * mu2 - 1)) and mu1 >= alpha:
         return min(data_dep, data_ind)
-        # tot.append(min(data_dep, data_ind))
     else:
         return data_ind
-        # tot.append(data_ind)
  
 
-def epsilon_ma_vec(qs0, alpha, sigma):
-    qs = np.array(qs0)
+def epsilon_ma_vec(qs, alpha, sigma):
+    # FIXME how do we do the q check to avoid ZeroDivision for all q values?
+    qs = np.asarray(qs)  # TODO not sure if this is being given a list, array, etc
     data_ind = alpha / (sigma ** 2)
-    mu2 = np.multiply(sigma, np.sqrt(np.log(np.divide(1, qs))))
-    mu1 = np.add(mu2, 1)
-    e1 = np.divide(mu1, (sigma ** 2))
-    e2 = np.divide(mu2, (sigma ** 2))
-    Ahat = np.pow(np.multiply(qs, np.exp(e2)), np.divide(np.subtract(mu2, 1), mu2))
-    A = np.divide(np.subtract(1, qs), np.subtract(1, Ahat))
-    B = np.exp(e1) / np.pow(qs, np.divide(1, np.subtract(mu1, 1)))
-    data_dep = np.multiply(1 / (alpha - 1),
-                           np.log(np.add(
-                               np.multiply(np.subtract(1, qs), np.pow(A, (alpha - 1))),
-                               np.multiply(qs, np.pow(B, (alpha - 1)))))
-                           )
-    tot = 0
-    # tot = []
-    for it in range(len(qs)):  # check conditions
-        if 0 < qs[it] < 1 < mu2[it] and qs[it] <= math.exp((mu2[it] - 1) * e2[it]) / (
-                mu1[it] * mu2[it] / ((mu1[it] - 1) * mu2[it] - 1)) and mu1[it] >= alpha:
-            tot += min(float(data_dep[it]), data_ind)
-            # tot.append(min(float(data_dep[it]), data_ind))
-        else:
-            tot += data_ind
-        # tot.append(data_ind)
-    return tot
+    mu2 = sigma * np.sqrt(np.log(1 / qs))
+    mu1 = mu2 + 1
+    e1 = mu1 / (sigma ** 2)
+    e2 = mu2 / (sigma ** 2)
+    Ahat = np.pow(qs * np.exp(e2), (mu2 - 1) / mu2)
+    A = (1 - qs) / (1 - Ahat)
+    B = np.exp(e1) / np.pow(qs, (1 / (mu1 - 1)))
+    data_dep = (
+        1
+        / (alpha - 1)
+        * np.log((1 - qs) * (A ** (alpha - 1)) + qs * (B ** (alpha - 1)))
+    )
+
+    best = np.minimum(data_dep, data_ind)
+    
+    can_use_data_dep = (
+        (0 < qs)
+        & (qs < 1)
+        & (1 < mu2)
+        & (qs <= (np.exp((mu2 - 1) * e2) / (mu1 * mu2 / ((mu1 - 1) * mu2 - 1))))
+        & (mu1 >= alpha)
+    )
+    tot = np.where(can_use_data_dep, best, data_ind)
+    return np.sum(tot)
+
 
 def renyi_to_ed(epsilon, delta, alpha):
     """
@@ -96,7 +97,7 @@ def renyi_to_ed(epsilon, delta, alpha):
     B = math.log((math.exp((alpha-1)*epsilon)-1)/(alpha*delta)+1)
     return 1/(alpha - 1) * min(A,B)
 
-def epsilon_prime(alpha, p)
+def epsilon_prime(alpha, p, sigma1):
     tot = 0
     for k in range(2,alpha + 1):
         comb = scipy.special.comb(alpha,k)

@@ -1,6 +1,8 @@
 import numpy as np
 import math
 import privacy_accounting
+import torch
+from helper import device
 
 class Aggregator:    
     """
@@ -152,7 +154,7 @@ class RepeatGNMax(Aggregator):
     aggregate(votes)
         function that returns the result of the aggregation mechanism
     """
-    def __init__(self,scale1,scale2,p,tau,alpha=3,num_labels=10):
+    def __init__(self,scale1,scale2,p,tau,alpha=3,delta=1e-5,num_labels=10):
         """
         Initializer function for RepeatGNMax class
         :param num_labels: int specifying the number of labels to be aggregated
@@ -178,9 +180,12 @@ class RepeatGNMax(Aggregator):
         self.gnmax = NoisyMaxAggregator(scale2,num_labels,np.random.normal)
         self.queries = []
         self.total_queries = 0
-        self.data_dependant_epsilon = 0
+        self.eps_ma = 0
+        self.delta = delta
+        self.eprime = privacy_accounting.epsilon_prime(self.alpha, self.p, self.scale1)
+        self.tau_tally = 0
 
-    def data_dependant_cost(self,votes):
+    def data_dependent_cost(self,votes):
         hist = [0]*self.num_labels
         for v in votes:
             hist[int(v)] += 1
@@ -201,6 +206,17 @@ class RepeatGNMax(Aggregator):
         :returns: The label with the most votes, after adding noise to the votes to make 
                   it private.
         """
+        # FIXME BAD CODE
+        # we just needed it to work, but reaaally should change this
+        if self.prev_votes == []:
+            q = self.data_dependent_cost(votes)
+            self.queries.append(q)
+            self.eps_ma += privacy_accounting.single_epsilon_ma(q, self.alpha, self.scale2)
+            self.prev_votes.append(votes)
+            label = self.gnmax.aggregate(votes)
+            self.prev_labels.append(label)
+            return label
+        
         self.total_queries += 1
         U = []
         for voter in range(len(votes)):
@@ -208,26 +224,29 @@ class RepeatGNMax(Aggregator):
                 U.append(voter)
         U = np.array(U)
         sub_record = votes[U]
-        hist = np.zeros((self.num_labels,))
+
+        # using torch so we can do this on the gpu (for speed)
+        hist = torch.zeros((self.num_labels,), device=device)
         for v in sub_record:
             hist[v] += 1
-        seen = False
-        which_record = 0
-        for record in self.prev_votes:
-            new_hist = np.zeros((self.num_labels,))
-            for v in U:
-                new_hist[record[v]] += 1
-            for label in range(self.num_labels):
-                hist[label] += np.random.normal(loc=0.0,scale=float(self.scale1))
-            divergence = np.max(np.abs(hist-new_hist))
-            if divergence < self.tau:
-                seen = True
-                break
-            which_record += 1
-        if seen:
-            return self.prev_labels[which_record]
+        
+        prev_votes = torch.tensor(np.asarray(self.prev_votes), device=device)
+        total_hist = torch.zeros((len(prev_votes), self.num_labels), device=device)
+
+        unique, counts = torch.unique(prev_votes, dim=1, return_counts=True)
+        total_hist[:,unique] = counts.float()
+
+        divergences, _ = torch.max(torch.abs(hist-total_hist), dim=1)
+        divergences += torch.normal(0, self.scale1, size=np.shape(divergences), device=device)
+        min_divergence = torch.argmin(divergences)
+
+        print(divergences[min_divergence])
+
+        if divergences[min_divergence] < self.tau:
+            self.tau_tally += 1
+            return self.prev_labels[min_divergence]
         else:
-            q = self.data_dependant_cost(votes)
+            q = self.data_dependent_cost(votes)
             self.queries.append(q)
             self.eps_ma += privacy_accounting.single_epsilon_ma(q, self.alpha, self.scale2)
             self.prev_votes.append(votes)
@@ -235,7 +254,17 @@ class RepeatGNMax(Aggregator):
             self.prev_labels.append(label)
             return label
 
-    def threshold_aggregate(self,votes,epsilon):
-        if privacy_accounting.renyi_to_ed(self.total_queries * privacy_accounting.epsilon_prime(self.alpha, self.p) + self.eps_ma + privacy_accounting.single_epsilon_ma(self.data_dependant_cost(votes)), self.alpha, self.scale2), self.delta, self.alpha) > self.tau:
-            return -1
-        return self.aggregate(votes)
+        def threshold_aggregate(self, votes, epsilon):
+            # NOTE maybe we could squeeze out a couple more tau responses?
+            thing0 = self.eps_ma + privacy_accounting.single_epsilon_ma(
+                self.data_dependent_cost(votes), self.alpha, self.scale2
+            )
+            thing1 = privacy_accounting.renyi_to_ed(
+                (self.total_queries + 1) * self.eprime + thing0,
+                self.delta,
+                self.alpha,
+            )
+            print(thing0, thing1)
+            if thing1 > epsilon:
+                return -1
+            return self.aggregate(votes)

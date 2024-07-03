@@ -74,7 +74,7 @@ def main():
     # change these or pass variables in the future
     dataset = 'svhn'
     num_teachers = 250
-    agg = aggregate.RepeatGNMax(100, 100, 1, 10)
+    agg = aggregate.RepeatGNMax(50, 100, 1, 50)
 
     train, valid, _test = load_dataset(dataset, 'student', False)
     train = torch.utils.data.ConcatDataset([train, valid])
@@ -84,6 +84,7 @@ def main():
         calculate_prediction_matrix(loader, device, dataset, num_teachers)
     
     labels = load_predicted_labels(agg, dataset, num_teachers)
+    print("FINAL tau usages:", agg.tau_tally)
 
     correct = 0
     guessed = 0
