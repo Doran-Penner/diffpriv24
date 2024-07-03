@@ -24,10 +24,10 @@ class Aggregator:
         self.num_labels = num_labels
 
     def aggregate(self, votes):
-        return 0
+        raise NotImplementedError
 
     def threshold_aggregate(self, votes, epsilon):
-        return 0
+        raise NotImplementedError
 
 class NoisyMaxAggregator(Aggregator):
     """
@@ -108,7 +108,7 @@ class NoisyMaxAggregator(Aggregator):
             # turns this into 0 and then we divide by 0
             tot = 2*10e-16
         self.queries.append(tot/2)
-        eps = privacy_accounting.gnmax_epsilon(self.queries, 2, self.scale, 0.00001)
+        eps = privacy_accounting.gnmax_epsilon(self.queries, 3, self.scale, 1e-6)
         print(eps)
         if eps > epsilon:
             print("uh oh!")
@@ -254,17 +254,17 @@ class RepeatGNMax(Aggregator):
             self.prev_labels.append(label)
             return label
 
-        def threshold_aggregate(self, votes, epsilon):
-            # NOTE maybe we could squeeze out a couple more tau responses?
-            thing0 = self.eps_ma + privacy_accounting.single_epsilon_ma(
-                self.data_dependent_cost(votes), self.alpha, self.scale2
-            )
-            thing1 = privacy_accounting.renyi_to_ed(
-                (self.total_queries + 1) * self.eprime + thing0,
-                self.delta,
-                self.alpha,
-            )
-            print(thing0, thing1)
-            if thing1 > epsilon:
-                return -1
-            return self.aggregate(votes)
+    def threshold_aggregate(self, votes, epsilon):
+        # NOTE maybe we could squeeze out a couple more tau responses?
+        thing0 = self.eps_ma + privacy_accounting.single_epsilon_ma(
+            self.data_dependent_cost(votes), self.alpha, self.scale2
+        )
+        thing1 = privacy_accounting.renyi_to_ed(
+            (self.total_queries + 1) * self.eprime + thing0,
+            self.delta,
+            self.alpha,
+        )
+        print(thing0, thing1)
+        if thing1 > epsilon:
+            return -1
+        return self.aggregate(votes)
