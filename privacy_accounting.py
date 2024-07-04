@@ -56,8 +56,13 @@ def single_epsilon_ma(q, alpha, sigma):
  
 
 def epsilon_ma_vec(qs, alpha, sigma):
-    # FIXME how do we do the q check to avoid ZeroDivision for all q values?
-    qs = np.asarray(qs)  # TODO not sure if this is being given a list, array, etc
+    qs = np.asarray(qs)
+    # we need to use data-indep for q outside of (0,1), but just ignoring q values
+    # outside of that will cause a ZeroDivision error or some other problem
+    # thus we modify those q values and save which ones were fine to begin with
+    safe_qs = (0 < qs) & (qs < 1)  # this'll go into the final "indep vs dep" check
+    qs[np.logical_not(safe_qs)] = 0.5  # setto dummy value which won't cause errors
+
     data_ind = alpha / (sigma ** 2)
     mu2 = sigma * np.sqrt(np.log(1 / qs))
     mu1 = mu2 + 1
@@ -75,12 +80,13 @@ def epsilon_ma_vec(qs, alpha, sigma):
     best = np.minimum(data_dep, data_ind)
     
     can_use_data_dep = (
-        (0 < qs)
-        & (qs < 1)
+        (safe_qs)
         & (1 < mu2)
         & (qs <= (np.exp((mu2 - 1) * e2) / (mu1 * mu2 / ((mu1 - 1) * mu2 - 1))))
         & (mu1 >= alpha)
     )
+    # np.where(conds, xs, ys) iterates through all arrays and returns array of
+    # x in xs when cond in conds is true and y in ys otherwise
     tot = np.where(can_use_data_dep, best, data_ind)
     return np.sum(tot)
 
