@@ -37,6 +37,15 @@ def epsilon_ma(qs, alpha, sigma):
     return tot
 
 def single_epsilon_ma(q, alpha, sigma):
+    """
+    Function used to calculate the ma epsilon for renyi differential privacy for a single query
+    :param q: float representing the q value for a single query
+    :param alpha: numeric representing the alpha value for the order of the renyi differential
+                  privacy
+    :param sigma: float representing the scale value for the normal distribution used when
+                  reporting the results of a novel query
+    :returns: float representing the additional ma epsilon cost incurred by a specific query
+    """
     data_ind = alpha / (sigma ** 2)
     if not 0 < q < 1:
         return data_ind
@@ -54,8 +63,17 @@ def single_epsilon_ma(q, alpha, sigma):
     else:
         return data_ind
  
-
 def epsilon_ma_vec(qs, alpha, sigma):
+    """
+    Function that (i think) does the same as epsilon_ma but in a vectorized way, granting
+    it additional speed. TODO : get response from Doran about what this function is
+
+    :param qs: list of q values for each uniquely answered query. Don't ask me
+               what a q value is.
+    :param alpha: integer representing the order of the renyi-divergence
+    :param sigma: float representing the standard deviation for the noise used in GNMax
+    :returns: float representing tot, a sum of the total privacy budget spent.
+    """
     qs = np.asarray(qs)
     # we need to use data-indep for q outside of (0,1), but just ignoring q values
     # outside of that will cause a ZeroDivision error or some other problem
@@ -90,7 +108,6 @@ def epsilon_ma_vec(qs, alpha, sigma):
     tot = np.where(can_use_data_dep, best, data_ind)
     return np.sum(tot)
 
-
 def renyi_to_ed(epsilon, delta, alpha):
     """
     Function to convert from renyi-differential privacy to epsilon delta-differential privacy, given some delta value.
@@ -104,6 +121,19 @@ def renyi_to_ed(epsilon, delta, alpha):
     return 1/(alpha - 1) * min(A,B)
 
 def epsilon_prime(alpha, p, sigma1):
+    """
+    Function used to calculate the epsilon prime value used in calculating
+    renyi differential privacy of RepeatGNMax
+
+    :param alpha: numeric representing the order of the order of the renyi
+                  differential privacy
+    :param p: float used to parametrize the poisson subsampling in Repeat-
+              GNMax
+    :param sigma1: float used to parametrize the noise added when comparing
+                   voting records in RepeatGNMax
+    :returns: float representing the epsilon prime value for calculating
+              renyi differential privacy
+    """
     tot = 0
     for k in range(2,alpha + 1):
         comb = scipy.special.comb(alpha,k)

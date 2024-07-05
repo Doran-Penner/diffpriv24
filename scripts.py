@@ -6,6 +6,10 @@ from helper import load_dataset
 
 ##### prints average teacher accuracy #####
 def avg_teacher_accuracy():
+    """
+    Function for checking average teacher accuracy on the test database
+    :returns: nothing, but prints average teacher accuract on the test database
+    """
     _train, _valid, test = load_dataset('svhn', 'teach', False)
     teacher_preds = np.load("./saved/svhn_250_teacher_predictions.npy", allow_pickle=False)
     teacher_acc = np.empty((len(test),))

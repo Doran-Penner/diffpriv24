@@ -1,14 +1,9 @@
 # TODO
 - refactor code
-  - refactor `get_predicted_labels.py`
   - efficientize `aggregate.py`
 - document code
-  - document `get_predicted_labels.py`
   - document `models.py`
 - write code
-  - finish the teacher labeling
-  - figure out how to partition the "public unlabeled dataset"
-  - write `student.py`
   - implement `ConfidentGNMax` and `InteractiveGNMax`
   - implement `ConfidentRepeatGNMax`
 - run code

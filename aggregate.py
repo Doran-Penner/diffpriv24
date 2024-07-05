@@ -16,9 +16,13 @@ class Aggregator:
         specifying the number of labels to be aggregated
 
     Methods
-    ----------
-    aggregate(votes)
+    -------
+    aggregate(votes):
         function that returns the result of the aggregation mechanism
+
+    treshold_aggregate(votes, epsilon):
+        function that aggregates votes until the epsilon spent reaches a certain threshold
+
     """
     def __init__(self, num_labels):
         self.num_labels = num_labels
@@ -48,11 +52,19 @@ class NoisyMaxAggregator(Aggregator):
         specifying the distribution that the noise must
         be drawn from. for basic ReportNoisyMax, this is the
         Laplacian distribution
+    queries : list
+        containing the set of q values of previous queries
+    hit_max : boolean
+        representing whether or not the epsilon budget is
+        compeletely spent in the threshold_aggregate method
 
     Methods
     ----------
-    aggregate(votes)
+    aggregate(votes):
         function that returns the result of the aggregation mechanism
+
+    treshold_aggregate(votes, epsilon):
+        function that aggregates votes until the epsilon spent reaches a certain threshold
     """
     def __init__(self, scale, num_labels=10, noise_fn=np.random.laplace):
         """
@@ -81,8 +93,8 @@ class NoisyMaxAggregator(Aggregator):
 
         Arguments:
         :param votes: array of labels, where each label is the vote of a single 
-                       teacher. so, if there are 250 teachers, the length of votes 
-                       is 250
+                      teacher. so, if there are 250 teachers, the length of votes 
+                      is 250
         :return: index indicating the max argument in the array passed to the function
         """
         hist = [0]*self.num_labels
@@ -93,6 +105,20 @@ class NoisyMaxAggregator(Aggregator):
         return label
 
     def threshold_aggregate(self,votes,epsilon):
+        """
+        Function for aggregating teacher votes with the specified algorithm without
+        passing some epsilon value, passed as a parameter to this function
+
+        Arguments:
+        :param votes: array of labels, where each label is the vote of a single 
+                      teacher. so, if there are 250 teachers, the length of votes 
+                      is 250
+        :param epsilon: float reprepesenting the maximum epsilon that the mechanism 
+                        aggregates to. this is to say, it will not report the result
+                        of a vote if that would exceed the privacy budget
+        :returns: integer corresponding to the aggregated label, or -1 if the response
+                  would exceed the epsilon budget
+        """
         if self.hit_max:
             return -1
         hist = [0]*self.num_labels
@@ -148,15 +174,37 @@ class RepeatGNMax(Aggregator):
         result of the previous votes histograms.
     gnmax : NoisyMaxAggregator instance
         used to aggregate votes when the histograms are different from previous votes
+    queries : list
+        containing the data dependent costs of each query with a unique response
+    total_queries : int
+        representing the total number of queries that have been answered
+    eps_ma : float
+        representing the ma epsilon for renyi differential privacy
+    delta : float
+        representing the delta in epsilon-delta differential privacy calculations
+    eprime : float
+        representing the epsilon prime for renyi differential privacy
+    tau_tally : int
+        representing the number of times that the algorithm has responded with a previously
+        given answer
+    
 
     Methods
     ----------
-    aggregate(votes)
+    data_dependent_cost(votes):
+        function that reports the data-dependent q value, used to calculate epsilon cost
+
+    aggregate(votes):
         function that returns the result of the aggregation mechanism
+
+    treshold_aggregate(votes, epsilon):
+        function that aggregates votes until the epsilon spent reaches a certain threshold
     """
     def __init__(self,scale1,scale2,p,tau,alpha=3,delta=1e-5,num_labels=10):
         """
         Initializer function for RepeatGNMax class
+
+        Arguments:
         :param num_labels: int specifying the number of labels to be aggregated
         :param scale1: float variable affecting the amount of noise when comparing the 
                        current voting record to the older voting records.
@@ -186,6 +234,14 @@ class RepeatGNMax(Aggregator):
         self.tau_tally = 0
 
     def data_dependent_cost(self,votes):
+        """
+        Function for calculating the data-dependent q value for a query
+
+        Arguments:
+        :param votes: array of labels, where each label is the vote of a single teacher. 
+                      so, if there are 250 teachers, the length of votes is 250.
+        :returns: q value
+        """
         hist = [0]*self.num_labels
         for v in votes:
             hist[int(v)] += 1
@@ -208,6 +264,7 @@ class RepeatGNMax(Aggregator):
         """
         # FIXME BAD CODE
         # we just needed it to work, but reaaally should change this
+        self.total_queries += 1
         if self.prev_votes == []:
             q = self.data_dependent_cost(votes)
             self.queries.append(q)
@@ -217,7 +274,6 @@ class RepeatGNMax(Aggregator):
             self.prev_labels.append(label)
             return label
         
-        self.total_queries += 1
         U = []
         for voter in range(len(votes)):
             if np.random.uniform() < self.p:
@@ -255,16 +311,30 @@ class RepeatGNMax(Aggregator):
             return label
 
     def threshold_aggregate(self, votes, epsilon):
+        """
+        Function for aggregating teacher votes with the specified algorithm without
+        passing some epsilon value, passed as a parameter to this function
+
+        Arguments:
+        :param votes: array of labels, where each label is the vote of a single 
+                      teacher. so, if there are 250 teachers, the length of votes 
+                      is 250
+        :param epsilon: float reprepesenting the maximum epsilon that the mechanism 
+                        aggregates to. this is to say, it will not report the result
+                        of a vote if that would exceed the privacy budget
+        :returns: integer corresponding to the aggregated label, or -1 if the response
+                  would exceed the epsilon budget
+        """
         # NOTE maybe we could squeeze out a couple more tau responses?
-        thing0 = self.eps_ma + privacy_accounting.single_epsilon_ma(
+        epsilon_ma = self.eps_ma + privacy_accounting.single_epsilon_ma(
             self.data_dependent_cost(votes), self.alpha, self.scale2
         )
-        thing1 = privacy_accounting.renyi_to_ed(
-            (self.total_queries + 1) * self.eprime + thing0,
+        ed_epsilon = privacy_accounting.renyi_to_ed(
+            (self.total_queries + 1) * self.eprime + epsilon_ma,
             self.delta,
             self.alpha,
         )
-        print(thing0, thing1)
-        if thing1 > epsilon:
+        print(epsilon_ma, ed_epsilon)
+        if ed_epsilon > epsilon:
             return -1
         return self.aggregate(votes)

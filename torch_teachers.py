@@ -36,6 +36,7 @@ def train(training_data, valid_data, dataset, device='cpu', lr=1e-3, epochs=70, 
     :param batch_size: int specifying the amount of data being trained on per batch
     :param momentum: float specifying the momentum of the learning process. Carter says to set it at 0.9 and not worry about it
     :param padding: boolean specifying whether we want to do padding
+    :param model: string representing whether the model is meant to be a teacher or a student, which changes what is saved
     :return: Tuple containing the model being trained and the accuracy of the model on the validation set at the end of training
     """
     print("training...")
