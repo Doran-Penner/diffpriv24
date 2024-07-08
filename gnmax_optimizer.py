@@ -1,5 +1,9 @@
 import numpy as np
 import aggregate
+import get_predicted_labels
+import torch
+from os.path import isfile
+
 
 rng = np.random.default_rng()
 
@@ -24,6 +28,17 @@ points = points.transpose()  # get transposed idiot
 
 all_results = []
 
+dataset = 'svhn'
+num_teachers = 250
+
+train, valid, _test = get_predicted_labels.load_dataset(dataset, 'student', False)
+train = torch.utils.data.ConcatDataset([train, valid])
+loader = torch.utils.data.DataLoader(train, shuffle=False, batch_size=256)
+
+if not isfile(f"./saved/{dataset}_{num_teachers}_teacher_predictions.npy"):
+    get_predicted_labels.calculate_prediction_matrix(loader, get_predicted_labels.device, dataset, num_teachers)
+
+
 for point in points:  # TODO
     alpha, p, tau, sigma1, sigma2 = point
     # save:
@@ -36,10 +51,28 @@ for point in points:  # TODO
 
     # ... do stuff
     agg = aggregate.RepeatGNMax(sigma1, sigma2, p, tau, delta=1e-6)
+   
+    labels = get_predicted_labels.load_predicted_labels(agg, dataset, num_teachers)
+    print("FINAL tau usages:", agg.tau_tally)
+
+    correct = 0
+    guessed = 0
+    unlabeled = 0
+    for i, label in enumerate(labels):
+        guessed += 1
+        if label == train[i][1]:
+            correct += 1
+        if label == -1:
+            unlabeled += 1
+    print("data points labeled:", guessed-unlabeled)
+    print("label accuracy:", correct/guessed)
+    if unlabeled != guessed:
+        print("label accuracy ON LABELED DATA:", correct/(guessed - unlabeled))
 
     # calculate, save results
     all_results.append((points, None))  # replace None with results
+    
 
 print(all_results)
 
-breakpoint()
+# breakpoint()
