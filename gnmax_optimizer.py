@@ -1,6 +1,7 @@
 import numpy as np
 import aggregate
 import get_predicted_labels
+import student
 import torch
 from os.path import isfile
 
@@ -64,13 +65,18 @@ for point in points:  # TODO
             correct += 1
         if label == -1:
             unlabeled += 1
-    print("data points labeled:", guessed-unlabeled)
-    print("label accuracy:", correct/guessed)
-    if unlabeled != guessed:
-        print("label accuracy ON LABELED DATA:", correct/(guessed - unlabeled))
+    labeled = guessed-unlabeled
+    label_acc = 0
+    if labeled != 0:
+       label_acc = correct/labeled
+
+    train_set, valid_set, test_set = student.load_and_part_sets(dataset, num_teachers)
+
+    n, val_acc = train(train_set, valid_set, dataset, device=student.device, epochs=200, model="student")
 
     # calculate, save results
-    all_results.append((points, None))  # replace None with results
+    # results format: ((alpha, p, tau, sigma1, sigma2), (labeled, label_acc, val_acc))
+    all_results.append((points, (labeled, label_acc, val_acc)))  # replace None with results
     
 
 print(all_results)
