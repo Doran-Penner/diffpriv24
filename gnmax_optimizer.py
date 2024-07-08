@@ -4,6 +4,7 @@ import get_predicted_labels
 import student
 import torch
 from os.path import isfile
+import torch_teachers
 
 
 rng = np.random.default_rng()
@@ -57,22 +58,21 @@ for point in points:  # TODO
     print("FINAL tau usages:", agg.tau_tally)
 
     correct = 0
-    guessed = 0
+    num_datapoints = len(labels)
     unlabeled = 0
     for i, label in enumerate(labels):
-        guessed += 1
         if label == train[i][1]:
             correct += 1
         if label == -1:
             unlabeled += 1
-    labeled = guessed-unlabeled
+    labeled = num_datapoints-unlabeled
     label_acc = 0
     if labeled != 0:
        label_acc = correct/labeled
 
     train_set, valid_set, test_set = student.load_and_part_sets(dataset, num_teachers)
 
-    n, val_acc = train(train_set, valid_set, dataset, device=student.device, epochs=200, model="student")
+    n, val_acc = torch_teachers.train(train_set, valid_set, dataset, device=student.device, epochs=200, model="student")
 
     # calculate, save results
     # results format: ((alpha, p, tau, sigma1, sigma2), (labeled, label_acc, val_acc))
