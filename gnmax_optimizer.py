@@ -17,7 +17,7 @@ rng = np.random.default_rng()
 # p in (0,1],
 # tau in [1, 100]
 
-NUM_POINTS = 2 # change to 64, etc.
+NUM_POINTS = 64
 SAVEFILE_NAME = "saved/rep_gnmax_points.pkl"
 
 points = np.asarray([
