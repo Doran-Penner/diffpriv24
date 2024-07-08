@@ -5,6 +5,7 @@ import student
 import torch
 from os.path import isfile
 import torch_teachers
+import pickle
 
 
 rng = np.random.default_rng()
@@ -16,9 +17,11 @@ rng = np.random.default_rng()
 # p in (0,1],
 # tau in [1, 100]
 
-NUM_POINTS = 3  # TODO change to 64
+NUM_POINTS = 2 # change to 64, etc.
+SAVEFILE_NAME = "saved/rep_gnmax_points.pkl"
 
 points = np.asarray([
+    # change these range values to shrink scope (for optimization)
     rng.choice(np.arange(2,11), size=(NUM_POINTS,)),  # alpha
     rng.uniform(low=0.01, size=(NUM_POINTS,)),  # p
     rng.uniform(low=1e-1, high=256.0, size=(NUM_POINTS,)),  # tau
@@ -28,7 +31,13 @@ points = np.asarray([
 
 points = points.transpose()  # get transposed idiot
 
-all_results = []
+all_results = dict()
+
+# initialize file so we don't need to worry about existence later
+# (I'm against existential crises :P)
+if not isfile(SAVEFILE_NAME):
+    with open(SAVEFILE_NAME, "wb") as f:
+        pickle.dump(all_results, f)
 
 dataset = 'svhn'
 num_teachers = 250
@@ -41,7 +50,7 @@ if not isfile(f"./saved/{dataset}_{num_teachers}_teacher_predictions.npy"):
     get_predicted_labels.calculate_prediction_matrix(loader, get_predicted_labels.device, dataset, num_teachers)
 
 
-for point in points:  # TODO
+for point in points:
     alpha, p, tau, sigma1, sigma2 = point
     # save:
     # PARAMS,
@@ -75,10 +84,14 @@ for point in points:  # TODO
     n, val_acc = torch_teachers.train(train_set, valid_set, dataset, device=student.device, epochs=200, model="student")
 
     # calculate, save results
-    # results format: ((alpha, p, tau, sigma1, sigma2), (labeled, label_acc, val_acc))
-    all_results.append((points, (labeled, label_acc, val_acc)))  # replace None with results
-    
+    # results format is dict of (alpha, p, tau, sigma1, sigma2) : (labeled, label_acc, val_acc)
+    all_results[tuple(point)] = (labeled, label_acc, val_acc)
 
-print(all_results)
+    # and add them to file-saved results for persistent storage
+    with open(SAVEFILE_NAME, "rb") as f:
+        past_results = pickle.load(f)
+        past_results[tuple(point)] = (labeled, label_acc, val_acc)
+    with open(SAVEFILE_NAME, "wb") as f:
+        pickle.dump(past_results, f)
 
-# breakpoint()
+print("ALL RESULTS THIS ROUND:", all_results)
