@@ -20,6 +20,20 @@ rng = np.random.default_rng()
 NUM_POINTS = 64
 SAVEFILE_NAME = "saved/rep_gnmax_points.pkl"
 
+
+### Using this info
+# as long as you don't interfere with the script as it's reading/writing,
+# you can see the results with the following code
+# (maybe best to just do this in a REPL):
+
+# with open(SAVEFILE_NAME, "rb") as f:
+#     results = pickle.load(f)
+# # find the best point by validation accuracy:
+# best_point = max(results, key=(lambda x: x[2]))
+# print("best point:", best_point)
+# print("values:", results[best_point])
+
+
 points = np.asarray([
     # change these range values to shrink scope (for optimization)
     rng.choice(np.arange(2,11), size=(NUM_POINTS,)),  # alpha
