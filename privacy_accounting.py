@@ -46,6 +46,7 @@ def single_epsilon_ma(q, alpha, sigma):
                   reporting the results of a novel query
     :returns: float representing the additional ma epsilon cost incurred by a specific query
     """
+    # NOTE if q = 1/e^(1/sigma^2) then we get a "divide by zero WARNING" but it still runs so it's okay?
     data_ind = alpha / (sigma ** 2)
     if not 0 < q < 1:
         return data_ind
