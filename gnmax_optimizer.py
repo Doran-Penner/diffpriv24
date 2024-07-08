@@ -8,6 +8,22 @@ import torch_teachers
 import pickle
 
 
+SAVEFILE_NAME = "saved/rep_gnmax_points.pkl"
+
+### Using this info
+# as long as you don't interfere with the script as it's reading/writing,
+# you can see the results with the following code
+# (best to just do this in a REPL):
+
+# with open(SAVEFILE_NAME, "rb") as f:
+#     results = pickle.load(f)
+
+# # find the best point by validation accuracy:
+# best_point = max(results, key=(lambda x: results.get(x)[2]))
+# print("best point:", best_point)
+# print("values:", results[best_point])
+
+
 rng = np.random.default_rng()
 
 # vars are:
@@ -18,21 +34,6 @@ rng = np.random.default_rng()
 # tau in [1, 100]
 
 NUM_POINTS = 64
-SAVEFILE_NAME = "saved/rep_gnmax_points.pkl"
-
-
-### Using this info
-# as long as you don't interfere with the script as it's reading/writing,
-# you can see the results with the following code
-# (maybe best to just do this in a REPL):
-
-# with open(SAVEFILE_NAME, "rb") as f:
-#     results = pickle.load(f)
-# # find the best point by validation accuracy:
-# best_point = max(results, key=(lambda x: x[2]))
-# print("best point:", best_point)
-# print("values:", results[best_point])
-
 
 points = np.asarray([
     # change these range values to shrink scope (for optimization)
@@ -95,7 +96,7 @@ for point in points:
 
     train_set, valid_set, test_set = student.load_and_part_sets(dataset, num_teachers)
 
-    n, val_acc = torch_teachers.train(train_set, valid_set, dataset, device=student.device, epochs=200, model="student")
+    n, val_acc = torch_teachers.train(train_set, valid_set, dataset, device=student.device, epochs=100, model="student")
 
     # calculate, save results
     # results format is dict of (alpha, p, tau, sigma1, sigma2) : (labeled, label_acc, val_acc)
