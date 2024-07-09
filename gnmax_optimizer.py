@@ -22,7 +22,7 @@ SAVEFILE_NAME = "saved/rep_gnmax_points.pkl"
 #     results = pickle.load(f)
 
 # # find the best point by validation accuracy:
-# best_point = max(results, key=(lambda x: results.get(x)[2]))
+# best_point = max(results, key=(lambda x: results.get(x)[3]))
 # print("best point:", best_point)
 # print("values:", results[best_point])
 
@@ -97,7 +97,7 @@ for point in points:
 
     train_set, valid_set, test_set = student.load_and_part_sets(dataset, num_teachers)
 
-    n, _val_acc = torch_teachers.train(train_set, valid_set, dataset, device=helper.device, epochs=100, batch_size=256, model="student")
+    n, val_acc = torch_teachers.train(train_set, valid_set, dataset, device=helper.device, epochs=100, batch_size=256, model="student")
 
     # compute our final accuracy metric on *true labels* of validation data
     _train_data, valid_data, _test_data = helper.load_dataset(dataset, "student")
@@ -110,13 +110,12 @@ for point in points:
         preds = n(batch_xs)
         true_val_accs.append((preds.argmax(dim=1) == batch_ys).float().mean())
     true_val_acc = torch.tensor(true_val_accs).mean()
-    breakpoint()
 
     # now save the results! we write to disk every time so we can cancel the process with minimal loss
-    # results format is dict of (alpha, p, tau, sigma1, sigma2) : (labeled, label_acc, true_val_acc)
+    # results format is dict of (alpha, p, tau, sigma1, sigma2) : (labeled, label_acc, val_acc, true_val_acc)
     with open(SAVEFILE_NAME, "rb") as f:
         past_results = pickle.load(f)
-    past_results[tuple(point)] = (labeled, label_acc, true_val_acc)
+    past_results[tuple(point)] = (labeled, label_acc, val_acc, true_val_acc)
     with open(SAVEFILE_NAME, "wb") as f:
         pickle.dump(past_results, f)
 
