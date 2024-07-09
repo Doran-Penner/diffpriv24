@@ -274,11 +274,7 @@ class RepeatGNMax(Aggregator):
             self.prev_labels.append(label)
             return label
         
-        U = []
-        for voter in range(len(votes)):
-            if np.random.uniform() < self.p:
-                U.append(voter)
-        U = np.array(U)
+        U = np.random.uniform(size=(len(votes),)) < self.p  # U is array of bools
         sub_record = votes[U]
 
         # using torch so we can do this on the gpu (for speed)

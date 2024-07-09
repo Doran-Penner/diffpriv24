@@ -5,8 +5,11 @@ import student
 import torch
 from os.path import isfile
 import torch_teachers
+import helper
+import time
 import pickle
 
+start_time = time.time()
 
 SAVEFILE_NAME = "saved/rep_gnmax_points.pkl"
 
@@ -33,7 +36,7 @@ rng = np.random.default_rng()
 # p in (0,1],
 # tau in [1, 100]
 
-NUM_POINTS = 64
+NUM_POINTS = 256
 
 points = np.asarray([
     # change these range values to shrink scope (for optimization)
@@ -46,13 +49,11 @@ points = np.asarray([
 
 points = points.transpose()  # get transposed idiot
 
-all_results = dict()
-
 # initialize file so we don't need to worry about existence later
 # (I'm against existential crises :P)
 if not isfile(SAVEFILE_NAME):
     with open(SAVEFILE_NAME, "wb") as f:
-        pickle.dump(all_results, f)
+        pickle.dump(dict(), f)
 
 dataset = 'svhn'
 num_teachers = 250
@@ -62,7 +63,7 @@ train = torch.utils.data.ConcatDataset([train, valid])
 loader = torch.utils.data.DataLoader(train, shuffle=False, batch_size=256)
 
 if not isfile(f"./saved/{dataset}_{num_teachers}_teacher_predictions.npy"):
-    get_predicted_labels.calculate_prediction_matrix(loader, get_predicted_labels.device, dataset, num_teachers)
+    get_predicted_labels.calculate_prediction_matrix(loader, helper.device, dataset, num_teachers)
 
 
 for point in points:
@@ -96,17 +97,33 @@ for point in points:
 
     train_set, valid_set, test_set = student.load_and_part_sets(dataset, num_teachers)
 
-    n, val_acc = torch_teachers.train(train_set, valid_set, dataset, device=student.device, epochs=100, model="student")
+    n, _val_acc = torch_teachers.train(train_set, valid_set, dataset, device=helper.device, epochs=100, batch_size=256, model="student")
 
-    # calculate, save results
-    # results format is dict of (alpha, p, tau, sigma1, sigma2) : (labeled, label_acc, val_acc)
-    all_results[tuple(point)] = (labeled, label_acc, val_acc)
+    # compute our final accuracy metric on *true labels* of validation data
+    _train_data, valid_data, _test_data = helper.load_dataset(dataset, "student")
+    valid_loader = torch.utils.data.DataLoader(valid_data, shuffle=True, batch_size=256)
+    n.eval()
+    true_val_accs = []
+    for batch_xs, batch_ys in valid_loader:
+        batch_xs = batch_xs.to(helper.device)
+        batch_ys = batch_ys.to(helper.device)
+        preds = n(batch_xs)
+        true_val_accs.append((preds.argmax(dim=1) == batch_ys).float().mean())
+    true_val_acc = torch.tensor(true_val_accs).mean()
+    breakpoint()
 
-    # and add them to file-saved results for persistent storage
+    # now save the results! we write to disk every time so we can cancel the process with minimal loss
+    # results format is dict of (alpha, p, tau, sigma1, sigma2) : (labeled, label_acc, true_val_acc)
     with open(SAVEFILE_NAME, "rb") as f:
         past_results = pickle.load(f)
-        past_results[tuple(point)] = (labeled, label_acc, val_acc)
+    past_results[tuple(point)] = (labeled, label_acc, true_val_acc)
     with open(SAVEFILE_NAME, "wb") as f:
         pickle.dump(past_results, f)
 
-print("ALL RESULTS THIS ROUND:", all_results)
+total_time = time.time() - start_time
+
+# print timing info, for long-running processes
+print(f"Ran for {NUM_POINTS} rounds;")
+print(f"took {total_time // 3600} hours, {total_time // 60 % 60} minutes, and {total_time % 60} seconds;")
+print(f"and ended at {time.asctime()}.")
+print("Whew!")
