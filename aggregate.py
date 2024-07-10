@@ -334,3 +334,46 @@ class RepeatGNMax(Aggregator):
         if ed_epsilon > epsilon:
             return -1
         return self.aggregate(votes)
+
+
+class L1Exp(Aggregator):
+    """
+    Paramter total_num_queries is so we know how much epsilon to allocate for each call.
+    We could do better composition, but taht's a future problem.
+    TODO document better
+    """
+    def __init__(self, num_labels, epsilon, total_num_queries):
+        self.num_labels = num_labels
+        self.eps = epsilon
+        self.tot_qs = total_num_queries
+    
+    def threshold_aggregate(self, vote_batch):
+        """
+        votes is a 2d array: with k voters and n given propositions,
+        votes = [
+            [v_{1,1}, v_{1,2}, ..., v_{1,k}],
+            [v_{2,1}, v_{2,2}, ..., v_{2,k}],
+            ...,
+            [v_{n,1}, v_{n,2}, ..., v_{n,k}],
+        ]
+        where v_{i,j} is the jth voter's opinion on query i.
+        This means we can iterate over each element of votes.
+        """
+        # TODO terrible-looking code, also can be vectorized:
+        # but those are future problems!
+        rng = np.random.default_rng()
+        num_qs = len(vote_batch)
+        curr_eps = num_qs * self.eps / self.tot_qs
+
+        decisions = []
+        for prop in vote_batch:
+            n_ir = np.bincount(prop, minlength=10)
+            
+            cache_e_val = np.exp(curr_eps * (n_ir) / num_qs)
+            denom = np.sum(cache_e_val)
+            probs = cache_e_val / denom
+            print(probs)
+
+            decision = rng.choice(np.arange(self.num_labels), p=probs)
+            decisions.append(decision)
+        return decisions

@@ -57,9 +57,14 @@ def load_predicted_labels(aggregator, dataset_name="svhn", num_models=250):
     :returns: list containing the privately aggregated labels
     """
     votes = np.load(f"./saved/{dataset_name}_{num_models}_teacher_predictions.npy", allow_pickle=True)
-    # NOTE hard-coded noise scale in line below, change sometime
-    agg = lambda x: aggregator.threshold_aggregate(x, 10)  # noqa: E731
-    return np.apply_along_axis(agg, 0, votes)  # yay parallelizing!
+    ### BEGIN insert
+    votes = votes.transpose()
+    agg = aggregate.L1Exp(num_labels=10, epsilon=100, total_num_queries=len(votes))
+    return agg.threshold_aggregate(votes)
+    ### END insert
+    # # NOTE hard-coded noise scale in line below, change sometime
+    # agg = lambda x: aggregator.threshold_aggregate(x, 10)  # noqa: E731
+    # return np.apply_along_axis(agg, 0, votes)  # yay parallelizing!
 
 
 def main():
