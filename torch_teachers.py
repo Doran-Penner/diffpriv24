@@ -72,6 +72,7 @@ def train(training_data, valid_data, dataset, device='cpu', lr=1e-3, epochs=70, 
         network.train()
         train_acc = []
         for batch_xs, batch_ys in train_loader:
+            opt.zero_grad()
             batch_xs = batch_xs.to(device)
             batch_ys = batch_ys.to(device)
 
@@ -81,7 +82,6 @@ def train(training_data, valid_data, dataset, device='cpu', lr=1e-3, epochs=70, 
 
             loss_val = loss(preds, batch_ys)
 
-            opt.zero_grad()
             loss_val.backward()
             opt.step()
 

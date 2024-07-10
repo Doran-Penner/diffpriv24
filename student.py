@@ -16,6 +16,7 @@ def load_and_part_sets(dataset, num_teachers):
     labels = list(filter(lambda x: x != -1, labels))
     label_len = min(len(labels),len(train_set) + len(valid_set))
     
+    # cut off any indices to unlabeled data
     train_set.indices = list(filter(lambda i: i < label_len, train_set.indices))
     valid_set.indices = list(filter(lambda i: i < label_len, valid_set.indices))
     
@@ -31,6 +32,7 @@ def calculate_test_accuracy(network, test_data):
     :param test_data: dataset containing the test data
     :returns: number representing the accuracy of the student model on the test data
     """
+    network.eval()
     batch_size = 64
     test_loader = torch.utils.data.DataLoader(test_data, shuffle=True, batch_size=batch_size)
     accs = []

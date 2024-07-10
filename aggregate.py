@@ -372,8 +372,9 @@ class L1Exp(Aggregator):
             cache_e_val = np.exp(curr_eps * (n_ir) / num_qs)
             denom = np.sum(cache_e_val)
             probs = cache_e_val / denom
-            print(probs)
+            # print(probs)
 
             decision = rng.choice(np.arange(self.num_labels), p=probs)
             decisions.append(decision)
         return decisions
+
