@@ -5,6 +5,7 @@ import student
 import torch
 from os.path import isfile
 import torch_teachers
+import privacy_accounting
 import helper
 import time
 import pickle
@@ -36,7 +37,7 @@ rng = np.random.default_rng()
 # p in (0,1],
 # tau in [1, 100]
 
-NUM_POINTS = 10  # changed for our custom checking
+NUM_POINTS = 20  # changed for our custom checking
 
 # points = np.asarray([
 #     # change these range values to shrink scope (for optimization)
@@ -48,7 +49,7 @@ NUM_POINTS = 10  # changed for our custom checking
 # ])
 
 _alpha = np.full((NUM_POINTS,), 3)
-_p = np.arange(1,11) * 0.1
+_p = np.arange(1,21) * 0.05
 _tau = _p * 50
 _sigma1 = _p * 40
 _sigma2 = np.full((NUM_POINTS,), 50)
@@ -91,7 +92,15 @@ for point in points:
     # number of epochs
 
     # ... do stuff
-    agg = aggregate.RepeatGNMax(sigma1, sigma2, p, tau, delta=1e-6)
+    agg = aggregate.RepeatGNMax(
+        sigma1,
+        sigma2,
+        p,
+        tau,
+        delta=1e-6,
+        distance_fn=helper.swing_distance,
+        epsilon_prime=privacy_accounting.epsilon_prime_swing,
+    )
    
     labels = get_predicted_labels.load_predicted_labels(agg, dataset, num_teachers)
     print("FINAL tau usages:", agg.tau_tally)

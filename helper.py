@@ -31,8 +31,8 @@ def l_inf_distances(votes, prev_votes, num_labels):
     return divergences
 
 def swing_distance(votes, prev_votes, num_labels):
-    swing_counts = torch.sum(prev_votes != votes,dim=1)
-    return swing_counts
+    swing_counts = torch.sum(prev_votes != torch.from_numpy(votes).to(device) ,dim=1)
+    return swing_counts.float()
 
 def load_dataset(dataset_name = 'svhn', split='teach', make_normal=False):
     """
