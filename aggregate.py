@@ -200,7 +200,7 @@ class RepeatGNMax(Aggregator):
     treshold_aggregate(votes, epsilon):
         function that aggregates votes until the epsilon spent reaches a certain threshold
     """
-    def __init__(self,scale1,scale2,p,tau,alpha=3,delta=1e-5,num_labels=10,distance_fn=l_inf_distances):
+    def __init__(self,scale1,scale2,p,tau,alpha=3,delta=1e-5,num_labels=10,distance_fn=l_inf_distances,epsilon_prime=privacy_accounting.epsilon_prime):
         """
         Initializer function for RepeatGNMax class
 
@@ -231,7 +231,7 @@ class RepeatGNMax(Aggregator):
         self.total_queries = 0
         self.eps_ma = 0
         self.delta = delta
-        self.eprime = privacy_accounting.epsilon_prime(self.alpha, self.p, self.scale1)
+        self.eprime = epsilon_prime(self.alpha, self.p, self.scale1)
         self.tau_tally = 0
         self.distances = distance_fn
 
