@@ -62,9 +62,11 @@ def load_predicted_labels(aggregator, dataset_name="svhn", num_models=250):
     # agg = aggregate.L1Exp(num_labels=10, epsilon=100, total_num_queries=len(votes))
     # return agg.threshold_aggregate(votes)
     ### END insert
-    # # NOTE hard-coded noise scale in line below, change sometime
+    # # NOTE hard-coded epsilon in line below, change sometime
     agg = lambda x: aggregator.threshold_aggregate(x, 10)  # noqa: E731
-    return np.apply_along_axis(agg, 0, votes)  # yay parallelizing!
+    labels = np.apply_along_axis(agg, 0, votes)
+    np.save(f'./saved/{dataset_name}_{num_models}_agg_teacher_predictions.npy', labels)
+    return labels
 
 
 def main():
@@ -104,8 +106,6 @@ def main():
     print("label accuracy:", correct/guessed)
     if unlabeled != guessed:
         print("label accuracy ON LABELED DATA:", correct/(guessed - unlabeled))
-
-    np.save(f'./saved/{dataset}_{num_teachers}_agg_teacher_predictions.npy', labels)
 
 if __name__ == "__main__":
     main()
