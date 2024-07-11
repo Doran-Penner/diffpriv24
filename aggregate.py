@@ -2,7 +2,7 @@ import numpy as np
 import math
 import privacy_accounting
 import torch
-from helper import device
+from helper import device, l_inf_distances
 
 class Aggregator:    
     """
@@ -200,7 +200,7 @@ class RepeatGNMax(Aggregator):
     treshold_aggregate(votes, epsilon):
         function that aggregates votes until the epsilon spent reaches a certain threshold
     """
-    def __init__(self,scale1,scale2,p,tau,alpha=3,delta=1e-5,num_labels=10):
+    def __init__(self,scale1,scale2,p,tau,alpha=3,delta=1e-5,num_labels=10,distance_fn=l_inf_distances):
         """
         Initializer function for RepeatGNMax class
 
@@ -216,6 +216,7 @@ class RepeatGNMax(Aggregator):
         :param tau: float variable determining the threshold of similarity that the vote 
                     histograms have to be to release the same answer. so, the lower the 
                     threshold, the more similar the histograms need to be.
+        :param distance_fn: function that computes a distance vector to previous votes
         """
         self.scale1 = scale1
         self.scale2 = scale2
@@ -232,6 +233,7 @@ class RepeatGNMax(Aggregator):
         self.delta = delta
         self.eprime = privacy_accounting.epsilon_prime(self.alpha, self.p, self.scale1)
         self.tau_tally = 0
+        self.distances = distance_fn
 
     def data_dependent_cost(self,votes):
         """
@@ -277,19 +279,8 @@ class RepeatGNMax(Aggregator):
         U = np.random.uniform(size=(len(votes),)) < self.p  # U is array of bools
         sub_record = votes[U]
 
-        # using torch so we can do this on the gpu (for speed)
-        hist = torch.zeros((self.num_labels,), device=device)
-        for v in sub_record:
-            hist[v] += 1
-        
         prev_votes = torch.tensor(np.asarray(self.prev_votes), device=device)
-        total_hist = torch.zeros((len(prev_votes), self.num_labels), device=device)
-
-        unique, counts = torch.unique(prev_votes, dim=1, return_counts=True)
-        total_hist[:,unique] = counts.float()
-
-        divergences, _ = torch.max(torch.abs(hist-total_hist), dim=1)
-        divergences += torch.normal(0, self.scale1, size=np.shape(divergences), device=device)
+        divergences = self.distances(sub_record,prev_votes[U],self.num_labels)
         min_divergence = torch.argmin(divergences)
 
         print(divergences[min_divergence])

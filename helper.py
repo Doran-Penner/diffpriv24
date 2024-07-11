@@ -16,6 +16,25 @@ except:  # noqa: E722
     already_printed = True
     print("using device", device)
 
+def l_inf_distances(votes, prev_votes, num_labels):
+    # using torch so we can do this on the gpu (for speed)
+    hist = torch.zeros((num_labels,), device=device)
+    for v in votes:
+        hist[v] += 1
+        
+    total_hist = torch.zeros((len(prev_votes), num_labels), device=device)
+
+    unique, counts = torch.unique(prev_votes, dim=1, return_counts=True)
+    total_hist[:,unique] = counts.float()
+
+    divergences, _ = torch.max(torch.abs(hist-total_hist), dim=1)
+    divergences += torch.normal(0, self.scale1, size=np.shape(divergences), device=device)
+    return divergences
+
+def swing_distance(votes, prev_votes, num_labels):
+    swing_counts = torch.sum(prev_votes != votes,dim=1)
+    return swing_counts
+
 def load_dataset(dataset_name = 'svhn', split='teach', make_normal=False):
     """
     Function for loading the datasets that we need to load.
