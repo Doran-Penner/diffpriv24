@@ -111,7 +111,7 @@ for point in points:
 
     train_set, valid_set, test_set = student.load_and_part_sets(dataset, num_teachers)
 
-    n, val_acc = torch_teachers.train(train_set, valid_set, dataset, device=helper.device, epochs=100, batch_size=256, model="student")
+    n, val_acc = torch_teachers.train(train_set, valid_set, dataset, device=helper.device, epochs=100, batch_size=16, model="student")
 
     # compute our final accuracy metric on *true labels* of validation data
     _train_data, valid_data, _test_data = helper.load_dataset(dataset, "student")
