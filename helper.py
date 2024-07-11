@@ -16,6 +16,9 @@ except:  # noqa: E722
     already_printed = True
     print("using device", device)
 
+# JANE: it all needs to go
+# transform should be given careful attention
+### params for dataset loading in jane_notes
 def load_dataset(dataset_name = 'svhn', split='teach', make_normal=False):
     """
     Function for loading the datasets that we need to load.

@@ -3,6 +3,7 @@ from torch import nn
 class CNN(nn.Module):
 
     def __init__(self,padding=True,dataset='svhn'):
+        # JANE: see notes
         super().__init__()
         pad = 'same' if padding else 0
         if dataset == 'svhn':

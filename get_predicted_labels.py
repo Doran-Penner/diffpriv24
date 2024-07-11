@@ -6,7 +6,7 @@ from os.path import isfile
 from helper import load_dataset, device
 
 
-def calculate_prediction_matrix(data, device, dataset='svhn', num_models=250):
+def calculate_prediction_matrix(data_loader, device, dataset='svhn', num_models=250):
     """
     Function for calculating a numpy matrix representing each teacher's vote on each query.
     :param data: DataLoader for all of the data that the student is going to train on (both student training and 
@@ -29,7 +29,7 @@ def calculate_prediction_matrix(data, device, dataset='svhn', num_models=250):
         correct = 0
         guessed = 0
 
-        for batch, labels in data:
+        for batch, labels in data_loader:
             batch, labels = batch.to(device), labels.to(device)
             pred_vectors = model(batch)  # 2-axis arr of model's prediction vectors
             preds = torch.argmax(pred_vectors, dim=1)  # gets highest-value indices e.g. [2, 4, 1, 1, 5, ...]

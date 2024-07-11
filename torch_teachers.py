@@ -5,6 +5,7 @@ import math
 import helper
 from models import CNN
 
+# JANE: supercede this
 def load_partitioned_dataset(dataset, num_teachers):
     """
     This function loads a specified training dataset, partitioned according to the number of teachers, as well as a validation dataset.
@@ -113,6 +114,7 @@ def train_all(dataset='svhn', num_teachers=250):
     :param num_teachers: integer specifying the number of teachers to train
     :return: Does not return anything, but saves the models instead
     """
+    # JANE: teacher train, valid loading
     train_sets, valid_sets = load_partitioned_dataset(dataset, num_teachers)
     for i in range(num_teachers):
         print(f"Training teacher {i} now!")

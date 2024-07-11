@@ -3,6 +3,7 @@ import numpy as np
 from torch_teachers import train
 from helper import load_dataset, device
 
+# JANE: supercede this
 def load_and_part_sets(dataset, num_teachers):
     """
     Function that loads datasets according to the needs of the student model.
@@ -60,4 +61,5 @@ def main():
     torch.save(n.state_dict(), f"./saved/{dataset}_student_final.ckp")
 
 if __name__ == '__main__':
+    # JANE: *anywhere* that `load_dataset` is used (not just this file)
     main()

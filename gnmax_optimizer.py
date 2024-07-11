@@ -11,6 +11,8 @@ import pickle
 
 start_time = time.time()
 
+import datasets
+
 SAVEFILE_NAME = "saved/rep_gnmax_points.pkl"
 
 ### Using this info
