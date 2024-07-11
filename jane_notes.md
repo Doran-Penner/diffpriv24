@@ -22,9 +22,14 @@ torch `random_split` wants a pytorch generator:
 
 use underscores for anything not meant to be accessed by the user
 
+make documentation and variable names very clear on the following distinctions:
+- `dataset_name` is the string for the dataset, e.g. `"svhn"`
+- `dataset` is the "raw" dataset (or Subset, etc.)
+- `data_loader` is when it gets wrapped in a `DataLoader` object
 
+***
 
 **SCOPE CREEP**: `assert`ions that mess-up-able (default) params are valid
-e.g. `assert model in ["teach", "student"]`
+e.g. `assert dataset_name in ["svhn", "mnist"]`
 and generally cleaning up default paramters
-**this is a separate problem, along the lines of above option 3
+this is a separate problem, along the lines of above option 3
