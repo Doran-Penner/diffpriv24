@@ -280,7 +280,8 @@ class RepeatGNMax(Aggregator):
         sub_record = votes[U]
 
         prev_votes = torch.tensor(np.asarray(self.prev_votes), device=device)
-        divergences = self.distances(sub_record,prev_votes[U],self.num_labels)
+        divergences = self.distances(sub_record,prev_votes[:, U],self.num_labels)
+        divergences += torch.normal(0, self.scale1, size=np.shape(divergences), device=device)
         min_divergence = torch.argmin(divergences)
 
         print(divergences[min_divergence])

@@ -28,7 +28,6 @@ def l_inf_distances(votes, prev_votes, num_labels):
     total_hist[:,unique] = counts.float()
 
     divergences, _ = torch.max(torch.abs(hist-total_hist), dim=1)
-    divergences += torch.normal(0, self.scale1, size=np.shape(divergences), device=device)
     return divergences
 
 def swing_distance(votes, prev_votes, num_labels):

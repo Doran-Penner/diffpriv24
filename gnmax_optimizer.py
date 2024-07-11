@@ -36,15 +36,29 @@ rng = np.random.default_rng()
 # p in (0,1],
 # tau in [1, 100]
 
-NUM_POINTS = 256
+NUM_POINTS = 10  # changed for our custom checking
+
+# points = np.asarray([
+#     # change these range values to shrink scope (for optimization)
+#     rng.choice(np.arange(2,11), size=(NUM_POINTS,)),  # alpha
+#     rng.uniform(low=0.01, size=(NUM_POINTS,)),  # p
+#     rng.uniform(low=1e-1, high=256.0, size=(NUM_POINTS,)),  # tau
+#     rng.uniform(low=1e-1, high=256.0, size=(NUM_POINTS,)),  # sigma1
+#     rng.uniform(low=1e-1, high=256.0, size=(NUM_POINTS,))  # sigma2
+# ])
+
+_alpha = np.full((NUM_POINTS,), 3)
+_p = np.arange(1,11) * 0.1
+_tau = _p * 50
+_sigma1 = _p * 40
+_sigma2 = np.full((NUM_POINTS,), 50)
 
 points = np.asarray([
-    # change these range values to shrink scope (for optimization)
-    rng.choice(np.arange(2,11), size=(NUM_POINTS,)),  # alpha
-    rng.uniform(low=0.01, size=(NUM_POINTS,)),  # p
-    rng.uniform(low=1e-1, high=256.0, size=(NUM_POINTS,)),  # tau
-    rng.uniform(low=1e-1, high=256.0, size=(NUM_POINTS,)),  # sigma1
-    rng.uniform(low=1e-1, high=256.0, size=(NUM_POINTS,))  # sigma2
+    _alpha,
+    _p,
+    _tau,
+    _sigma1,
+    _sigma2
 ])
 
 points = points.transpose()  # get transposed idiot

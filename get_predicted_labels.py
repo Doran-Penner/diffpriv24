@@ -79,7 +79,7 @@ def main():
     # change these or pass variables in the future
     dataset = 'svhn'
     num_teachers = 250
-    agg = aggregate.RepeatGNMax(50, 100, 1, 50)
+    agg = aggregate.RepeatGNMax(50, 50, 1, 50)
 
     train, valid, _test = load_dataset(dataset, 'student', False)
     train = torch.utils.data.ConcatDataset([train, valid])
