@@ -14,7 +14,6 @@ class _Dataset:
         pass
         # here we should load all the datasets on initialization,
         # and do any other stuff (todo)
-    
 
     # note: fixed, small variables (like num labels) should be "flat" attributes,
     # as well as all non-modifying info (like teach_train)
@@ -22,9 +21,10 @@ class _Dataset:
     # however! we do @property stuff so we can document properly (hehe)
     # note: @property disallows modification, which isn't a problem right now
     # but I'm not a massive fan of removing user control
-    
+
     @property
     def teach_train(self):
+        # todo: figure out how we handle randomization, then document it
         """
         Returns array of datasets for the teacher's to train on:
         has length equal to number of teachers, and randomized
@@ -32,9 +32,10 @@ class _Dataset:
         for how to use the validation accuracy as well.
         """
         raise NotImplementedError
-    
+
     @property
     def teach_valid(self):
+        # note: the code block formatting isn't really working
         """
         Returns array of validation datasets for the teachers. To use this
         in combination with `teach_train` for training, do something like this:
@@ -46,10 +47,40 @@ class _Dataset:
         ```
         """
         raise NotImplementedError
-    
+
     @property
     def teach_test(self):
         """
-        Returns the test set for teachers
+        Returns the test set for teachers. Not sure if we'll
+        use this, but good to have anyways!
         """
         raise NotImplementedError
+
+    @property
+    def student_train(self):
+        """
+        Returns the training set for the student. Note that this *does not*
+        overwrite labels: use `student_overwrite_labels` for that.
+        """
+        # todo: figure out how we do the label overwriting and if it should
+        # be in multiple functions or one, then document it!
+        # also change method name if possible
+        raise NotImplementedError
+
+    @property
+    def student_valid(self):
+        """
+        Returns the validation set for the student. See `student_train` for other info.
+        """
+        raise NotImplementedError
+
+    @property
+    def student_test(self):
+        """
+        Returns the test set for the student.
+        """
+        raise NotImplementedError
+    
+    # future: can maybe pass "semi_supervise=True" and return both labeled and unlabeled data
+    def student_overwrite_labels(self, labels):
+        pass  # TODO document, plan, etc: this is the complicated part
