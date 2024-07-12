@@ -49,9 +49,9 @@ NUM_POINTS = 20  # changed for our custom checking
 # ])
 
 _alpha = np.full((NUM_POINTS,), 3)
-_p = np.arange(1,21) * 0.05
+_p = np.full((NUM_POINTS,), 0.75)
 _tau = _p * 50
-_sigma1 = _p * 40
+_sigma1 = np.arange(1,21) * 5 * _p  # [5, 10, ..., 100]
 _sigma2 = np.full((NUM_POINTS,), 50)
 
 points = np.asarray([
