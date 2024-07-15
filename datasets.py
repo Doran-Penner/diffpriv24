@@ -4,11 +4,17 @@ with potential for more.
 """
 
 import torch
+import torchvision
 
 
 # todo: add fancy-formatted documentation
+# note: how can we document input arguments if the user doesn't directly call this?
+# solution: we document it in the helper/creation function, which will be defined in the end
 class _Dataset:
     def __init__(self):
+        """
+        todo: document this. see _Svhn for args that we take
+        """
         raise NotImplementedError
         # note: here's a basic outline for how to do stuff,
         # probably remove this later
@@ -98,4 +104,42 @@ class _Svhn(_Dataset):
     # ... (idk)
 
     def __init__(self, num_teachers, num_labels, seed=None):
-        pass  # todo: fill it out
+        generator = torch.Generator()
+        if seed is not None:
+            generator = generator.manual_seed(seed)
+
+        self.num_teachers = num_teachers
+        self.num_labels = num_labels
+
+        tfs = [
+            torchvision.transforms.v2.ToImage(),
+            torchvision.transforms.v2.ToDtype(torch.float32, scale=True),
+        ]
+        transform = torchvision.transforms.v2.Compose(tfs)
+        transform_normalize = torchvision.transforms.v2.Compose(
+            tfs
+            + [
+                torchvision.transforms.v2.Normalize(
+                    [0.4376821, 0.4437697, 0.47280442],
+                    [0.19803012, 0.20101562, 0.19703614],
+                )
+            ]
+        )
+        # we normalize the input to the teachers, but not the student
+        og_train = torchvision.datasets.SVHN(
+            "./data/svhn", split="train", download=True, transform=transform_normalize
+        )
+        og_extra = torchvision.datasets.SVHN(
+            "./data/svhn", split="extra", download=True, transform=transform_normalize
+        )
+        og_test = torchvision.datasets.SVHN(
+            "./data/svhn", split="test", download=True, transform=transform
+        )
+
+        # ... TODO finish this
+
+        # self._teach_train = ... compute stuff
+        # (we use the underscore so the user only
+        # accesses the well-documented attribute)
+        # self._layers = todo: how are we gonna do this and how abstract does it need to be?
+        # self._transform = ...
