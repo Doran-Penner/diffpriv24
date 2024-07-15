@@ -370,3 +370,61 @@ class L1Exp(Aggregator):
             decisions.append(decision)
         return decisions
 
+class ConfidentGNMax(Aggregator):
+    def __init__(self, scale1, scale2, tau, alpha=3, delta=1e-6, num_labels=10):
+        self.scale1 = scale1
+        self.scale2 = scale2
+        self.tau = tau
+        self.alpha = alpha
+        self.delta = delta
+        self.num_labels = num_labels
+        self.total_queries = 0
+        self.gnmax = NoisyMaxAggregator(scale2,num_labels,np.random.normal)
+        self.eprime = alpha / (scale1 * scale1) 
+        self.eps_ma = 0
+
+    def data_dependent_cost(self,votes):
+        """
+        Function for calculating the data-dependent q value for a query
+
+        Arguments:
+        :param votes: array of labels, where each label is the vote of a single teacher. 
+                      so, if there are 250 teachers, the length of votes is 250.
+        :returns: q value
+        """
+        hist = [0]*self.num_labels
+        for v in votes:
+            hist[int(v)] += 1
+        tot = 0
+        for label in range(self.num_labels):
+            if label == np.argmax(hist):
+                continue
+            tot += math.erfc((max(hist)-hist[label])/(2*self.scale2))
+        return tot/2
+ 
+    def aggregate(self, votes):
+        self.total_queries += 1
+        hist = torch.zeros((num_labels,), device=device)
+        for v in votes:
+            hist[v] += 1
+        hist += torch.normal(0, self.scale1, size=np.shape(hist), device=device)
+        if torch.max(hist) >= self.tau:
+            q = self.data_dependent_cost(votes)
+            self.eps_ma += privacy_accounting.single_epsilon_ma(q, self.alpha, self.scale2)
+            return self.gnmax.aggregate(votes)
+        else:
+            return -1
+
+    def threshold_aggregate(self, votes, epsilon):
+        epsilon_ma = self.eps_ma + privacy_accounting.single_epsilon_ma(
+            self.data_dependent_cost(votes), self.alpha, self.scale2
+        )
+        ed_epsilon = privacy_accounting.renyi_to_ed(
+            (self.total_queries + 1) * self.eprime + epsilon_ma,
+            self.delta,
+            self.alpha,
+        )
+        print(epsilon_ma, ed_epsilon)
+        if ed_epsilon > epsilon:
+            return -1
+        return self.aggregate(votes)
