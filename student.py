@@ -18,8 +18,8 @@ def load_and_part_sets(dataset, num_teachers):
     labels_ind = list(filter(lambda x: labels[x] < label_len, labels_ind)) # only consider datapoints before label_len
 
     # cut off any indices to unlabeled data
-    train_set.indices = list(set(train_set.indices) & set(labels_ind))
-    valid_set.indices = list(set(valid_set.indices) & set(labels_ind))
+    train_set.indices = torch.from_numpy(np.intersect1d(train_set.indices, labels_ind))
+    valid_set.indices = torch.from_numpy(np.intersect1d(valid_set.indices, labels_ind))
     
     joint_set = torch.utils.data.ConcatDataset([train_set, valid_set])
     joint_set.datasets[0].dataset.labels[labels_ind] = labels[labels_ind] # NOTE this is very sketchy
