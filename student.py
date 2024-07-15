@@ -15,7 +15,7 @@ def load_and_part_sets(dataset, num_teachers):
     labels = np.load(f"./saved/{dataset}_{num_teachers}_agg_teacher_predictions.npy", allow_pickle=True)
     labels_ind = list(filter(lambda x: labels[x] != -1, range(len(labels)))) # set of indices where label != -1
     label_len = min(len(labels),len(train_set) + len(valid_set))
-    labels_ind = list(filter(lambda x: labels[x] < label_len, labels)) # only consider datapoints before label_len
+    labels_ind = list(filter(lambda x: labels[x] < label_len, labels_ind)) # only consider datapoints before label_len
 
     # cut off any indices to unlabeled data
     train_set.indices = list(filter(lambda i: i in labels_ind, train_set.indices))

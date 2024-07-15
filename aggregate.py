@@ -404,11 +404,11 @@ class ConfidentGNMax(Aggregator):
  
     def aggregate(self, votes):
         self.total_queries += 1
-        hist = torch.zeros((num_labels,), device=device)
+        hist = torch.zeros((self.num_labels,), device=device)
         for v in votes:
             hist[v] += 1
-        hist += torch.normal(0, self.scale1, size=np.shape(hist), device=device)
-        if torch.max(hist) >= self.tau:
+        noised_max = torch.max(hist) + torch.normal(0, self.scale1, size=hist.shape, device=device)
+        if noised_max >= self.tau:
             q = self.data_dependent_cost(votes)
             self.eps_ma += privacy_accounting.single_epsilon_ma(q, self.alpha, self.scale2)
             return self.gnmax.aggregate(votes)
