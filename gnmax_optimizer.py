@@ -37,7 +37,7 @@ rng = np.random.default_rng()
 # p in (0,1],
 # tau in [1, 100]
 
-NUM_POINTS = 20  # changed for our custom checking
+NUM_POINTS = 40  # changed for our custom checking
 
 # points = np.asarray([
 #     # change these range values to shrink scope (for optimization)
@@ -51,7 +51,7 @@ NUM_POINTS = 20  # changed for our custom checking
 _alpha = np.full((NUM_POINTS,), 3)
 _p = np.full((NUM_POINTS,), 0.75)
 _tau = _p * 50
-_sigma1 = np.arange(1,21) * 5 * _p  # [5, 10, ..., 100]
+_sigma1 = np.arange(1,41) * 5 * _p  # [5, 10, ..., 200]
 _sigma2 = np.full((NUM_POINTS,), 50)
 
 points = np.asarray([
@@ -99,7 +99,7 @@ for point in points:
         tau,
         delta=1e-6,
         distance_fn=helper.swing_distance,
-        epsilon_prime=privacy_accounting.epsilon_prime_swing,
+        epsilon_prime=privacy_accounting.epsilon_prime,
     )
    
     labels = get_predicted_labels.load_predicted_labels(agg, dataset, num_teachers)
