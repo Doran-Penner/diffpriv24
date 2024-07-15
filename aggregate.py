@@ -282,13 +282,13 @@ class RepeatGNMax(Aggregator):
         prev_votes = torch.tensor(np.asarray(self.prev_votes), device=device)
         divergences = self.distances(sub_record,prev_votes[:, U],self.num_labels)
         divergences += torch.normal(0, self.scale1, size=np.shape(divergences), device=device)
-        min_divergence = torch.argmin(divergences)
+        min_divergence_idx = torch.argmin(divergences)
 
-        print(divergences[min_divergence])
+        print(divergences[min_divergence_idx])
 
-        if divergences[min_divergence] < self.tau:
+        if divergences[min_divergence_idx] < self.tau:
             self.tau_tally += 1
-            return self.prev_labels[min_divergence]
+            return self.prev_labels[min_divergence_idx]
         else:
             q = self.data_dependent_cost(votes)
             self.queries.append(q)
@@ -298,7 +298,7 @@ class RepeatGNMax(Aggregator):
             self.prev_labels.append(label)
             return label
 
-    def threshold_aggregate(self, votes, epsilon):
+    def threshold_aggregate(self, votes, max_epsilon):
         """
         Function for aggregating teacher votes with the specified algorithm without
         passing some epsilon value, passed as a parameter to this function
@@ -323,7 +323,7 @@ class RepeatGNMax(Aggregator):
             self.alpha,
         )
         print(epsilon_ma, ed_epsilon)
-        if ed_epsilon > epsilon:
+        if ed_epsilon > max_epsilon:
             return -1
         return self.aggregate(votes)
 

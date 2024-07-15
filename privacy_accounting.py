@@ -144,6 +144,7 @@ def epsilon_prime(alpha, p, sigma1):
     return eprime
 
 def epsilon_prime_swing(alpha, p, sigma1):
+    # hacky: be careful of this if we change any functions
     return epsilon_prime(alpha, p, sigma1 * math.sqrt(2))
 
 def repeat_epsilon(qs, K, alpha, sigma1, sigma2, p, delta):
