@@ -448,7 +448,8 @@ class LapRepeatGNMax(RepeatGNMax):
             epsilon_threshold = 10,
             confident = True,
             eprime = privacy_accounting.laplacian_eps_prime,
-            lap_scale = 50
+            lap_scale = 50,
+            GNMax_epsilon = 5
         ):
 
         # general attributes
@@ -470,6 +471,7 @@ class LapRepeatGNMax(RepeatGNMax):
         self.distance_fn = distance_fn
         self.tau_tally = 0       
         self.confident = confident # possibly useful possibly not, unsure
+        self.GNMax_epsilon = GNMax_epsilon
         self.lap_scale = lap_scale
 
 
@@ -566,11 +568,11 @@ class LapRepeatGNMax(RepeatGNMax):
         #    individual mechanisms
 
         # NOTE maybe we could squeeze out a couple more tau responses?
-        if self.total_queries < self.max_num:
+        if self.total_queries < self.max_num and self.ed_epsilon < self.GNMax_epsilon:
             # here is the hypothetical data dependent cost of gnmaxing the vote vector
             # we assume that this will be vector will not be repeat labeled
             temp_epsilon = self.eps_ma + privacy_accounting.single_epsilon_ma(
-                    self.data_dependent_cost(votes), self.alpha, self.scale2
+                    self.data_dependent_cost(votes), self.alpha, self.GNMax_scale
                 )
             self.gn_epsilon = privacy_accounting.renyi_to_ed(
                 temp_epsilon,
