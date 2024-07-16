@@ -3,7 +3,7 @@ import torch
 from models import CNN
 import aggregate
 from os.path import isfile
-import helper
+import globals
 
 
 def calculate_prediction_matrix(data_loader, device, dataset='svhn', num_models=250):
@@ -21,7 +21,7 @@ def calculate_prediction_matrix(data_loader, device, dataset='svhn', num_models=
     for i in range(num_models):
         print("Model",str(i))
         state_dict = torch.load(f'./saved/{dataset}_teacher_{i}_of_{num_models-1}.tch',map_location=device)
-        model = CNN(helper.dataset).to(device)
+        model = CNN(globals.dataset).to(device)
         model.load_state_dict(state_dict)
         model.eval()
 
@@ -79,17 +79,15 @@ def main():
     # tau (threshold)
 
     # change these or pass variables in the future
-    dataset = 'svhn'
-    num_teachers = 250
     agg = aggregate.RepeatGNMax(50, 50, 1, 50)
 
-    student_data = helper.dataset.student_data
+    student_data = globals.dataset.student_data
     loader = torch.utils.data.DataLoader(student_data, shuffle=False, batch_size=256)
 
-    if not isfile(f"./saved/{dataset}_{num_teachers}_teacher_predictions.npy"):
-        calculate_prediction_matrix(loader, helper.device, dataset, num_teachers)
+    if not isfile(f"./saved/{globals.dataset.name}_{globals.dataset.num_teachers}_teacher_predictions.npy"):
+        calculate_prediction_matrix(loader, globals.device, globals.dataset.name, globals.dataset.num_teachers)
     
-    labels = load_predicted_labels(agg, dataset, num_teachers)
+    labels = load_predicted_labels(agg, globals.dataset.name, globals.dataset.num_teachers)
     print("FINAL tau usages:", agg.tau_tally)
 
     correct = 0
