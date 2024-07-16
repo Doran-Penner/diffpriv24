@@ -107,18 +107,20 @@ class _Svhn(_Dataset):
     # ... (idk)
 
     def __init__(self, num_teachers, seed=None):
-        generator = torch.Generator()
+        self._generator = torch.Generator()
         if seed is not None:
-            generator = generator.manual_seed(seed)
+            self._generator = self._generator.manual_seed(seed)
 
+        self.name = "svhn"
         self.num_teachers = num_teachers
         self.num_labels = 10
+        self.input_shape = (32, 32, 3)
 
         tfs = [
             torchvision.transforms.v2.ToImage(),
             torchvision.transforms.v2.ToDtype(torch.float32, scale=True),
         ]
-        transform = torchvision.transforms.v2.Compose(tfs)
+        self._transform = torchvision.transforms.v2.Compose(tfs)
         transform_normalize = torchvision.transforms.v2.Compose(
             tfs
             + [
@@ -136,13 +138,13 @@ class _Svhn(_Dataset):
             "./data/svhn", split="extra", download=True, transform=transform_normalize
         )
         og_test = torchvision.datasets.SVHN(
-            "./data/svhn", split="test", download=True, transform=transform
+            "./data/svhn", split="test", download=True, transform=self._transform
         )
         # first, randomly split the train+extra into train and valid collections
         all_teach_train, all_teach_valid = torch.utils.data.random_split(
             torch.utils.data.ConcatDataset([og_train, og_extra]),
             [0.8, 0.2],
-            generator=generator,
+            generator=self._generator,
         )
 
         train_size = len(all_teach_train)
@@ -166,16 +168,16 @@ class _Svhn(_Dataset):
 
         # now assign self variables to those (these are what the "user" will access!)
         self.teach_train = torch.utils.data.random_split(
-            all_teach_train, train_partition, generator=generator
+            all_teach_train, train_partition, generator=self._generator
         )
         self.teach_valid = torch.utils.data.random_split(
-            all_teach_valid, valid_partition, generator=generator
+            all_teach_valid, valid_partition, generator=self._generator
         )
         self.teach_test = og_test
 
         # future: can we randomly split the student learning and test data?
         # would need to somehow keep track of the indices for teacher labeling
-        student_data_len = torch.floor(len(og_test) * 0.7)
+        student_data_len = torch.floor(len(og_test) * 0.9)
         self.student_data = torch.utils.data.Subset(
             og_test, torch.arange(student_data_len)
         )
@@ -186,31 +188,35 @@ class _Svhn(_Dataset):
         # todo: work with Carter to figure out how best to handle this
         self.layers = []
 
-        # ... TODO label overriding: how can we "copy" the dataset?
-        # solution: use `del` keyword, then re-load
-        # !!! (does this delete old refs?)
-
-        # todo: this may not be safe (may use old pointers) at first,
-        # I'm gonna make an unsafe version first and then clean it up
         def student_overwrite_labels(self, labels):
-            # note: we give -1 instead of no label, so will labels always be same length as dataset?
-            # hmmm... feels like we're hard-coding this -1 encoding which may not be as good for other
-            # datasets (e.g. regression) and also not as nice for randomly giving stuff to teachers to be labeled
-            # however! I think that's an ambitious change, so we're not going to worry about that for now
-            assert len(labels) == len(
-                self.student_data
-            ), 'input "labels" not the correct length'
+            # feels like we're hard-coding this -1 encoding which may not be as good for other datasets
+            # (e.g. regression) and also not as nice for randomly giving stuff to teachers to be labeled
+            # however! I think that's ambitious to change, so we're not going to worry about that for now
+
             # note: this is some duplicated code
+            # we re-load so we don't modify labels of other references
             og_test = torchvision.datasets.SVHN(
-                "./data/svhn", split="test", download=True, transform=transform
+                "./data/svhn", split="test", download=True, transform=self._transform
             )
-            student_data_len = torch.floor(len(og_test) * 0.7)
-            # TODO change/remove below (or do it later?)
+            student_data_len = torch.floor(len(og_test) * 0.9)
             student_data = torch.utils.data.Subset(
                 og_test, torch.arange(student_data_len)
             )
             # end duplicated code
+            # note: labels should be length of full test set
+            assert len(labels) == len(
+                student_data
+            ), 'input "labels" not the correct length'
 
+            labeled_indices = labels != -1  # array of bools
+            student_data.indices = student_data.indices[labeled_indices]
+            student_data.dataset.labels[student_data.indices] = labels[labeled_indices]
+
+            # check: does this work? I think so but not 100% sure
+            stud_train, stud_valid = torch.utils.data.random_split(
+                student_data, [0.8, 0.2], generator=self._generator
+            )
+            return stud_train, stud_valid
 
 
 def make_dataset(dataset_name, num_teachers, seed=None):

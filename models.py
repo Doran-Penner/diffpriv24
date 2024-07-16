@@ -2,11 +2,13 @@ from torch import nn
 
 class CNN(nn.Module):
 
-    def __init__(self,padding=True,dataset='svhn'):
-        # JANE: see notes (how should we handle padding?)
+    def __init__(self, dataset='svhn'):
+        # JANE: see notes
         super().__init__()
-        pad = 'same' if padding else 0
+        pad = 'same'
         if dataset == 'svhn':
+            # JANE: replace these numbers respectively with
+            # data_obj.input_shape[0] and (data_obj.input_shape[2], 64, 5)
             size = 32
             layers = [nn.Conv2d(3,64,5, padding=pad)]
         elif dataset == 'mnist':
