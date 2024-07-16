@@ -4,9 +4,10 @@ from models import CNN
 import aggregate
 from os.path import isfile
 import globals
+from helper import l_inf_distances
 
 
-def calculate_prediction_matrix(data_loader, device, dataset='svhn', num_models=250):
+def calculate_prediction_matrix(data_loader, dat_obj):
     """
     Function for calculating a numpy matrix representing each teacher's vote on each query.
     :param data: DataLoader for all of the data that the student is going to train on (both student training and 
@@ -18,10 +19,10 @@ def calculate_prediction_matrix(data_loader, device, dataset='svhn', num_models=
     :returns: nothing, but saves a file containing the teachers' predictions
     """
     votes = [] # final voting record
-    for i in range(num_models):
+    for i in range(dat_obj.num_models):
         print("Model",str(i))
-        state_dict = torch.load(f'./saved/{dataset}_teacher_{i}_of_{num_models-1}.tch',map_location=device)
-        model = CNN(globals.dataset).to(device)
+        state_dict = torch.load(f'./saved/{dat_obj.name}_teacher_{i}_of_{dat_obj.num_models-1}.tch',map_location=globals.device)
+        model = CNN(dat_obj).to(globals.device)
         model.load_state_dict(state_dict)
         model.eval()
 
@@ -30,7 +31,7 @@ def calculate_prediction_matrix(data_loader, device, dataset='svhn', num_models=
         guessed = 0
 
         for batch, labels in data_loader:
-            batch, labels = batch.to(device), labels.to(device)
+            batch, labels = batch.to(globals.device), labels.to(globals.device)
             pred_vectors = model(batch)  # 2-axis arr of model's prediction vectors
             preds = torch.argmax(pred_vectors, dim=1)  # gets highest-value indices e.g. [2, 4, 1, 1, 5, ...]
             correct_arr = torch.eq(preds, labels)  # compare to true labels, e.g. [True, False, False, ...]
@@ -42,11 +43,11 @@ def calculate_prediction_matrix(data_loader, device, dataset='svhn', num_models=
 
         votes.append(ballot)
         print(f"teacher {i}'s accuracy:", correct/guessed)
-    np.save(f"./saved/{dataset}_{num_models}_teacher_predictions.npy", np.asarray(votes))
+    np.save(f"./saved/{dat_obj.name}_{dat_obj.num_models}_teacher_predictions.npy", np.asarray(votes))
     print("done with the predictions!")
 
 
-def load_predicted_labels(aggregator, dataset_name="svhn", num_models=250):
+def load_predicted_labels(aggregator, dat_obj):
     """
     Function for loading and aggregatingthe predicted labels from the matrix created by 
     `calculate_prediction_matrix()`.
@@ -56,7 +57,7 @@ def load_predicted_labels(aggregator, dataset_name="svhn", num_models=250):
     :param num_models: int representing the number of teacher models being used
     :returns: list containing the privately aggregated labels
     """
-    votes = np.load(f"./saved/{dataset_name}_{num_models}_teacher_predictions.npy", allow_pickle=True)
+    votes = np.load(f"./saved/{dat_obj.name}_{dat_obj.num_models}_teacher_predictions.npy", allow_pickle=True)
     ### BEGIN insert
     # votes = votes.transpose()
     # agg = aggregate.L1Exp(num_labels=10, epsilon=100, total_num_queries=len(votes))
@@ -65,7 +66,7 @@ def load_predicted_labels(aggregator, dataset_name="svhn", num_models=250):
     # # NOTE hard-coded epsilon in line below, change sometime
     agg = lambda x: aggregator.threshold_aggregate(x, 10)  # noqa: E731
     labels = np.apply_along_axis(agg, 0, votes)
-    np.save(f'./saved/{dataset_name}_{num_models}_agg_teacher_predictions.npy', labels)
+    np.save(f'./saved/{dat_obj.name}_{dat_obj.num_teachers}_agg_teacher_predictions.npy', labels)
     return labels
 
 
@@ -79,15 +80,17 @@ def main():
     # tau (threshold)
 
     # change these or pass variables in the future
-    agg = aggregate.RepeatGNMax(50, 50, 1, 50)
 
-    student_data = globals.dataset.student_data
+    dat_obj = globals.dataset
+    agg = aggregate.RepeatGNMax(50, 50, 1, 50, dat_obj=dat_obj, distance_fn=l_inf_distances)
+
+    student_data = dat_obj.student_data
     loader = torch.utils.data.DataLoader(student_data, shuffle=False, batch_size=256)
 
-    if not isfile(f"./saved/{globals.dataset.name}_{globals.dataset.num_teachers}_teacher_predictions.npy"):
-        calculate_prediction_matrix(loader, globals.device, globals.dataset.name, globals.dataset.num_teachers)
+    if not isfile(f"./saved/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy"):
+        calculate_prediction_matrix(loader, dat_obj)
     
-    labels = load_predicted_labels(agg, globals.dataset.name, globals.dataset.num_teachers)
+    labels = load_predicted_labels(agg, dat_obj)
     print("FINAL tau usages:", agg.tau_tally)
 
     correct = 0

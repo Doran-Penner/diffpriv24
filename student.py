@@ -34,7 +34,7 @@ def main():
     train_set, valid_set = ds.student_overwrite_labels(labels)
     test_set = ds.student_test
 
-    n, val_acc = train(train_set, valid_set, dataset_name, device=globals.device, epochs=200, model="student")
+    n, val_acc = train(train_set, valid_set, ds, epochs=200, model="student")
 
     print(f"Validation Accuracy: {val_acc}")
     test_acc = calculate_test_accuracy(n, test_set)

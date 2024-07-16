@@ -1,7 +1,7 @@
 import torch
 import globals
 
-def l_inf_distances(votes, prev_votes, num_labels):
+def l_inf_distances(votes, prev_votes, dat_obj):
     """
     Function used to calculate the max difference over a label between the current
     vote histogram and every previous vote histogram
@@ -16,11 +16,11 @@ def l_inf_distances(votes, prev_votes, num_labels):
               between vote histograms
     """
     # using torch so we can do this on the gpu (for speed)
-    hist = torch.zeros((num_labels,), device=globals.device)
+    hist = torch.zeros((dat_obj.num_labels,), device=globals.device)
     for v in votes:
         hist[v] += 1
         
-    total_hist = torch.zeros((len(prev_votes), num_labels), device=globals.device)
+    total_hist = torch.zeros((len(prev_votes), dat_obj.num_labels), device=globals.device)
 
     unique, counts = torch.unique(prev_votes, dim=1, return_counts=True)
     total_hist[:,unique] = counts.float()
@@ -28,7 +28,7 @@ def l_inf_distances(votes, prev_votes, num_labels):
     divergences, _ = torch.max(torch.abs(hist-total_hist), dim=1)
     return divergences
 
-def swing_distance(votes, prev_votes, num_labels):
+def swing_distance(votes, prev_votes, dat_obj):
     """
     Function used to calculate the distance between two voting records using the
     swing voter distance metric . this is to say , the number of teachers that voted

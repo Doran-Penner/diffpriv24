@@ -2,7 +2,6 @@ import numpy as np
 import math
 import privacy_accounting
 import torch
-from helper import l_inf_distances
 import globals
 
 class Aggregator:    
@@ -25,8 +24,8 @@ class Aggregator:
         function that aggregates votes until the epsilon spent reaches a certain threshold
 
     """
-    def __init__(self, num_labels):
-        self.num_labels = num_labels
+    def __init__(self, dat_obj):
+        self.num_labels = dat_obj.num_labels
 
     def aggregate(self, votes):
         raise NotImplementedError
@@ -67,7 +66,7 @@ class NoisyMaxAggregator(Aggregator):
     treshold_aggregate(votes, epsilon):
         function that aggregates votes until the epsilon spent reaches a certain threshold
     """
-    def __init__(self, scale, num_labels=10, noise_fn=np.random.laplace):
+    def __init__(self, scale, dat_obj, noise_fn=np.random.laplace):
         """
         Initializer function for NoisyMaxAggregator class
         :param scale: float specifying the amount of noise. The larger the scale 
@@ -81,7 +80,7 @@ class NoisyMaxAggregator(Aggregator):
                          Laplacian distribution
         """
         self.scale = scale
-        self.num_labels = num_labels
+        self.num_labels = dat_obj.num_labels
         self.noise_fn=noise_fn
         self.queries = []
         self.hit_max = False
@@ -209,7 +208,7 @@ class RepeatGNMax(Aggregator):
     treshold_aggregate(votes, epsilon):
         function that aggregates votes until the epsilon spent reaches a certain threshold
     """
-    def __init__(self, scale1, scale2, p, tau, alpha=3, delta=1e-6, num_labels=10, distance_fn=l_inf_distances, epsilon_prime=privacy_accounting.epsilon_prime):
+    def __init__(self, scale1, scale2, p, tau, dat_obj, distance_fn, alpha=3, delta=1e-6, epsilon_prime=privacy_accounting.epsilon_prime):
         """
         Initializer function for RepeatGNMax class
 
@@ -237,10 +236,10 @@ class RepeatGNMax(Aggregator):
         self.p = p
         self.tau = tau
         self.alpha = alpha
-        self.num_labels = num_labels
+        self.dat_obj = dat_obj
         self.prev_votes = []
         self.prev_labels = []
-        self.gnmax = NoisyMaxAggregator(scale2,num_labels,np.random.normal)
+        self.gnmax = NoisyMaxAggregator(scale2,dat_obj,np.random.normal)
         self.queries = []
         self.total_queries = 0
         self.eps_ma = 0
@@ -258,11 +257,11 @@ class RepeatGNMax(Aggregator):
                       so, if there are 250 teachers, the length of votes is 250.
         :returns: q value
         """
-        hist = [0]*self.num_labels
+        hist = [0]*self.dat_obj.num_labels
         for v in votes:
             hist[int(v)] += 1
         tot = 0
-        for label in range(self.num_labels):
+        for label in range(self.dat_obj.num_labels):
             if label == np.argmax(hist):
                 continue
             tot += math.erfc((max(hist)-hist[label])/(2*self.scale2))
@@ -294,7 +293,7 @@ class RepeatGNMax(Aggregator):
         sub_record = votes[U]
 
         prev_votes = torch.tensor(np.asarray(self.prev_votes), device=globals.device)
-        divergences = self.distances(sub_record,prev_votes[:, U],self.num_labels)
+        divergences = self.distances(sub_record,prev_votes[:, U],self.dat_obj)
         divergences += torch.normal(0, self.scale1, size=np.shape(divergences), device=globals.device)
         min_divergence_idx = torch.argmin(divergences)
 
@@ -387,7 +386,7 @@ class ConfidentGNMax(Aggregator):
     treshold_aggregate(votes, epsilon):
         function that aggregates votes until the epsilon spent reaches a certain threshold
     """
-    def __init__(self, scale1, scale2, tau, alpha=3, delta=1e-6, num_labels=10):
+    def __init__(self, scale1, scale2, tau, dat_obj, alpha=3, delta=1e-6):
         """
         Initializer function for RepeatGNMax class
 
@@ -407,9 +406,9 @@ class ConfidentGNMax(Aggregator):
         self.tau = tau
         self.alpha = alpha
         self.delta = delta
-        self.num_labels = num_labels
+        self.num_labels = dat_obj.num_labels
         self.total_queries = 0
-        self.gnmax = NoisyMaxAggregator(scale2,num_labels,np.random.normal)
+        self.gnmax = NoisyMaxAggregator(scale2,dat_obj,np.random.normal)
         self.eprime = alpha / (scale1 * scale1) 
         self.eps_ma = 0
 

@@ -5,7 +5,7 @@ from models import CNN
 import globals
 
 
-def train(training_data, valid_data, dataset, device='cpu', lr=1e-3, epochs=70, batch_size=16, momentum=0.9, padding=True, model="teacher"):
+def train(training_data, valid_data, dat_obj, lr=1e-3, epochs=70, batch_size=16, momentum=0.9, padding=True, model="teacher"):
     """
     This is a function that trains the model on a specified dataset.
     :param training_data: dataset containing the training data for the model
@@ -26,7 +26,7 @@ def train(training_data, valid_data, dataset, device='cpu', lr=1e-3, epochs=70, 
     valid_loader = torch.utils.data.DataLoader(valid_data, shuffle=True, batch_size=batch_size)
     
 
-    network = CNN(globals.dataset).to(device)
+    network = CNN(dat_obj).to(globals.device)
     opt = optim.SGD(network.parameters(), lr=lr, momentum=momentum)
     loss = nn.CrossEntropyLoss()
 
@@ -40,22 +40,22 @@ def train(training_data, valid_data, dataset, device='cpu', lr=1e-3, epochs=70, 
             network.eval()
             accs = []
             for batch_xs, batch_ys in valid_loader:
-                batch_xs = batch_xs.to(device)
-                batch_ys = batch_ys.to(device)
+                batch_xs = batch_xs.to(globals.device)
+                batch_ys = batch_ys.to(globals.device)
                 preds = network(batch_xs)
                 accs.append((preds.argmax(dim=1) == batch_ys).float().mean())
             acc = torch.tensor(accs).mean()
             print("Valid acc:",acc)
             valid_accs.append(acc)
             if model == "student":
-                torch.save(network.state_dict(),f"./saved/{dataset}_student_{i}.ckp")
+                torch.save(network.state_dict(),f"./saved/{dat_obj.name}_student_{i}.ckp")
             ### end check
         network.train()
         train_acc = []
         for batch_xs, batch_ys in train_loader:
             opt.zero_grad()
-            batch_xs = batch_xs.to(device)
-            batch_ys = batch_ys.to(device)
+            batch_xs = batch_xs.to(globals.device)
+            batch_ys = batch_ys.to(globals.device)
 
             preds = network(batch_xs)
             acc = (preds.argmax(dim=1) == batch_ys).float().mean()
@@ -74,42 +74,40 @@ def train(training_data, valid_data, dataset, device='cpu', lr=1e-3, epochs=70, 
         # NOTE this does not work with multiple students in the same folder at the same time
         best_num_epochs = torch.argmax(torch.tensor(valid_accs)) * 5
         print("Final num epochs:", best_num_epochs)
-        st_dict = torch.load(f"./saved/{dataset}_student_{best_num_epochs}.ckp",map_location=device)
+        st_dict = torch.load(f"./saved/{dat_obj.name}_student_{best_num_epochs}.ckp",map_location=globals.device)
         network.load_state_dict(st_dict)
     
     network.eval()
     accs = []
     for batch_xs, batch_ys in valid_loader:
-        batch_xs = batch_xs.to(device)
-        batch_ys = batch_ys.to(device)
+        batch_xs = batch_xs.to(globals.device)
+        batch_ys = batch_ys.to(globals.device)
         preds = network(batch_xs)
         accs.append((preds.argmax(dim=1) == batch_ys).float().mean())
     acc = torch.tensor(accs).mean()
     return (network, acc)
 
-def train_all(dataset='svhn', num_teachers=250):
+def train_all(dat_obj):
     """
     This function trains all of the teacher models on the specified dataset
     :param dataset: string specifying which dataset to train the teachers on
     :param num_teachers: integer specifying the number of teachers to train
     :return: Does not return anything, but saves the models instead
     """
-    ds = globals.dataset
-    train_sets = ds.teach_train
-    valid_sets = ds.teach_valid
-    for i in range(num_teachers):
+    train_sets = dat_obj.teach_train
+    valid_sets = dat_obj.teach_valid
+    for i in range(dat_obj.num_teachers):
         print(f"Training teacher {i} now!")
         start_time = time.time()
-        n, acc = train(train_sets[i], valid_sets[i], dataset, globals.device)
+        n, acc = train(train_sets[i], valid_sets[i], dat_obj)
         print("TEACHER",i,"ACC",acc)
-        torch.save(n.state_dict(),f"./saved/{dataset}_teacher_{i}_of_{num_teachers-1}.tch")
+        torch.save(n.state_dict(),f"./saved/{dat_obj.name}_teacher_{i}_of_{dat_obj.num_teachers-1}.tch")
         duration = time.time()- start_time
         print(f"It took {duration//60} minutes and {duration % 60} seconds to train teacher {i}.")
 
 def main():
-    dataset = globals.dataset.name
-    num_teachers = globals.dataset.num_teachers
-    train_all(dataset, num_teachers)
+    dat_obj = globals.dataset
+    train_all(dat_obj)
 
 if __name__ == '__main__':
     main()

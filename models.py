@@ -2,10 +2,10 @@ from torch import nn
 
 class CNN(nn.Module):
 
-    def __init__(self, dataset_obj):
+    def __init__(self, dat_obj):
         super().__init__()
         pad = 'same'
-        size, _, channels = dataset_obj.input_shape
+        size1, size2, channels = dat_obj.input_shape
         layers = [nn.Conv2d(channels, 64, 5, padding=pad)]
         layers.append(nn.ReLU())
         layers.append(nn.MaxPool2d(3,stride=2,padding=1))
@@ -18,7 +18,7 @@ class CNN(nn.Module):
         layers.append(nn.MaxPool2d(3,stride=2,padding=1))
 
         layers.append(nn.Flatten())
-        layers.append(nn.Linear(size*size*8,384))
+        layers.append(nn.Linear(size1*size2*8,384))
         layers.append(nn.ReLU())
         layers.append(nn.Dropout(p=0.5))
 
@@ -26,7 +26,7 @@ class CNN(nn.Module):
         layers.append(nn.ReLU())
         layers.append(nn.Dropout(p=0.5))
 
-        layers.append(nn.Linear(192,10))       
+        layers.append(nn.Linear(192,dat_obj.num_labels))       
 
         self.layers = layers
         self.model = nn.Sequential(*layers)

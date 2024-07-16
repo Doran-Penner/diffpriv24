@@ -77,7 +77,7 @@ student_data = globals.dataset.student_data
 loader = torch.utils.data.DataLoader(student_data, shuffle=False, batch_size=256)
 
 if not isfile(f"./saved/{ds.name}_{num_teachers}_teacher_predictions.npy"):
-    get_predicted_labels.calculate_prediction_matrix(loader, globals.device, ds.name, num_teachers)
+    get_predicted_labels.calculate_prediction_matrix(loader, globals.dataset)
 
 
 for point in points:
@@ -96,12 +96,13 @@ for point in points:
         sigma2,
         p,
         tau,
+        dat_obj=globals.dataset,
         delta=1e-6,
         distance_fn=helper.swing_distance,
         epsilon_prime=privacy_accounting.epsilon_prime,
     )
    
-    labels = get_predicted_labels.load_predicted_labels(agg, ds.name, num_teachers)
+    labels = get_predicted_labels.load_predicted_labels(agg, ds)
     print("FINAL tau usages:", agg.tau_tally)
 
     correct = 0
@@ -119,7 +120,7 @@ for point in points:
 
     student_train, student_valid = ds.student_overwrite_labels(labels)
 
-    n, val_acc = torch_teachers.train(student_train, student_valid, ds.name, device=globals.device, epochs=100, batch_size=16, model="student")
+    n, val_acc = torch_teachers.train(student_train, student_valid, ds, epochs=100, batch_size=16, model="student")
 
     # NOTE: this is really bad practice since we're optimizing w.r.t. the test data,
     # but for now we just need to see if things actually work
