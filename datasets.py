@@ -1,13 +1,12 @@
 """
-Abstraction for loading datasets: WIP, but MVP will support SVHN and MNIST
-with potential for more.
+Abstraction for loading datasets: currently supports SVHN and
+we plan to support MNIST and more.
 """
 
 import torch
 import torchvision
 import torchvision.transforms.v2 as transforms
 import math
-from functools import cached_property
 
 
 # todo: add fancy-formatted documentation
@@ -19,35 +18,16 @@ class _Dataset:
         todo: document this. see _Svhn for args that we take
         """
         raise NotImplementedError
-        # note: here's a basic outline for how to do stuff,
-        # probably remove this later
 
-        # generator = torch.Generator()
-        # if seed is not None:
-        #     generator = generator.manual_seed(seed)
-        # self.num_teachers = num_teachers
-        # self.num_labels = num_labels
-        # self._teach_train = ... compute stuff
-        # (we use the underscore so the user only
-        # accesses the well-documented attribute)
-        # self._layers = todo: how are we gonna do this and how abstract does it need to be?
-        # self._transform = ...
-
-    # we do @property stuff so we can document properly (hehe)
-    # it essentially works the same as "flat" properties, so you can do
-    # `x.teach_train` without parentheses to get the value
-    @cached_property
-    def teach_train(self):
+        self.teach_train = None
         """
         Returns array of datasets for the teacher's to train on:
         has length equal to number of teachers, and randomized
         splits based on the initializing generator. See `teach_valid`
         for how to use the validation accuracy as well.
         """
-        raise NotImplementedError
 
-    @cached_property
-    def teach_valid(self):
+        self.teach_valid = None
         # note: the code block formatting isn't really working
         """
         Returns array of validation datasets for the teachers. To use this in
@@ -59,32 +39,25 @@ class _Dataset:
             # ... train teacher i
         ```
         """
-        raise NotImplementedError
 
-    @cached_property
-    def teach_test(self):
+        self.teach_test = None
         """
         Returns the test set for teachers. Not sure if we'll use this, but good to have anyways!
         """
-        raise NotImplementedError
 
-    @cached_property
-    def student_data(self):
+        self.student_data = None
         """
         Returns the data which a student will use to improve. This lumps together
         the student training and validation data. DO NOT MODIFY THIS. (Please!)
         It's meant for the teachers to read from when aggregating: when you want
         to overwrite the labels, please use `student_overwrite_labels`.
         """
-        raise NotImplementedError
 
-    @cached_property
-    def student_test(self):
+        self.student_test = None
         """
         Returns the test set for the student. This should not be trained or validated on ---
         it's just for a final accuracy report.
         """
-        raise NotImplementedError
 
     # future: can maybe pass "semi_supervise=True" and return both labeled and unlabeled data
     def student_overwrite_labels(self, labels):
@@ -225,6 +198,9 @@ class _Svhn(_Dataset):
 
 
 def make_dataset(dataset_name, num_teachers, seed=None):
+    """
+    todo add documentation!
+    """
     # match-case to only accept valid dataset strings
     match dataset_name:
         case "svhn":
