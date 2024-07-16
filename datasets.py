@@ -96,6 +96,9 @@ class _Dataset:
 # child classes will only have implementation code, not docstrings
 
 
+# note: this loads everything all at once, we could do
+# functools.cached_property stuff to make it nicer
+# but that's not critical right now!
 class _Svhn(_Dataset):
     # todo: docstrings not showing up for vscode? (gotta test more to be sure)
     # possible solutions:
@@ -103,13 +106,13 @@ class _Svhn(_Dataset):
     # doc argument to @property?
     # ... (idk)
 
-    def __init__(self, num_teachers, num_labels, seed=None):
+    def __init__(self, num_teachers, seed=None):
         generator = torch.Generator()
         if seed is not None:
             generator = generator.manual_seed(seed)
 
         self.num_teachers = num_teachers
-        self.num_labels = num_labels
+        self.num_labels = 10
 
         tfs = [
             torchvision.transforms.v2.ToImage(),
@@ -135,11 +138,72 @@ class _Svhn(_Dataset):
         og_test = torchvision.datasets.SVHN(
             "./data/svhn", split="test", download=True, transform=transform
         )
+        # first, randomly split the train+extra into train and valid collections
+        all_teach_train, all_teach_valid = torch.utils.data.random_split(
+            torch.utils.data.ConcatDataset([og_train, og_extra]),
+            [0.8, 0.2],
+            generator=generator,
+        )
 
-        # ... TODO finish this
+        train_size = len(all_teach_train)
+        valid_size = len(all_teach_valid)
+
+        # then partition them into num_teachers selections
+        train_partition = [
+            torch.floor(train_size / num_teachers) + 1
+            for i in range(train_size % num_teachers)
+        ] + [
+            torch.floor(train_size / num_teachers)
+            for i in range(num_teachers - (train_size % num_teachers))
+        ]
+        valid_partition = [
+            torch.floor(valid_size / num_teachers) + 1
+            for i in range(valid_size % num_teachers)
+        ] + [
+            torch.floor(valid_size / num_teachers)
+            for i in range(num_teachers - (valid_size % num_teachers))
+        ]
+
+        # now assign self variables to those (these are what the "user" will access!)
+        self.teach_train = torch.utils.data.random_split(
+            all_teach_train, train_partition, generator=generator
+        )
+        self.teach_valid = torch.utils.data.random_split(
+            all_teach_valid, valid_partition, generator=generator
+        )
+        self.teach_test = og_test
+
+        # future: can we randomly split the student learning and test data?
+        # would need to somehow keep track of the indices for teacher labeling
+        student_data_len = torch.floor(len(og_test) * 0.7)
+        self.student_data = torch.utils.data.Subset(
+            og_test, torch.arange(student_data_len)
+        )
+        self.student_test = torch.utils.data.Subset(
+            og_test, torch.arange(student_data_len, len(og_test))
+        )
+
+        # ... TODO label overriding: how can we "copy" the dataset?
+        # solution: use `del` keyword, then re-load
+        # !!! (does this delete old refs?)
 
         # self._teach_train = ... compute stuff
         # (we use the underscore so the user only
         # accesses the well-documented attribute)
         # self._layers = todo: how are we gonna do this and how abstract does it need to be?
         # self._transform = ...
+
+
+def make_dataset(dataset_name, num_teachers, seed=None):
+    # match-case to only accept valid dataset strings
+    match dataset_name:
+        case "svhn":
+            return _Svhn(num_teachers, seed)
+        case "mnist":
+            return None  # TODO: implement MNIST!
+        case _:
+            raise Exception(f'no support for making dataset "{dataset_name}"')
+
+
+# note: can we avoid this hard-coded 250 teachers?
+svhn = make_dataset("svhn", 250)
