@@ -1,29 +1,9 @@
 import torch
 from torch import nn, optim
 import time
-import math
 import helper
 from models import CNN
 
-# JANE: supercede this
-def load_partitioned_dataset(dataset, num_teachers):
-    """
-    This function loads a specified training dataset, partitioned according to the number of teachers, as well as a validation dataset.
-    :param dataset: string specifying which dataset to load (one of svhn, mnist, and cifar-10)
-    :param num_teachers: integer specifying the number of teachers, for partitioning the dataset
-    :return: Tuple containing an array containing the partitioned datasets for training and the dataset for validation.
-    """
-    train_data, valid_data, _test_data = helper.load_dataset(dataset_name=dataset, split="teach", make_normal=True)
-    generator = torch.Generator().manual_seed(0)
-    train_size = len(train_data)
-    valid_size = len(valid_data)
-    train_partition = ([math.floor(train_size / num_teachers) + 1 for i in range(train_size % num_teachers)]
-                    + [math.floor(train_size / num_teachers) for i in range(num_teachers - (train_size % num_teachers))])
-    valid_partition = ([math.floor(valid_size / num_teachers) + 1 for i in range(valid_size % num_teachers)]
-                    + [math.floor(valid_size / num_teachers) for i in range(num_teachers - (valid_size % num_teachers))])
-    train_sets = torch.utils.data.random_split(train_data, train_partition, generator=generator)
-    valid_sets = torch.utils.data.random_split(valid_data, valid_partition, generator=generator)
-    return train_sets, valid_sets
 
 def train(training_data, valid_data, dataset, device='cpu', lr=1e-3, epochs=70, batch_size=16, momentum=0.9, padding=True, model="teacher"):
     """
@@ -46,7 +26,7 @@ def train(training_data, valid_data, dataset, device='cpu', lr=1e-3, epochs=70, 
     valid_loader = torch.utils.data.DataLoader(valid_data, shuffle=True, batch_size=batch_size)
     
 
-    network = CNN(padding=padding,dataset=dataset).to(device)
+    network = CNN(helper.dataset).to(device)
     opt = optim.SGD(network.parameters(), lr=lr, momentum=momentum)
     loss = nn.CrossEntropyLoss()
 
@@ -114,8 +94,9 @@ def train_all(dataset='svhn', num_teachers=250):
     :param num_teachers: integer specifying the number of teachers to train
     :return: Does not return anything, but saves the models instead
     """
-    # JANE: teacher train, valid loading
-    train_sets, valid_sets = load_partitioned_dataset(dataset, num_teachers)
+    ds = helper.dataset
+    train_sets = ds.teach_train
+    valid_sets = ds.teach_valid
     for i in range(num_teachers):
         print(f"Training teacher {i} now!")
         start_time = time.time()
@@ -126,8 +107,8 @@ def train_all(dataset='svhn', num_teachers=250):
         print(f"It took {duration//60} minutes and {duration % 60} seconds to train teacher {i}.")
 
 def main():
-    dataset = "svhn"
-    num_teachers = 250
+    dataset = helper.dataset.name
+    num_teachers = helper.dataset.num_teachers
     train_all(dataset, num_teachers)
 
 if __name__ == '__main__':

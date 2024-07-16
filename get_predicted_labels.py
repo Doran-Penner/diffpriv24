@@ -3,7 +3,7 @@ import torch
 from models import CNN
 import aggregate
 from os.path import isfile
-from helper import load_dataset, device
+import helper
 
 
 def calculate_prediction_matrix(data_loader, device, dataset='svhn', num_models=250):
@@ -21,7 +21,7 @@ def calculate_prediction_matrix(data_loader, device, dataset='svhn', num_models=
     for i in range(num_models):
         print("Model",str(i))
         state_dict = torch.load(f'./saved/{dataset}_teacher_{i}_of_{num_models-1}.tch',map_location=device)
-        model = CNN().to(device)
+        model = CNN(helper.dataset).to(device)
         model.load_state_dict(state_dict)
         model.eval()
 
@@ -81,12 +81,11 @@ def main():
     num_teachers = 250
     agg = aggregate.RepeatGNMax(50, 100, 1, 50)
 
-    train, valid, _test = load_dataset(dataset, 'student', False)
-    train = torch.utils.data.ConcatDataset([train, valid])
-    loader = torch.utils.data.DataLoader(train, shuffle=False, batch_size=256)
+    student_data = helper.dataset.student_data
+    loader = torch.utils.data.DataLoader(student_data, shuffle=False, batch_size=256)
 
     if not isfile(f"./saved/{dataset}_{num_teachers}_teacher_predictions.npy"):
-        calculate_prediction_matrix(loader, device, dataset, num_teachers)
+        calculate_prediction_matrix(loader, helper.device, dataset, num_teachers)
     
     labels = load_predicted_labels(agg, dataset, num_teachers)
     print("FINAL tau usages:", agg.tau_tally)
@@ -96,7 +95,7 @@ def main():
     unlabeled = 0
     for i, label in enumerate(labels):
         guessed += 1
-        if label == train[i][1]:
+        if label == student_data[i][1]:
             correct += 1
         if label == -1:
             unlabeled += 1

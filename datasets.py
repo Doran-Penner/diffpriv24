@@ -5,6 +5,9 @@ with potential for more.
 
 import torch
 import torchvision
+import torchvision.transforms.v2 as transforms
+import math
+from functools import cached_property
 
 
 # todo: add fancy-formatted documentation
@@ -33,7 +36,7 @@ class _Dataset:
     # we do @property stuff so we can document properly (hehe)
     # it essentially works the same as "flat" properties, so you can do
     # `x.teach_train` without parentheses to get the value
-    @property
+    @cached_property
     def teach_train(self):
         """
         Returns array of datasets for the teacher's to train on:
@@ -43,7 +46,7 @@ class _Dataset:
         """
         raise NotImplementedError
 
-    @property
+    @cached_property
     def teach_valid(self):
         # note: the code block formatting isn't really working
         """
@@ -58,14 +61,14 @@ class _Dataset:
         """
         raise NotImplementedError
 
-    @property
+    @cached_property
     def teach_test(self):
         """
         Returns the test set for teachers. Not sure if we'll use this, but good to have anyways!
         """
         raise NotImplementedError
 
-    @property
+    @cached_property
     def student_data(self):
         """
         Returns the data which a student will use to improve. This lumps together
@@ -75,7 +78,7 @@ class _Dataset:
         """
         raise NotImplementedError
 
-    @property
+    @cached_property
     def student_test(self):
         """
         Returns the test set for the student. This should not be trained or validated on ---
@@ -120,14 +123,14 @@ class _Svhn(_Dataset):
         # self.layers = []
 
         tfs = [
-            torchvision.transforms.v2.ToImage(),
-            torchvision.transforms.v2.ToDtype(torch.float32, scale=True),
+            transforms.ToImage(),
+            transforms.ToDtype(torch.float32, scale=True),
         ]
-        self._transform = torchvision.transforms.v2.Compose(tfs)
-        self._transform_normalize = torchvision.transforms.v2.Compose(
+        self._transform = transforms.Compose(tfs)
+        self._transform_normalize = transforms.Compose(
             tfs
             + [
-                torchvision.transforms.v2.Normalize(
+                transforms.Normalize(
                     [0.4376821, 0.4437697, 0.47280442],
                     [0.19803012, 0.20101562, 0.19703614],
                 )
@@ -161,17 +164,17 @@ class _Svhn(_Dataset):
 
         # then partition them into num_teachers selections
         train_partition = [
-            torch.floor(train_size / num_teachers) + 1
+            math.floor(train_size / num_teachers) + 1
             for i in range(train_size % num_teachers)
         ] + [
-            torch.floor(train_size / num_teachers)
+            math.floor(train_size / num_teachers)
             for i in range(num_teachers - (train_size % num_teachers))
         ]
         valid_partition = [
-            torch.floor(valid_size / num_teachers) + 1
+            math.floor(valid_size / num_teachers) + 1
             for i in range(valid_size % num_teachers)
         ] + [
-            torch.floor(valid_size / num_teachers)
+            math.floor(valid_size / num_teachers)
             for i in range(num_teachers - (valid_size % num_teachers))
         ]
 
@@ -186,7 +189,7 @@ class _Svhn(_Dataset):
 
         # future: can we randomly split the student learning and test data?
         # would need to somehow keep track of the indices for teacher labeling
-        student_data_len = torch.floor(len(og_test) * 0.9)
+        student_data_len = math.floor(len(og_test) * 0.9)
         self.student_data = torch.utils.data.Subset(
             og_test, torch.arange(student_data_len)
         )
@@ -204,7 +207,7 @@ class _Svhn(_Dataset):
         og_test = torchvision.datasets.SVHN(
             "./data/svhn", split="test", download=True, transform=self._transform
         )
-        student_data_len = torch.floor(len(og_test) * 0.9)
+        student_data_len = math.floor(len(og_test) * 0.9)
         student_data = torch.utils.data.Subset(og_test, torch.arange(student_data_len))
         # end duplicated code
         # note: labels should be length of full test set
@@ -230,9 +233,3 @@ def make_dataset(dataset_name, num_teachers, seed=None):
             return None  # TODO: implement MNIST!
         case _:
             raise Exception(f'no support for making dataset "{dataset_name}"')
-
-
-# note: can we avoid this hard-coded 250 teachers?
-# solution 1: "global" variables in globals.py
-# solution 2: helper.py should call make_dataset (so we can consolidate vars)
-svhn = make_dataset("svhn", 250)
