@@ -183,15 +183,34 @@ class _Svhn(_Dataset):
             og_test, torch.arange(student_data_len, len(og_test))
         )
 
+        # todo: work with Carter to figure out how best to handle this
+        self.layers = []
+
         # ... TODO label overriding: how can we "copy" the dataset?
         # solution: use `del` keyword, then re-load
         # !!! (does this delete old refs?)
 
-        # self._teach_train = ... compute stuff
-        # (we use the underscore so the user only
-        # accesses the well-documented attribute)
-        # self._layers = todo: how are we gonna do this and how abstract does it need to be?
-        # self._transform = ...
+        # todo: this may not be safe (may use old pointers) at first,
+        # I'm gonna make an unsafe version first and then clean it up
+        def student_overwrite_labels(self, labels):
+            # note: we give -1 instead of no label, so will labels always be same length as dataset?
+            # hmmm... feels like we're hard-coding this -1 encoding which may not be as good for other
+            # datasets (e.g. regression) and also not as nice for randomly giving stuff to teachers to be labeled
+            # however! I think that's an ambitious change, so we're not going to worry about that for now
+            assert len(labels) == len(
+                self.student_data
+            ), 'input "labels" not the correct length'
+            # note: this is some duplicated code
+            og_test = torchvision.datasets.SVHN(
+                "./data/svhn", split="test", download=True, transform=transform
+            )
+            student_data_len = torch.floor(len(og_test) * 0.7)
+            # TODO change/remove below (or do it later?)
+            student_data = torch.utils.data.Subset(
+                og_test, torch.arange(student_data_len)
+            )
+            # end duplicated code
+
 
 
 def make_dataset(dataset_name, num_teachers, seed=None):
@@ -206,4 +225,6 @@ def make_dataset(dataset_name, num_teachers, seed=None):
 
 
 # note: can we avoid this hard-coded 250 teachers?
+# solution 1: "global" variables in globals.py
+# solution 2: helper.py should call make_dataset (so we can consolidate vars)
 svhn = make_dataset("svhn", 250)
