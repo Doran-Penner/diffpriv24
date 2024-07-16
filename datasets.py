@@ -115,13 +115,16 @@ class _Svhn(_Dataset):
         self.num_teachers = num_teachers
         self.num_labels = 10
         self.input_shape = (32, 32, 3)
+        # note: we're just storing the input shape instead of all the layers, but
+        # maybe in the future that would change
+        # self.layers = []
 
         tfs = [
             torchvision.transforms.v2.ToImage(),
             torchvision.transforms.v2.ToDtype(torch.float32, scale=True),
         ]
         self._transform = torchvision.transforms.v2.Compose(tfs)
-        transform_normalize = torchvision.transforms.v2.Compose(
+        self._transform_normalize = torchvision.transforms.v2.Compose(
             tfs
             + [
                 torchvision.transforms.v2.Normalize(
@@ -132,10 +135,16 @@ class _Svhn(_Dataset):
         )
         # we normalize the input to the teachers, but not the student
         og_train = torchvision.datasets.SVHN(
-            "./data/svhn", split="train", download=True, transform=transform_normalize
+            "./data/svhn",
+            split="train",
+            download=True,
+            transform=self._transform_normalize,
         )
         og_extra = torchvision.datasets.SVHN(
-            "./data/svhn", split="extra", download=True, transform=transform_normalize
+            "./data/svhn",
+            split="extra",
+            download=True,
+            transform=self._transform_normalize,
         )
         og_test = torchvision.datasets.SVHN(
             "./data/svhn", split="test", download=True, transform=self._transform
@@ -185,38 +194,31 @@ class _Svhn(_Dataset):
             og_test, torch.arange(student_data_len, len(og_test))
         )
 
-        # todo: work with Carter to figure out how best to handle this
-        self.layers = []
+    def student_overwrite_labels(self, labels):
+        # feels like we're hard-coding this -1 encoding which may not be as good for other datasets
+        # (e.g. regression) and also not as nice for randomly giving stuff to teachers to be labeled
+        # however! I think that's ambitious to change, so we're not going to worry about that for now
 
-        def student_overwrite_labels(self, labels):
-            # feels like we're hard-coding this -1 encoding which may not be as good for other datasets
-            # (e.g. regression) and also not as nice for randomly giving stuff to teachers to be labeled
-            # however! I think that's ambitious to change, so we're not going to worry about that for now
+        # note: this is some duplicated code
+        # we re-load so we don't modify labels of other references
+        og_test = torchvision.datasets.SVHN(
+            "./data/svhn", split="test", download=True, transform=self._transform
+        )
+        student_data_len = torch.floor(len(og_test) * 0.9)
+        student_data = torch.utils.data.Subset(og_test, torch.arange(student_data_len))
+        # end duplicated code
+        # note: labels should be length of full test set
+        assert len(labels) == len(student_data), 'input "labels" not the correct length'
 
-            # note: this is some duplicated code
-            # we re-load so we don't modify labels of other references
-            og_test = torchvision.datasets.SVHN(
-                "./data/svhn", split="test", download=True, transform=self._transform
-            )
-            student_data_len = torch.floor(len(og_test) * 0.9)
-            student_data = torch.utils.data.Subset(
-                og_test, torch.arange(student_data_len)
-            )
-            # end duplicated code
-            # note: labels should be length of full test set
-            assert len(labels) == len(
-                student_data
-            ), 'input "labels" not the correct length'
+        labeled_indices = labels != -1  # array of bools
+        student_data.indices = student_data.indices[labeled_indices]
+        student_data.dataset.labels[student_data.indices] = labels[labeled_indices]
 
-            labeled_indices = labels != -1  # array of bools
-            student_data.indices = student_data.indices[labeled_indices]
-            student_data.dataset.labels[student_data.indices] = labels[labeled_indices]
-
-            # check: does this work? I think so but not 100% sure
-            stud_train, stud_valid = torch.utils.data.random_split(
-                student_data, [0.8, 0.2], generator=self._generator
-            )
-            return stud_train, stud_valid
+        # check: does this work? I think so but not 100% sure
+        stud_train, stud_valid = torch.utils.data.random_split(
+            student_data, [0.8, 0.2], generator=self._generator
+        )
+        return stud_train, stud_valid
 
 
 def make_dataset(dataset_name, num_teachers, seed=None):
