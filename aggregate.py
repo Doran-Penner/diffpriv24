@@ -420,6 +420,8 @@ class LapRepeatGNMax(RepeatGNMax):
     eprime : float
         represents the epsilon value for the laplacian repeat mechanism (named for 
         consistency)
+    lap_scale : int
+        represents the scale that we divide the epsilon threshold by 
 
     Methods
     ----------
@@ -444,7 +446,9 @@ class LapRepeatGNMax(RepeatGNMax):
             distance_fn = swing_distance,
             max_num = 1000,
             epsilon_threshold = 10,
-            confident = True
+            confident = True,
+            eprime = privacy_accounting.laplacian_eps_prime,
+            lap_scale = 50
         ):
 
         # general attributes
@@ -465,22 +469,24 @@ class LapRepeatGNMax(RepeatGNMax):
         self.prev_labels = []
         self.distance_fn = distance_fn
         self.tau_tally = 0       
-        self.confident = confident
+        self.confident = confident # possibly useful possibly not, unsure
+        self.lap_scale = lap_scale
 
 
         # privacy attributes
         self.eps_ma = 0 # RDP epsilon for moments accountant stuff
         self.delta = delta
         self.espilon_threshold = epsilon_threshold
-        self.ed_epsilon = 0 # actual ending delta
-        self.gn_epsilon = 0 # the actual epsilon used by GNMax
-        self.ed_delta = 0
-        # Naively set the GNMax threshold at 3/5 of the epsilon threshold (optimize)
-        self.GNMax_epsilon = epsilon_threshold * 3 / 5
-        # not sure exactly where this epsilon value will get us
-        # should probably optimize this value using the optimizer framework?
-        self.eprime = privacy_accounting.laplacian_eps_prime(p,epsilon_threshold/1000)
+        self.ed_epsilon = 0 # overall epsilon
+        self.gn_epsilon = 0 # the epsilon used by GNMax
+        self.ed_delta = 0 # overall delta, can this just be the other delta?
+        self.eprime = eprime(p,1/lap_scale) # how to calculate the scale for the laplace noise?
 
+        # Things to optimize(?):
+        # use of confident?
+        # what is a good lap scale
+        # what is a good GNMax scale?
+        # other things?
     
 
 
@@ -527,7 +533,7 @@ class LapRepeatGNMax(RepeatGNMax):
         # take the same sub_sample of each of the previous records, and compute the distance
         # away from the current voting record, add laplacian noise, then 
         divergences = self.distance_fn(sub_record,prev_votes[:, sub_samp],self.num_labels)
-        divergences += torch.laplace(0, 1/self.eprime, size=np.shape(divergences), device=device)
+        divergences += torch.laplace(0,self.lap_scale, size=np.shape(divergences), device=device)
         min_divergence_idx = torch.argmin(divergences)
 
         # everything after this should be post-processing since we have report noisy min above this
@@ -572,6 +578,7 @@ class LapRepeatGNMax(RepeatGNMax):
                 self.alpha,
             )
             self.ed_epsilon = self.gn_epsilon
+            self.ed_delta = self.delta
         else:
             # in this other case, we know that we will not be GNMaxing this vote vector,
             # so we can just add the composed eprime to the queries using the strong comp
@@ -584,7 +591,7 @@ class LapRepeatGNMax(RepeatGNMax):
                     self.tau_tally + 1
                 )
 
-            # now we can just combine the two well composed things? i think?
+            # now we can just combine the two other composed things? i think?
             self.ed_epsilon, self.ed_delta = privacy_accounting.heterogeneous_strong_composition(
                     np.asarray([self.gn_epsilon,temp_epsilon], [self.delta,temp_delta],1e-6)
                 )
