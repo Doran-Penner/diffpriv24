@@ -100,6 +100,7 @@ class _Svhn(_Dataset):
             transforms.ToDtype(torch.float32, scale=True),
         ]
         self._transform = transforms.Compose(tfs)
+        # note: we're still in debate about normalization
         self._transform_normalize = transforms.Compose(
             tfs
             + [
