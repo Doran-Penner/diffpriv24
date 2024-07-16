@@ -15,7 +15,7 @@ def avg_teacher_accuracy():
     """
     teach_test = helper.dataset.teach_test
     teacher_preds = np.load("./saved/svhn_250_teacher_predictions.npy", allow_pickle=False)
-    teacher_acc = np.empty((len(teach_test),))\
+    teacher_acc = np.empty((len(teach_test),))
 
     for i in range(len(teach_test)):
         _, label = teach_test[i]
