@@ -3,7 +3,6 @@ import numpy as np
 from torch_teachers import train
 import helper
 
-
 def calculate_test_accuracy(network, test_data):
     """
     Function to calculate the accuracy of the student model on the test data

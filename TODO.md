@@ -9,3 +9,5 @@
 - run code
   - confirm that `RepeatGNMax` works as it should
   - fiddle with hyperparameters
+
+(we should update this sometime...)

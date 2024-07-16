@@ -143,6 +143,10 @@ def epsilon_prime(alpha, p, sigma1):
     eprime = 1/(alpha-1) * math.log(logarand)
     return eprime
 
+def epsilon_prime_swing(alpha, p, sigma1):
+    # hacky: be careful of this if we change any functions
+    return epsilon_prime(alpha, p, sigma1 * math.sqrt(2))
+
 def repeat_epsilon(qs, K, alpha, sigma1, sigma2, p, delta):
     """
     Function to calculate the epsilon for RepeatGNMax, given some delta value.
