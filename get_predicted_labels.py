@@ -19,9 +19,9 @@ def calculate_prediction_matrix(data_loader, dat_obj):
     :returns: nothing, but saves a file containing the teachers' predictions
     """
     votes = [] # final voting record
-    for i in range(dat_obj.num_models):
+    for i in range(dat_obj.num_teachers):
         print("Model",str(i))
-        state_dict = torch.load(f'./saved/{dat_obj.name}_teacher_{i}_of_{dat_obj.num_models-1}.tch',map_location=globals.device)
+        state_dict = torch.load(f'./saved/{dat_obj.name}_teacher_{i}_of_{dat_obj.num_teachers-1}.tch',map_location=globals.device)
         model = CNN(dat_obj).to(globals.device)
         model.load_state_dict(state_dict)
         model.eval()
@@ -43,7 +43,7 @@ def calculate_prediction_matrix(data_loader, dat_obj):
 
         votes.append(ballot)
         print(f"teacher {i}'s accuracy:", correct/guessed)
-    np.save(f"./saved/{dat_obj.name}_{dat_obj.num_models}_teacher_predictions.npy", np.asarray(votes))
+    np.save(f"./saved/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy", np.asarray(votes))
     print("done with the predictions!")
 
 
@@ -57,7 +57,7 @@ def load_predicted_labels(aggregator, dat_obj):
     :param num_models: int representing the number of teacher models being used
     :returns: list containing the privately aggregated labels
     """
-    votes = np.load(f"./saved/{dat_obj.name}_{dat_obj.num_models}_teacher_predictions.npy", allow_pickle=True)
+    votes = np.load(f"./saved/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy", allow_pickle=True)
     ### BEGIN insert
     # votes = votes.transpose()
     # agg = aggregate.L1Exp(num_labels=10, epsilon=100, total_num_queries=len(votes))
