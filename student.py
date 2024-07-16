@@ -13,15 +13,16 @@ def load_and_part_sets(dataset, num_teachers):
     """
     train_set, valid_set, test_set = load_dataset(dataset, 'student', False)
     labels = np.load(f"./saved/{dataset}_{num_teachers}_agg_teacher_predictions.npy", allow_pickle=True)
-    labels = list(filter(lambda x: x != -1, labels))
+    labels_ind = list(filter(lambda x: labels[x] != -1, range(len(labels)))) # set of indices where label != -1
     label_len = min(len(labels),len(train_set) + len(valid_set))
-    
+    labels_ind = list(filter(lambda x: labels[x] < label_len, labels_ind)) # only consider datapoints before label_len
+
     # cut off any indices to unlabeled data
-    train_set.indices = list(filter(lambda i: i < label_len, train_set.indices))
-    valid_set.indices = list(filter(lambda i: i < label_len, valid_set.indices))
+    train_set.indices = torch.from_numpy(np.intersect1d(train_set.indices, labels_ind))
+    valid_set.indices = torch.from_numpy(np.intersect1d(valid_set.indices, labels_ind))
     
     joint_set = torch.utils.data.ConcatDataset([train_set, valid_set])
-    joint_set.datasets[0].dataset.labels[:label_len] = labels[:label_len]  # NOTE this is very sketchy
+    joint_set.datasets[0].dataset.labels[labels_ind] = labels[labels_ind] # NOTE this is very sketchy
     train_set, valid_set = torch.utils.data.random_split(joint_set, [0.8, 0.2])
     return train_set, valid_set, test_set
 
