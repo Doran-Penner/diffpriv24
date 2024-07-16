@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 from torch_teachers import train
-import helper
+import globals
 
 def calculate_test_accuracy(network, test_data):
     """
@@ -15,8 +15,8 @@ def calculate_test_accuracy(network, test_data):
     test_loader = torch.utils.data.DataLoader(test_data, shuffle=True, batch_size=batch_size)
     accs = []
     for batch_xs, batch_ys in test_loader:
-        batch_xs = batch_xs.to(helper.device)
-        batch_ys = batch_ys.to(helper.device)
+        batch_xs = batch_xs.to(globals.device)
+        batch_ys = batch_ys.to(globals.device)
         preds = network(batch_xs)
         accs.append((preds.argmax(dim=1) == batch_ys).float())
     acc = torch.cat(accs).mean()
@@ -25,7 +25,7 @@ def calculate_test_accuracy(network, test_data):
 def main():
     # this is where we set the parameters that are used by the functions in this file (ie, if we
     # want to use a different database, we would change it here)
-    ds = helper.dataset
+    ds = globals.dataset
     dataset_name = ds.name
     num_teachers = ds.num_teachers
 
@@ -34,7 +34,7 @@ def main():
     train_set, valid_set = ds.student_overwrite_labels(labels)
     test_set = ds.student_test
 
-    n, val_acc = train(train_set, valid_set, dataset_name, device=helper.device, epochs=200, model="student")
+    n, val_acc = train(train_set, valid_set, dataset_name, device=globals.device, epochs=200, model="student")
 
     print(f"Validation Accuracy: {val_acc}")
     test_acc = calculate_test_accuracy(n, test_set)

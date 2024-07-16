@@ -8,6 +8,7 @@ import privacy_accounting
 import helper
 import time
 import pickle
+import globals
 
 start_time = time.time()
 
@@ -69,14 +70,14 @@ if not isfile(SAVEFILE_NAME):
     with open(SAVEFILE_NAME, "wb") as f:
         pickle.dump(dict(), f)
 
-ds = helper.dataset
+ds = globals.dataset
 num_teachers = ds.num_teachers
 
-student_data = helper.dataset.student_data
+student_data = globals.dataset.student_data
 loader = torch.utils.data.DataLoader(student_data, shuffle=False, batch_size=256)
 
 if not isfile(f"./saved/{ds.name}_{num_teachers}_teacher_predictions.npy"):
-    get_predicted_labels.calculate_prediction_matrix(loader, helper.device, ds.name, num_teachers)
+    get_predicted_labels.calculate_prediction_matrix(loader, globals.device, ds.name, num_teachers)
 
 
 for point in points:
@@ -118,7 +119,7 @@ for point in points:
 
     student_train, student_valid = ds.student_overwrite_labels(labels)
 
-    n, val_acc = torch_teachers.train(student_train, student_valid, ds.name, device=helper.device, epochs=100, batch_size=16, model="student")
+    n, val_acc = torch_teachers.train(student_train, student_valid, ds.name, device=globals.device, epochs=100, batch_size=16, model="student")
 
     # NOTE: this is really bad practice since we're optimizing w.r.t. the test data,
     # but for now we just need to see if things actually work
@@ -127,8 +128,8 @@ for point in points:
     n.eval()
     test_accs = []
     for batch_xs, batch_ys in test_loader:
-        batch_xs = batch_xs.to(helper.device)
-        batch_ys = batch_ys.to(helper.device)
+        batch_xs = batch_xs.to(globals.device)
+        batch_ys = batch_ys.to(globals.device)
         preds = n(batch_xs)
         test_accs.append((preds.argmax(dim=1) == batch_ys).float().mean())
     test_acc = torch.tensor(test_accs).mean()

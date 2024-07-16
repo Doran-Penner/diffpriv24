@@ -2,7 +2,8 @@ import numpy as np
 import math
 import privacy_accounting
 import torch
-from helper import device, l_inf_distances
+from helper import l_inf_distances
+import globals
 
 class Aggregator:    
     """
@@ -292,9 +293,9 @@ class RepeatGNMax(Aggregator):
         U = np.random.uniform(size=(len(votes),)) < self.p  # U is array of bools
         sub_record = votes[U]
 
-        prev_votes = torch.tensor(np.asarray(self.prev_votes), device=device)
+        prev_votes = torch.tensor(np.asarray(self.prev_votes), device=globals.device)
         divergences = self.distances(sub_record,prev_votes[:, U],self.num_labels)
-        divergences += torch.normal(0, self.scale1, size=np.shape(divergences), device=device)
+        divergences += torch.normal(0, self.scale1, size=np.shape(divergences), device=globals.device)
         min_divergence_idx = torch.argmin(divergences)
 
         print(divergences[min_divergence_idx])
@@ -442,10 +443,10 @@ class ConfidentGNMax(Aggregator):
                   it private.
         """
         self.total_queries += 1
-        hist = torch.zeros((self.num_labels,), device=device)
+        hist = torch.zeros((self.num_labels,), device=globals.device)
         for v in votes:
             hist[v] += 1
-        noised_max = torch.max(hist) + torch.normal(0, self.scale1, size=hist.shape, device=device)
+        noised_max = torch.max(hist) + torch.normal(0, self.scale1, size=hist.shape, device=globals.device)
         if noised_max >= self.tau:
             q = self.data_dependent_cost(votes)
             self.eps_ma += privacy_accounting.single_epsilon_ma(q, self.alpha, self.scale2)

@@ -1,5 +1,5 @@
 import numpy as np
-import helper
+import globals
 import pickle
 import csv
 
@@ -13,9 +13,9 @@ def avg_teacher_accuracy():
     Function for checking average teacher accuracy on the test database
     :returns: nothing, but prints average teacher accuract on the test database
     """
-    teach_test = helper.dataset.teach_test
+    teach_test = globals.dataset.teach_test
     teacher_preds = np.load("./saved/svhn_250_teacher_predictions.npy", allow_pickle=False)
-    teacher_acc = np.empty((len(teach_test),))\
+    teacher_acc = np.empty((len(teach_test),))
 
     for i in range(len(teach_test)):
         _, label = teach_test[i]

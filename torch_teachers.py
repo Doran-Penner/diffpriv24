@@ -1,8 +1,8 @@
 import torch
 from torch import nn, optim
 import time
-import helper
 from models import CNN
+import globals
 
 
 def train(training_data, valid_data, dataset, device='cpu', lr=1e-3, epochs=70, batch_size=16, momentum=0.9, padding=True, model="teacher"):
@@ -26,7 +26,7 @@ def train(training_data, valid_data, dataset, device='cpu', lr=1e-3, epochs=70, 
     valid_loader = torch.utils.data.DataLoader(valid_data, shuffle=True, batch_size=batch_size)
     
 
-    network = CNN(helper.dataset).to(device)
+    network = CNN(globals.dataset).to(device)
     opt = optim.SGD(network.parameters(), lr=lr, momentum=momentum)
     loss = nn.CrossEntropyLoss()
 
@@ -94,21 +94,21 @@ def train_all(dataset='svhn', num_teachers=250):
     :param num_teachers: integer specifying the number of teachers to train
     :return: Does not return anything, but saves the models instead
     """
-    ds = helper.dataset
+    ds = globals.dataset
     train_sets = ds.teach_train
     valid_sets = ds.teach_valid
     for i in range(num_teachers):
         print(f"Training teacher {i} now!")
         start_time = time.time()
-        n, acc = train(train_sets[i], valid_sets[i], dataset, helper.device)
+        n, acc = train(train_sets[i], valid_sets[i], dataset, globals.device)
         print("TEACHER",i,"ACC",acc)
         torch.save(n.state_dict(),f"./saved/{dataset}_teacher_{i}_of_{num_teachers-1}.tch")
         duration = time.time()- start_time
         print(f"It took {duration//60} minutes and {duration % 60} seconds to train teacher {i}.")
 
 def main():
-    dataset = helper.dataset.name
-    num_teachers = helper.dataset.num_teachers
+    dataset = globals.dataset.name
+    num_teachers = globals.dataset.num_teachers
     train_all(dataset, num_teachers)
 
 if __name__ == '__main__':
