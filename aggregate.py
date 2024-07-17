@@ -914,7 +914,7 @@ class LapRepeatGNMax(Aggregator):
                 np.asarray([self.gn_epsilon,temp_lap_epsilon], [self.delta,temp_lap_delta],1e-6)
             )
         
-        print(temp_epsilon, self.ed_epsilon)
+        print(temp_epsilon_ma, self.ed_epsilon)
         if self.ed_epsilon > max_epsilon:
             return -1
         return self.aggregate(votes)
