@@ -29,6 +29,15 @@ class Aggregator:
         self.num_labels = dat_obj.num_labels
 
     def aggregate(self, votes):
+        """
+        Function for the aggregation mechanism
+
+        Arguments:
+        :param votes: array of labels, where each label is the vote of a single teacher. 
+                      so, if there are 250 teachers, the length of votes is 250.
+        :returns: The label with the most votes, after applying the relevant aggregation
+                  mechanism
+        """
         raise NotImplementedError
 
     def threshold_aggregate(self, votes, epsilon):
@@ -73,9 +82,8 @@ class NoisyMaxAggregator(Aggregator):
         :param scale: float specifying the amount of noise. The larger the scale 
                       value, the noisier it is. ReportNoisyMax is epsilon 
                       differentially private if scale is equal to 1/epsilon
-        :param num_labels: int specifying the number of labels that the teacher
-                           can vote for. so, for the MNIST dataset, num_labels
-                           is equal to 10
+        :param dat_obj: datasets._Dataset object representing the dataset that is being
+                        aggregated over. used to find self.num_labels
         :param noise_fn: function specifying the distribution that the noise must
                          be drawn from. for basic ReportNoisyMax, this is the
                          Laplacian distribution
@@ -196,7 +204,8 @@ class RepeatGNMax(Aggregator):
         used to calculate the distance that is being used to compare vote histograms to
         previous vote histograms , currently we are either using the l infinity norm or we
         are using what we call the swing voter metric .
-    
+    dat_obj : datasets._Dataset object
+        representing the dataset that we are aggregating over
 
     Methods
     ----------
@@ -221,11 +230,12 @@ class RepeatGNMax(Aggregator):
         :param tau: float variable determining the threshold of similarity that the vote 
                     histograms have to be to release the same answer. so, the lower the 
                     threshold, the more similar the histograms need to be.
+        :param dat_obj: datasets._Dataset variable representing the dataset that we are
+                        aggregating over
+        :param distance_fn: function that computes a distance vector to previous votes
         :param alpha: numeric representing the alpha value for the order of the renyi
                       differential privacy
         :param delta: float representing the delta needed to calculate epsilon-delta epsilons
-        :param num_labels: int specifying the number of labels to be aggregated
-        :param distance_fn: function that computes a distance vector to previous votes
         :param epsilon_prime: function used to calculate the epsilon prime needed for renyi
                               differential privacy . this changes with our distance function
         """
@@ -235,6 +245,7 @@ class RepeatGNMax(Aggregator):
         self.tau = tau
         self.alpha = alpha
         self.dat_obj = dat_obj
+        self.num_labels = dat_obj.num_labels
         self.prev_votes = []
         self.prev_labels = []
         self.gnmax = NoisyMaxAggregator(scale2,dat_obj,np.random.normal)
@@ -302,9 +313,9 @@ class RepeatGNMax(Aggregator):
         :param votes: array of labels, where each label is the vote of a single 
                       teacher. so, if there are 250 teachers, the length of votes 
                       is 250
-        :param epsilon: float reprepesenting the maximum epsilon that the mechanism 
-                        aggregates to. this is to say, it will not report the result
-                        of a vote if that would exceed the privacy budget
+        :param max_epsilon: float reprepesenting the maximum epsilon that the mechanism 
+                            aggregates to. this is to say, it will not report the result
+                            of a vote if that would exceed the privacy budget
         :returns: integer corresponding to the aggregated label, or -1 if the response
                   would exceed the epsilon budget
         """
