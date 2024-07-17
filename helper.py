@@ -1,28 +1,26 @@
 import torch
-import torchvision
-import torchvision.transforms.v2 as transforms
+import globals
 
-# set up device; print the first time we use it
-# a bit cursed but it's fine
-if torch.cuda.is_available():
-    device = torch.device('cuda')
-elif torch.backends.mps.is_available():
-    device = torch.device('mps')
-else:
-    device = torch.device('cpu')
-try:
-    already_printed  # noqa: F821
-except:  # noqa: E722
-    already_printed = True
-    print("using device", device)
+def l_inf_distances(votes, prev_votes, dat_obj):
+    """
+    Function used to calculate the max difference over a label between the current
+    vote histogram and every previous vote histogram
 
-def l_inf_distances(votes, prev_votes, num_labels):
+    :param votes: array of labels, where each label is the vote of a single teacher. 
+                  this list may be a subsample of the votes of every actual teacher.
+    :param prev_votes: 2-dimensional tensor variable where each prev_votes[i] looks 
+                       like the votes variable. needed to compare current votes 
+                       histogram to previous ones.
+    :param num_labels: int representing the number of labels in the dataset
+    :returns: number (maybe technically a tensor) representing the max difference
+              between vote histograms
+    """
     # using torch so we can do this on the gpu (for speed)
-    hist = torch.zeros((num_labels,), device=device)
+    hist = torch.zeros((dat_obj.num_labels,), device=globals.device)
     for v in votes:
         hist[v] += 1
         
-    total_hist = torch.zeros((len(prev_votes), num_labels), device=device)
+    total_hist = torch.zeros((len(prev_votes), dat_obj.num_labels), device=globals.device)
 
     unique, counts = torch.unique(prev_votes, dim=1, return_counts=True)
     total_hist[:,unique] = counts.float()
@@ -30,65 +28,24 @@ def l_inf_distances(votes, prev_votes, num_labels):
     divergences, _ = torch.max(torch.abs(hist-total_hist), dim=1)
     return divergences
 
-def swing_distance(votes, prev_votes, num_labels):
-    swing_counts = torch.sum(prev_votes != torch.from_numpy(votes).to(device) ,dim=1)
+def swing_distance(votes, prev_votes, dat_obj):
+    """
+    Function used to calculate the distance between two voting records using the
+    swing voter distance metric . this is to say , the number of teachers that voted
+    for a different label given different inputs
+
+    :param votes: array of labels, where each label is the vote of a single teacher. 
+                  this list may be a subsample of the votes of every actual teacher.
+    :param prev_votes: 2-dimensional tensor variable where each prev_votes[i] looks 
+                       like the votes variable. needed to compare current votes 
+                       histogram to previous ones.
+    :param num_labels: int representing the number of labels in the dataset
+    :returns: number (maybe technically a tensor) representing the number of voters
+              that changed their vote
+    """
+    swing_counts = torch.sum(prev_votes != torch.from_numpy(votes).to(globals.device) ,dim=1)
     return swing_counts.float()
-
-def load_dataset(dataset_name = 'svhn', split='teach', make_normal=False):
-    """
-    Function for loading the datasets that we need to load.
-    :param dataset_name: string specifying which dataset to load (currently, one of 'svhn' or 'mnist'). defaults to 'svhn'
-    :param split: string specifying how to split up the data, depending on if we're training the student or the teacher models. defaults to 'teach'
-    :param make_normal: boolean specifying whether or not to normalize the data. defaults to False
-    :return: 3-tuple containing the training, validation, and test datasets.
-    """
-    transform = transforms.Compose([
-        transforms.ToImage(),
-        transforms.ToDtype(torch.float32, scale=True)
-    ])
-    if dataset_name == 'svhn':
-        if split == 'teach':
-            train_dataset = torchvision.datasets.SVHN('./data/svhn', split='train', download=True, transform=transform)
-            extra_dataset = torchvision.datasets.SVHN('./data/svhn', split='extra', download=True, transform=transform)
-            test_dataset = torchvision.datasets.SVHN('./data/svhn', split='test', download=True, transform=transform)
-            train_dataset = torch.utils.data.ConcatDataset([train_dataset,extra_dataset])
-            train_length = int(len(train_dataset) * 0.8)
-            valid_length = len(train_dataset) - train_length
-            train_dataset = torch.utils.data.Subset(train_dataset, torch.arange(train_length))
-            valid_dataset = torch.utils.data.Subset(train_dataset, torch.arange(train_length, valid_length + train_length))
-        else:
-            all_data = torchvision.datasets.SVHN('./data/svhn', split='test', download=True, transform=transform)
-            train_length = int(len(all_data)*0.7)
-            valid_length = int(len(all_data)*0.2)
-            train_dataset = torch.utils.data.Subset(all_data, torch.arange(train_length))
-            valid_dataset = torch.utils.data.Subset(all_data, torch.arange(train_length, train_length + valid_length))
-            test_dataset = torch.utils.data.Subset(all_data, torch.arange(train_length + valid_length, len(all_data)))
-        if make_normal:
-            normalize = transforms.Normalize([0.4376821, 0.4437697, 0.47280442], [0.19803012, 0.20101562, 0.19703614])
-            train_dataset, valid_dataset, test_dataset = normalize(train_dataset), normalize(valid_dataset), normalize(test_dataset)
-    elif dataset_name == 'mnist':
-        if split == 'teach':
-            train_dataset = torchvision.datasets.MNIST('./data/mnist', train=True, download=True, transform=transform)
-            test_dataset = torchvision.datasets.MNIST('./data/mnist', train=False, download=True, transform=transform)
-            train_length = int(len(train_dataset) * 0.8)
-            valid_length = len(train_dataset) - train_length
-            train_dataset = torch.utils.data.Subset(train_dataset, torch.arange(train_length))
-            valid_dataset = torch.utils.data.Subset(train_dataset, torch.arange(train_length, valid_length + train_length))
-        else:
-            all_data = torchvision.datasets.MNIST('./data/mnist', train=False, download=True, transform=transform)
-            train_length = int(len(all_data)*0.7)
-            valid_length = int(len(all_data)*0.2)
-            train_dataset = torch.utils.data.Subset(all_data, torch.arange(train_length))
-            valid_dataset = torch.utils.data.Subset(all_data, torch.arange(train_length, train_length + valid_length))
-            test_dataset = torch.utils.data.Subset(all_data, torch.arange(train_length + valid_length, len(all_data)))
-        if make_normal:
-            normalize = transforms.Normalize((0.1307,), (0.3081,))
-            train_dataset, valid_dataset, test_dataset = normalize(train_dataset), normalize(valid_dataset), normalize(test_dataset)
-    else:
-        print("Bad value of dataset arg.")
-        return False
-    return train_dataset, valid_dataset, test_dataset
-
+    
 def data_dependent_cost(self,votes):
     """
     Function for calculating the data-dependent q value for a query
@@ -107,4 +64,3 @@ def data_dependent_cost(self,votes):
             continue
         tot += math.erfc((max(hist)-hist[label])/(2*self.scale2))
     return tot/2
- 

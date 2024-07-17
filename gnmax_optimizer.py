@@ -1,7 +1,6 @@
 import numpy as np
 import aggregate
 import get_predicted_labels
-import student
 import torch
 from os.path import isfile
 import torch_teachers
@@ -9,6 +8,7 @@ import privacy_accounting
 import helper
 import time
 import pickle
+import globals
 
 start_time = time.time()
 
@@ -37,7 +37,7 @@ rng = np.random.default_rng()
 # p in (0,1],
 # tau in [1, 100]
 
-NUM_POINTS = 20  # changed for our custom checking
+NUM_POINTS = 40  # changed for our custom checking
 
 # points = np.asarray([
 #     # change these range values to shrink scope (for optimization)
@@ -51,7 +51,7 @@ NUM_POINTS = 20  # changed for our custom checking
 _alpha = np.full((NUM_POINTS,), 3)
 _p = np.full((NUM_POINTS,), 0.75)
 _tau = _p * 50
-_sigma1 = np.arange(1,21) * 5 * _p  # [5, 10, ..., 100]
+_sigma1 = np.arange(1,41) * 5 * _p  # [5, 10, ..., 200]
 _sigma2 = np.full((NUM_POINTS,), 50)
 
 points = np.asarray([
@@ -70,15 +70,14 @@ if not isfile(SAVEFILE_NAME):
     with open(SAVEFILE_NAME, "wb") as f:
         pickle.dump(dict(), f)
 
-dataset = 'svhn'
-num_teachers = 250
+ds = globals.dataset
+num_teachers = ds.num_teachers
 
-train, valid, _test = get_predicted_labels.load_dataset(dataset, 'student', False)
-train = torch.utils.data.ConcatDataset([train, valid])
-loader = torch.utils.data.DataLoader(train, shuffle=False, batch_size=256)
+student_data = globals.dataset.student_data
+loader = torch.utils.data.DataLoader(student_data, shuffle=False, batch_size=256)
 
-if not isfile(f"./saved/{dataset}_{num_teachers}_teacher_predictions.npy"):
-    get_predicted_labels.calculate_prediction_matrix(loader, helper.device, dataset, num_teachers)
+if not isfile(f"./saved/{ds.name}_{num_teachers}_teacher_predictions.npy"):
+    get_predicted_labels.calculate_prediction_matrix(loader, globals.dataset)
 
 
 for point in points:
@@ -97,19 +96,20 @@ for point in points:
         sigma2,
         p,
         tau,
+        dat_obj=globals.dataset,
         delta=1e-6,
         distance_fn=helper.swing_distance,
-        epsilon_prime=privacy_accounting.epsilon_prime_swing,
+        epsilon_prime=privacy_accounting.epsilon_prime,
     )
    
-    labels = get_predicted_labels.load_predicted_labels(agg, dataset, num_teachers)
+    labels = get_predicted_labels.load_predicted_labels(agg, ds)
     print("FINAL tau usages:", agg.tau_tally)
 
     correct = 0
     num_datapoints = len(labels)
     unlabeled = 0
     for i, label in enumerate(labels):
-        if label == train[i][1]:
+        if label == student_data[i][1]:
             correct += 1
         if label == -1:
             unlabeled += 1
@@ -118,27 +118,28 @@ for point in points:
     if labeled != 0:
        label_acc = correct/labeled
 
-    train_set, valid_set, test_set = student.load_and_part_sets(dataset, num_teachers)
+    student_train, student_valid = ds.student_overwrite_labels(labels)
 
-    n, val_acc = torch_teachers.train(train_set, valid_set, dataset, device=helper.device, epochs=100, batch_size=16, model="student")
+    n, val_acc = torch_teachers.train(student_train, student_valid, ds, epochs=100, batch_size=16, model="student")
 
-    # compute our final accuracy metric on *true labels* of validation data
-    _train_data, valid_data, _test_data = helper.load_dataset(dataset, "student")
-    valid_loader = torch.utils.data.DataLoader(valid_data, shuffle=True, batch_size=256)
+    # NOTE: this is really bad practice since we're optimizing w.r.t. the test data,
+    # but for now we just need to see if things actually work
+    test_data = ds.student_test
+    test_loader = torch.utils.data.DataLoader(test_data, shuffle=True, batch_size=256)
     n.eval()
-    true_val_accs = []
-    for batch_xs, batch_ys in valid_loader:
-        batch_xs = batch_xs.to(helper.device)
-        batch_ys = batch_ys.to(helper.device)
+    test_accs = []
+    for batch_xs, batch_ys in test_loader:
+        batch_xs = batch_xs.to(globals.device)
+        batch_ys = batch_ys.to(globals.device)
         preds = n(batch_xs)
-        true_val_accs.append((preds.argmax(dim=1) == batch_ys).float().mean())
-    true_val_acc = torch.tensor(true_val_accs).mean()
+        test_accs.append((preds.argmax(dim=1) == batch_ys).float().mean())
+    test_acc = torch.tensor(test_accs).mean()
 
     # now save the results! we write to disk every time so we can cancel the process with minimal loss
-    # results format is dict of (alpha, p, tau, sigma1, sigma2) : (labeled, label_acc, val_acc, true_val_acc)
+    # results format is dict of (alpha, p, tau, sigma1, sigma2) : (labeled, label_acc, val_acc, test_acc)
     with open(SAVEFILE_NAME, "rb") as f:
         past_results = pickle.load(f)
-    past_results[tuple(point)] = (labeled, label_acc, val_acc, true_val_acc)
+    past_results[tuple(point)] = (labeled, label_acc, val_acc, test_acc)
     with open(SAVEFILE_NAME, "wb") as f:
         pickle.dump(past_results, f)
 
