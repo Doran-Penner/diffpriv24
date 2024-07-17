@@ -202,6 +202,8 @@ def clean_learning_PATE():
     print("\t\tlabeled:\tlabel_acc\ttotal_acc")
     print(f"Pre Cleaning:\t{labeled}\t\t{correct/labeled}\t\t{correct/guessed}")
     print(f"Post Cleaning:\t{new_labeled}\t\t{new_correct/new_labeled}\t\t{new_correct/guessed}")
+
+    np.save(f'./saved/{dat_obj.name}_{dat_obj.num_teachers}_agg_teacher_predictions.npy', labels)
     
 
 def load_prediction_vectors(aggregator, dat_obj):
