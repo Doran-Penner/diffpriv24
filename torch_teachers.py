@@ -5,7 +5,7 @@ from models import CNN
 import globals
 
 
-def train(training_data, valid_data, dat_obj, lr=1e-3, epochs=70, batch_size=16, momentum=0.9, padding=True, model="teacher"):
+def train(training_data, valid_data, dat_obj, lr=1e-3, epochs=70, batch_size=16, momentum=0.9, model="teacher"):
     """
     This is a function that trains the model on a specified dataset.
     :param training_data: dataset containing the training data for the model
@@ -20,6 +20,7 @@ def train(training_data, valid_data, dat_obj, lr=1e-3, epochs=70, batch_size=16,
     :param model: string representing whether the model is meant to be a teacher or a student, which changes what is saved
     :return: Tuple containing the model being trained and the accuracy of the model on the validation set at the end of training
     """
+    assert model in ["teacher", "student"], "misnamed model parameter!"
     print("training...")
     #print("training data size:",np.shape(training_data))
     train_loader = torch.utils.data.DataLoader(training_data, shuffle=True, batch_size=batch_size)
