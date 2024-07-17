@@ -70,9 +70,9 @@ class ConfidentLearningAggregator(ConfidentGNMax):
             self.eps_ma += privacy_accounting.single_epsilon_ma(q, self.alpha, self.scale2)
             
             # adds noise to the histogram that we output (this is copied from NoisyRepeatMax)
-            hist += torch.normal(0, self.scale2, size=hist.shape, device=globals.device)
+            #hist += torch.normal(0, self.scale2, size=hist.shape, device=globals.device)
 
-            softmaxer = torch.nn.Softmax()
+            softmaxer = torch.nn.Softmax(dim=0)
             prob_vector = softmaxer(hist).to("cpu")
 
             return prob_vector
@@ -170,18 +170,13 @@ def clean_learning_PATE():
     # This will calculate the teacher accuracy before the cleaning happens
     # the hope is that after cleaning the data, we will have better accuracy
     # on the labeled data, even if that means there is less labeled data
-    correct = 0
-    guessed = 0
-    unlabeled = 0
-    for i, label in enumerate(labels):
-        guessed += 1
-        if label == student_data[i][1]:
-            correct += 1
-        if label == -1:
-            unlabeled += 1
-    labeled = guessed-unlabeled
-    
+    assess_teacher_aggregation(student_data,labels)
 
+    # get the labeled indices :)
+    indices_to_clean = []
+    for i in range(len(labels)):
+        if labels[i] != -1:
+            indices_to_clean.append(i)
 
     # now to dump bleach onto the dataset
     # this is the most basic (ish) version of the cleanlab find_label_issues
@@ -190,36 +185,21 @@ def clean_learning_PATE():
     # best possible thing in place
     # This will be an array of booleans with True at every index that we wish to 
     # unlabel
-    print(len(probability_vectors), len(labels))
-    if not agg.confident:
-        # I don't have a great idea of how -1s would affect the find_label_issues
-        # function, so I am going to call find_label_issues on just the bits that
-        # come before we go over the epsilon value (labels != -1)
-        label_issue_mask = find_label_issues(labels[:labeled],probability_vectors[:labeled,:],filter_by="both")
-    else:
-        print("WARNING, ENTERING UNKOWN TERRITORY")
-        label_issue_mask = find_label_issues(labels,probability_vectors,filter_by="both")
-
+    print(len(labels[indices_to_clean]), len(indices_to_clean))
+    label_issue_mask = find_label_issues(labels[indices_to_clean],probability_vectors[indices_to_clean,:],filter_by="confident_learning")
+    if any(label_issue_mask):
+        print("Bad label found")
     # now just use the mask we got to change the relevant labels to -1 to keep 
     # consistent with the earlier unlabeling bit
     # This is probably not the most efficient, so it will likely be changed but for now
     for i in range(len(label_issue_mask)):
         if label_issue_mask[i]:
-            labels[i] = -1
+            # since we have the indices_to_clean list, we have to make sure
+            # we actually change the correct label
+            labels[indices_to_clean[i]] = -1
 
-    new_correct = 0
-    new_unlabeled = 0
-    for i, label in enumerate(labels):
-        if label == student_data[i][1]:
-            new_correct += 1
-        if label == -1:
-            new_unlabeled += 1
-    new_labeled = guessed - new_unlabeled
-
-    print("Summary time!!!")
-    print("\t\tlabeled:\tcorrect:\tguessed:")
-    print(f"Pre Cleaning:\t{labeled}\t\t{correct}\t\t{guessed}")
-    print(f"Post Cleaning:\t{new_labeled}\t\t{new_correct}\t\t{guessed}")
+    
+    assess_teacher_aggregation(student_data,labels)
     
 
 def load_prediction_vectors(aggregator, dat_obj):
@@ -234,8 +214,8 @@ def load_prediction_vectors(aggregator, dat_obj):
     votes = np.load(f"./saved/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy", allow_pickle=True)
     agg = lambda x: aggregator.threshold_aggregate(x, 10)  # noqa: E731
     pred_vectors = np.apply_along_axis(agg, 0, votes)
-    # this should just take the argmin of the probability vector for a given query
-    label_maker = lambda x: np.argmin(x) if any(x) else -1
+    # this should just take the argmax of the probability vector for a given query
+    label_maker = lambda x: np.argmax(x) if any(x) else -1
 
     # get an array of labels
     labels = np.apply_along_axis(label_maker,0,pred_vectors)
@@ -247,9 +227,39 @@ def load_prediction_vectors(aggregator, dat_obj):
 
     return pred_vectors, labels
 
-def assess_teacher_aggregation(dat_obj,labels):
+def assess_teacher_aggregation(student_data,labels):
+    """
+    function to asses class-based statistics
+    """
+    # dict of true_label: (correct,unlabeled,total)
+    by_class = {1:[0,0,0], 2:[0,0,0], 3:[0,0,0],4:[0,0,0], 5:[0,0,0],6:[0,0,0], 7:[0,0,0], 8:[0,0,0],9:[0,0,0], 0:[0,0,0]}
+    total = 0
+    correct = 0
+    unlabeled = 0
+    for i,label in enumerate(labels):
+        by_class[student_data[i][1]][2] += 1
+        total += 1
+        if label == -1:
+            unlabeled += 1
+            by_class[student_data[i][1]][1] += 1
+        elif label == student_data[i][1]:
+            by_class[student_data[i][1]][0] += 1
+            correct += 1
 
-    pass
+    labeled = total-unlabeled
+
+    print("Assessment Results:")
+    print("\t\t\tlabeled:\tcorrect:\ttotal:\t\tlabel_accuracy:")
+    print(f"Overall Summary:\t{labeled}\t\t{correct}\t\t{total}\t\t{correct/labeled}")
+    for key in by_class:
+        print(f"Summary of {key}:\t\t{by_class[key][2]-by_class[key][1]}\t\t{by_class[key][0]}\t\t{by_class[key][2]}\t\t{by_class[key][0]/(by_class[key][2]-by_class[key][1])}")
+
+        
+                
+
+
+
+
 
 
 
