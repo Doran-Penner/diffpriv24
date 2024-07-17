@@ -82,14 +82,14 @@ def main():
     # change these or pass variables in the future
 
     dat_obj = globals.dataset
-    agg = aggregate.RepeatGNMax(50, 50, 1, 50, dat_obj=dat_obj, distance_fn=l_inf_distances)
+    agg = aggregate.ConfidentGNMax(50,50,0.5,dat_obj)
 
     student_data = dat_obj.student_data
     loader = torch.utils.data.DataLoader(student_data, shuffle=False, batch_size=256)
 
     if not isfile(f"./saved/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy"):
         calculate_prediction_matrix(loader, dat_obj)
-    
+
     labels = load_predicted_labels(agg, dat_obj)
     print("FINAL tau usages:", agg.tau_tally)
 

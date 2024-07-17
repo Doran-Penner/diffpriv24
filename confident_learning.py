@@ -29,7 +29,9 @@ class ConfidentLearningAggregator(ConfidentGNMax):
             confident=False
         ):
         # basically just the init for ConfidentGNMax but without gnmax and adding confident and hit_max
+        # confident scale
         self.scale1 = scale1
+        # gnmax scale
         self.scale2 = scale2
         self.tau = tau
         self.alpha = alpha
@@ -43,6 +45,11 @@ class ConfidentLearningAggregator(ConfidentGNMax):
         # to properly deal with that in an easy way
         self.confident = confident
 
+        # used for threshold_aggregate if confident == False
+        self.hit_max = False
+
+        # used for something on GNMax's threshold_aggregate
+        self.queries = []
     
     def aggregate(self, votes):
         """
@@ -55,22 +62,22 @@ class ConfidentLearningAggregator(ConfidentGNMax):
         for v in votes:
             hist[v] += 1
         
-        # NOTE This while even if confident is False, this will be computed, but it will not be used
-        #      since we have the 'or not self.confident' a few lines below
-        noised_max = torch.max(hist) + torch.normal(0, self.scale1, size=hist.shape, device=globals.device)
+        noised_hist = hist + torch.normal(0, self.scale1, size=hist.shape, device=globals.device)
+        noised_max = torch.max(noised_hist)
 
         if noised_max >= self.tau or not self.confident:
             q = self.data_dependent_cost(votes)
             self.eps_ma += privacy_accounting.single_epsilon_ma(q, self.alpha, self.scale2)
             
             # adds noise to the histogram that we output (this is copied from NoisyRepeatMax)
-            hist += self.noise_fn(loc=0.0, scale=float(self.scale), size=(self.num_labels,))
+            hist += torch.normal(0, self.scale2, size=hist.shape, device=globals.device)
 
-            prob_vector = sp.softmax(hist)
+            softmaxer = torch.nn.Softmax()
+            prob_vector = softmaxer(hist).to("cpu")
 
             return prob_vector
         else:
-            return -1
+            return np.zeros((self.num_labels,))
         
     def threshold_aggregate(self, votes, epsilon):
         if self.confident:
@@ -85,13 +92,13 @@ class ConfidentLearningAggregator(ConfidentGNMax):
             )
             print(epsilon_ma, ed_epsilon)
             if ed_epsilon > epsilon:
-                return -1
+                return np.zeros((self.num_labels,))
             return self.aggregate(votes)
     
         else:
             # just NoisyMaxAggregator.threshold_aggregate
             if self.hit_max:
-                return -1
+                return np.zeros((self.num_labels,))
             hist = [0]*self.num_labels
             for v in votes:
                 hist[int(v)] += 1
@@ -99,18 +106,18 @@ class ConfidentLearningAggregator(ConfidentGNMax):
             for label in range(self.num_labels):
                 if label == np.argmax(hist):
                     continue
-                tot += math.erfc((max(hist)-hist[label])/(2*self.scale))
+                tot += math.erfc((max(hist)-hist[label])/(2*self.scale2))
             if tot < 2*10e-16:
                 # need a lower bound, otherwise floating-point imprecision
                 # turns this into 0 and then we divide by 0
                 tot = 2*10e-16
             self.queries.append(tot/2)
-            eps = privacy_accounting.gnmax_epsilon(self.queries, 3, self.scale, 1e-6)
+            eps = privacy_accounting.gnmax_epsilon(self.queries, 3, self.scale2, 1e-6)
             print(eps)
             if eps > epsilon:
                 print("uh oh!")
                 self.hit_max = True  # FIXME this is a short & cheap solution, not the best one
-                return -1
+                return np.zeros((self.num_labels,))
             return self.aggregate(votes)
 
 # NOTE THESE FOLLOWING FUNCTIONS MIGHT BE IN A DIFFERENT SPOT BUT FOR THE TIME BEING THEY WILL STAY HERE
@@ -131,23 +138,34 @@ def clean_learning_PATE():
         # We need to modify the student training and validation sets
 
     # possible values for the aggregator, they are dummy variables for now.
-    scale1 = 10
-    scale2 = 10
+    scale1 = 100
+    scale2 = 100
     tau = 0.6
 
     dat_obj = globals.dataset
     # Change inputs to this, and make sure it doesn't use default things to be in line with other aggregators?
     agg = ConfidentLearningAggregator(scale1,scale2,tau)
     
-    
+    student_data = dat_obj.student_data
+    loader = torch.utils.data.DataLoader(student_data, shuffle=False, batch_size=256)
 
     if not isfile(f"./saved/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy"):
-        student_data = dat_obj.student_data
-        loader = torch.utils.data.DataLoader(student_data, shuffle=False, batch_size=256)
         get_predicted_labels.calculate_prediction_matrix(loader, dat_obj)
     
     # aggregation step
-    probability_vectors, labels = load_prediction_vectors(agg,dat_obj)
+    #probability_vectors, labels = load_prediction_vectors(agg,dat_obj)
+    if not isfile(f"./saved/{dat_obj.name}_{dat_obj.num_teachers}_agg_teacher_predictions.npy"):
+        probability_vectors, labels = load_prediction_vectors(agg,dat_obj)
+    else:
+        # no need to recalculate if already calculated
+        labels = np.load(f"./saved/{dat_obj.name}_{dat_obj.num_teachers}_agg_teacher_predictions.npy")
+        probability_vectors = np.load(f"./saved/{dat_obj.name}_{dat_obj.num_teachers}_agg_teacher_probability_vectors.npy")
+    
+    for i in range(len(probability_vectors)):
+        for j in range(len(probability_vectors[i])):
+            if probability_vectors[i][j] < 0 or probability_vectors[i][j] > 1:
+                print("WARNING")
+                print(probability_vectors[i][j])
 
     # This will calculate the teacher accuracy before the cleaning happens
     # the hope is that after cleaning the data, we will have better accuracy
@@ -172,11 +190,12 @@ def clean_learning_PATE():
     # best possible thing in place
     # This will be an array of booleans with True at every index that we wish to 
     # unlabel
+    print(len(probability_vectors), len(labels))
     if not agg.confident:
         # I don't have a great idea of how -1s would affect the find_label_issues
         # function, so I am going to call find_label_issues on just the bits that
         # come before we go over the epsilon value (labels != -1)
-        label_issue_mask = find_label_issues(labels[:labeled],probability_vectors[:labeled],filter_by="both")
+        label_issue_mask = find_label_issues(labels[:labeled],probability_vectors[:labeled,:],filter_by="both")
     else:
         print("WARNING, ENTERING UNKOWN TERRITORY")
         label_issue_mask = find_label_issues(labels,probability_vectors,filter_by="both")
@@ -198,12 +217,9 @@ def clean_learning_PATE():
     new_labeled = guessed - new_unlabeled
 
     print("Summary time!!!")
-    print()
-    print("\t\tlabeled:\tlabel_acc\ttotal_acc")
-    print(f"Pre Cleaning:\t{labeled}\t\t{correct/labeled}\t\t{correct/guessed}")
-    print(f"Post Cleaning:\t{new_labeled}\t\t{new_correct/new_labeled}\t\t{new_correct/guessed}")
-
-    np.save(f'./saved/{dat_obj.name}_{dat_obj.num_teachers}_agg_teacher_predictions.npy', labels)
+    print("\t\tlabeled:\tcorrect:\tguessed:")
+    print(f"Pre Cleaning:\t{labeled}\t\t{correct}\t\t{guessed}")
+    print(f"Post Cleaning:\t{new_labeled}\t\t{new_correct}\t\t{guessed}")
     
 
 def load_prediction_vectors(aggregator, dat_obj):
@@ -218,16 +234,24 @@ def load_prediction_vectors(aggregator, dat_obj):
     votes = np.load(f"./saved/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy", allow_pickle=True)
     agg = lambda x: aggregator.threshold_aggregate(x, 10)  # noqa: E731
     pred_vectors = np.apply_along_axis(agg, 0, votes)
-
     # this should just take the argmin of the probability vector for a given query
-    label_maker = lambda x:np.argmin(x)
+    label_maker = lambda x: np.argmin(x) if any(x) else -1
 
     # get an array of labels
     labels = np.apply_along_axis(label_maker,0,pred_vectors)
 
-
+    pred_vectors = np.transpose(pred_vectors)
     # unsure if we need to save both the probability vectors and the labels, but just in case I will do both
     np.save(f'./saved/{dat_obj.name}_{dat_obj.num_teachers}_agg_teacher_probability_vectors.npy', pred_vectors)
     np.save(f'./saved/{dat_obj.name}_{dat_obj.num_teachers}_agg_teacher_predictions.npy', labels)
+
     return pred_vectors, labels
 
+def assess_teacher_aggregation(dat_obj,labels):
+
+    pass
+
+
+
+if __name__ == "__main__":
+    clean_learning_PATE()
