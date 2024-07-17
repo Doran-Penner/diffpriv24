@@ -1,4 +1,6 @@
 import torch
+import numpy as np
+import math
 import globals
 
 def l_inf_distances(votes, prev_votes, dat_obj):
@@ -46,7 +48,7 @@ def swing_distance(votes, prev_votes, dat_obj):
     swing_counts = torch.sum(prev_votes != torch.from_numpy(votes).to(globals.device) ,dim=1)
     return swing_counts.float()
     
-def data_dependent_cost(self,votes):
+def data_dependent_cost(votes, num_labels, scale2):
     """
     Function for calculating the data-dependent q value for a query
 
@@ -55,12 +57,12 @@ def data_dependent_cost(self,votes):
                   so, if there are 250 teachers, the length of votes is 250.
     :returns: q value
     """
-    hist = [0]*self.num_labels
+    hist = [0]*num_labels
     for v in votes:
         hist[int(v)] += 1
     tot = 0
-    for label in range(self.num_labels):
+    for label in range(num_labels):
         if label == np.argmax(hist):
             continue
-        tot += math.erfc((max(hist)-hist[label])/(2*self.scale2))
+        tot += math.erfc((max(hist)-hist[label])/(2*scale2))
     return tot/2

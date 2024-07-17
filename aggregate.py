@@ -2,7 +2,7 @@ import numpy as np
 import math
 import privacy_accounting
 import torch
-from helper import l_inf_distances, swing_distance, data_dependent_cost
+from helper import swing_distance, data_dependent_cost
 import globals
 
 class Aggregator:    
@@ -260,7 +260,7 @@ class RepeatGNMax(Aggregator):
         # we just needed it to work, but reaaally should change this
         self.total_queries += 1
         if self.prev_votes == []:
-            q = data_dependent_cost(votes)
+            q = data_dependent_cost(votes, self.num_labels, self.scale2)
             self.queries.append(q)
             self.eps_ma += privacy_accounting.single_epsilon_ma(q, self.alpha, self.scale2)
             self.prev_votes.append(votes)
@@ -285,7 +285,7 @@ class RepeatGNMax(Aggregator):
             self.tau_tally += 1
             return self.prev_labels[min_divergence_idx]
         else:
-            q = data_dependent_cost(votes)
+            q = data_dependent_cost(votes, self.num_labels, self.scale2)
             self.queries.append(q)
             self.eps_ma += privacy_accounting.single_epsilon_ma(q, self.alpha, self.scale2)
             self.prev_votes.append(votes)
@@ -310,7 +310,7 @@ class RepeatGNMax(Aggregator):
         """
         # NOTE maybe we could squeeze out a couple more tau responses?
         epsilon_ma = self.eps_ma + privacy_accounting.single_epsilon_ma(
-            data_dependent_cost(votes), self.alpha, self.scale2
+            data_dependent_cost(votes, self.num_labels, self.scale2), self.alpha, self.scale2
         )
         ed_epsilon = privacy_accounting.renyi_to_ed(
             (self.total_queries + 1) * self.eprime + epsilon_ma,
@@ -359,7 +359,7 @@ class ConfidentGNMax(Aggregator):
 
     Methods
     ----------
-    data_dependent_cost(votes):
+    data_dependent_cost(votes, num_labels, scale2):
         function that reports the data-dependent q value, used to calculate epsilon cost
 
     aggregate(votes):
@@ -394,23 +394,6 @@ class ConfidentGNMax(Aggregator):
         self.eprime = alpha / (scale1 * scale1) 
         self.eps_ma = 0
 
-    def data_dependent_cost(self,votes):
-        """
-        Function for calculating the data-dependent q value for a query
-        Arguments:
-        :param votes: array of labels, where each label is the vote of a single teacher. 
-                      so, if there are 250 teachers, the length of votes is 250.
-        :returns: q value
-        """
-        hist = [0]*self.num_labels
-        for v in votes:
-            hist[int(v)] += 1
-        tot = 0
-        for label in range(self.num_labels):
-            if label == np.argmax(hist):
-                continue
-            tot += math.erfc((max(hist)-hist[label])/(2*self.scale2))
-        return tot/2
  
     def aggregate(self, votes):
         """
@@ -428,7 +411,7 @@ class ConfidentGNMax(Aggregator):
             hist[v] += 1
         noised_max = torch.max(hist) + torch.normal(0, self.scale1, size=hist.shape, device=globals.device)
         if noised_max >= self.tau:
-            q = self.data_dependent_cost(votes)
+            q = data_dependent_cost(votes, self.num_labels, self.scale2)
             self.eps_ma += privacy_accounting.single_epsilon_ma(q, self.alpha, self.scale2)
             return self.gnmax.aggregate(votes)
         else:
@@ -450,7 +433,7 @@ class ConfidentGNMax(Aggregator):
                         would exceed the epsilon budget or if it is not confident
         """
         epsilon_ma = self.eps_ma + privacy_accounting.single_epsilon_ma(
-            self.data_dependent_cost(votes), self.alpha, self.scale2
+            data_dependent_cost(votes, self.num_labels, self.scale2), self.alpha, self.scale2
         )
         ed_epsilon = privacy_accounting.renyi_to_ed(
             (self.total_queries + 1) * self.eprime + epsilon_ma,
@@ -529,9 +512,9 @@ class PartRepeatGNMax(Aggregator):
             GNMax_scale,
             p,
             tau,
+            dat_obj,
             alpha=3,
-            delta=1e-6, 
-            num_labels=10,
+            delta=1e-6,
             distance_fn = swing_distance,
             max_num = 1000,
             confident = True,
@@ -541,13 +524,13 @@ class PartRepeatGNMax(Aggregator):
         ):
 
         # general attributes
-        self.num_labels = num_labels
+        self.num_labels = dat_obj.num_labels
         self.total_queries = 0
         self.queries = []
 
         # GNMax attributes
         self.GNMax_scale = GNMax_scale
-        self.gnmax = NoisyMaxAggregator(GNMax_scale,num_labels,np.random.normal)
+        self.gnmax = NoisyMaxAggregator(GNMax_scale,dat_obj,np.random.normal)
         self.alpha = alpha
         self.max_num= max_num
 
@@ -597,7 +580,7 @@ class PartRepeatGNMax(Aggregator):
         # check if we are still below the threshold for number of GNMax queries
         if self.total_queries <= self.max_num and self.ed_epsilon < self.GNMax_epsilon:
             # calculate and store epsilon cost for this query
-            q = data_dependent_cost(votes)
+            q = data_dependent_cost(votes, self.num_labels, self.scale2)
             self.queries.append(q)
             self.eps_ma += privacy_accounting.single_epsilon_ma(q, self.alpha, self.GNMax_scale)
 
@@ -659,7 +642,7 @@ class PartRepeatGNMax(Aggregator):
             # here is the hypothetical data dependent cost of gnmaxing the vote vector
             # we assume that this will be vector will not be repeat labeled
             temp_epsilon = self.eps_ma + privacy_accounting.single_epsilon_ma(
-                    data_dependent_cost(votes), self.alpha, self.GNMax_scale
+                    data_dependent_cost(votes, self.num_labels, self.scale2), self.alpha, self.GNMax_scale
                 )
             self.gn_epsilon = privacy_accounting.renyi_to_ed(
                 temp_epsilon,
@@ -757,21 +740,21 @@ class LapRepeatGNMax(Aggregator):
             lap_scale,
             p,
             tau,
+            dat_obj,
             alpha=3,
-            delta=1e-6, 
-            num_labels=10,
+            delta=1e-6,
             distance_fn = swing_distance,
             eprime = privacy_accounting.laplacian_eps_prime,
         ):
 
         # general attributes
-        self.num_labels = num_labels
+        self.num_labels = dat_obj.num_labels
         self.total_queries = 0
         self.queries = []
 
         # GNMax attributes
         self.GNMax_scale = GNMax_scale
-        self.gnmax = NoisyMaxAggregator(GNMax_scale,num_labels,np.random.normal)
+        self.gnmax = NoisyMaxAggregator(GNMax_scale,dat_obj,np.random.normal)
         self.alpha = alpha
 
         # Repeat attributes
@@ -818,7 +801,7 @@ class LapRepeatGNMax(Aggregator):
         # check if we are still below the threshold for number of GNMax queries
         if len(self.prev_votes) == 0:
             # calculate and store epsilon cost for this query
-            q = data_dependent_cost(votes)
+            q = data_dependent_cost(votes, self.num_labels, self.scale2)
             self.queries.append(q)
             self.eps_ma += privacy_accounting.single_epsilon_ma(q, self.alpha, self.GNMax_scale)
 
@@ -852,7 +835,7 @@ class LapRepeatGNMax(Aggregator):
             return self.prev_labels[min_divergence_idx]
         else:
             # calculate and store epsilon cost for this query
-            q = data_dependent_cost(votes)
+            q = data_dependent_cost(votes, self.num_labels, self.scale2)
             self.queries.append(q)
             self.eps_ma += privacy_accounting.single_epsilon_ma(q, self.alpha, self.GNMax_scale)
 
@@ -893,7 +876,7 @@ class LapRepeatGNMax(Aggregator):
         # here is the hypothetical data dependent cost of gnmaxing the vote vector
         # we assume that this will be vector will not be repeat labeled
         temp_epsilon_ma = self.eps_ma + privacy_accounting.single_epsilon_ma(
-                data_dependent_cost(votes), self.alpha, self.GNMax_scale
+                data_dependent_cost(votes, self.num_labels, self.scale2), self.alpha, self.GNMax_scale
             )
         self.gn_epsilon = privacy_accounting.renyi_to_ed(
             temp_epsilon_ma,
