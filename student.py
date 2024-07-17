@@ -1,30 +1,7 @@
 import torch
 import numpy as np
 from torch_teachers import train
-from helper import load_dataset, device
-
-def load_and_part_sets(dataset, num_teachers):
-    """
-    Function that loads datasets according to the needs of the student model.
-    :param dataset: string representing the dataset that we want to load (one of `'mnist'` or `'svhn'`)
-    :param num_teachers: int representing the number of teachers models that we were training
-    :returns: datasets representing the training data, validation data, and test data for the student model. training
-              and validation data each use predicted labels, and test data uses true labels.
-    """
-    train_set, valid_set, test_set = load_dataset(dataset, 'student', False)
-    labels = np.load(f"./saved/{dataset}_{num_teachers}_agg_teacher_predictions.npy", allow_pickle=True)
-    labels_ind = list(filter(lambda x: labels[x] != -1, range(len(labels)))) # set of indices where label != -1
-    label_len = min(len(labels),len(train_set) + len(valid_set))
-    labels_ind = list(filter(lambda x: labels[x] < label_len, labels_ind)) # only consider datapoints before label_len
-
-    # cut off any indices to unlabeled data
-    train_set.indices = torch.from_numpy(np.intersect1d(train_set.indices, labels_ind))
-    valid_set.indices = torch.from_numpy(np.intersect1d(valid_set.indices, labels_ind))
-    
-    joint_set = torch.utils.data.ConcatDataset([train_set, valid_set])
-    joint_set.datasets[0].dataset.labels[labels_ind] = labels[labels_ind] # NOTE this is very sketchy
-    train_set, valid_set = torch.utils.data.random_split(joint_set, [0.8, 0.2])
-    return train_set, valid_set, test_set
+import globals
 
 def calculate_test_accuracy(network, test_data):
     """
@@ -38,8 +15,8 @@ def calculate_test_accuracy(network, test_data):
     test_loader = torch.utils.data.DataLoader(test_data, shuffle=True, batch_size=batch_size)
     accs = []
     for batch_xs, batch_ys in test_loader:
-        batch_xs = batch_xs.to(device)
-        batch_ys = batch_ys.to(device)
+        batch_xs = batch_xs.to(globals.device)
+        batch_ys = batch_ys.to(globals.device)
         preds = network(batch_xs)
         accs.append((preds.argmax(dim=1) == batch_ys).float())
     acc = torch.cat(accs).mean()
@@ -48,17 +25,21 @@ def calculate_test_accuracy(network, test_data):
 def main():
     # this is where we set the parameters that are used by the functions in this file (ie, if we
     # want to use a different database, we would change it here)
-    dataset = 'svhn'
-    num_teachers = 250
+    ds = globals.dataset
+    dataset_name = ds.name
+    num_teachers = ds.num_teachers
 
-    train_set, valid_set, test_set = load_and_part_sets(dataset, num_teachers)
+    labels = np.load(f"./saved/{dataset_name}_{num_teachers}_agg_teacher_predictions.npy", allow_pickle=True)
 
-    n, val_acc = train(train_set, valid_set, dataset, device=device, epochs=200, model="student")
+    train_set, valid_set = ds.student_overwrite_labels(labels)
+    test_set = ds.student_test
+
+    n, val_acc = train(train_set, valid_set, ds, epochs=200, model="student")
 
     print(f"Validation Accuracy: {val_acc}")
     test_acc = calculate_test_accuracy(n, test_set)
     print(f"Test Accuracy: {test_acc}")
-    torch.save(n.state_dict(), f"./saved/{dataset}_student_final.ckp")
+    torch.save(n.state_dict(), f"./saved/{dataset_name}_student_final.ckp")
 
 if __name__ == '__main__':
     main()
