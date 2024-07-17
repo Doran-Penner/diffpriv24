@@ -296,7 +296,7 @@ class RepeatGNMax(Aggregator):
         divergences = self.distances(sub_record,prev_votes[:, U],self.dat_obj)
         divergences += torch.normal(
             0, self.scale1 * math.sqrt(len(self.queries) / 2),
-            size=np.shape(divergences), device=device,
+            size=np.shape(divergences), device=globals.device,
         )
         min_divergence_idx = torch.argmin(divergences)
 
