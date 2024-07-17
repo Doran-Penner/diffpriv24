@@ -88,3 +88,23 @@ def load_dataset(dataset_name = 'svhn', split='teach', make_normal=False):
         print("Bad value of dataset arg.")
         return False
     return train_dataset, valid_dataset, test_dataset
+
+def data_dependent_cost(self,votes):
+    """
+    Function for calculating the data-dependent q value for a query
+
+    Arguments:
+    :param votes: array of labels, where each label is the vote of a single teacher. 
+                  so, if there are 250 teachers, the length of votes is 250.
+    :returns: q value
+    """
+    hist = [0]*self.num_labels
+    for v in votes:
+        hist[int(v)] += 1
+    tot = 0
+    for label in range(self.num_labels):
+        if label == np.argmax(hist):
+            continue
+        tot += math.erfc((max(hist)-hist[label])/(2*self.scale2))
+    return tot/2
+ 
