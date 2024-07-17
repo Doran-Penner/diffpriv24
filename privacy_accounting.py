@@ -182,3 +182,99 @@ def gnmax_epsilon(qs, alpha, sigma, delta):
     :returns: float representing the calculated epsilon value
     """
     return renyi_to_ed(epsilon_ma(qs,alpha,sigma),delta,alpha)
+
+
+def heterogeneous_strong_composition(epsilons, deltas, delta_prime):
+    """
+    A function to calculate the strong composition of multiple differentially private
+    queries based on the composition theorems for heterogeneous mechanisms in
+    http://proceedings.mlr.press/v37/kairouz15.pdf
+    
+    :param epsilons: a numpy array of the epsilon values
+    :param deltas: a numpy array of the corresponding delta values
+    :param delta_prime: a float for the calculation of the final delta value
+    
+    :returns tuple: new_epsilon, new_delta
+    """
+
+    # first we can calculate the new delta value
+
+    # this probably isn't optimized but it will get the job done for now
+    # do 1-delta for each delta
+    for i in range(len(deltas)):
+        deltas[i] = 1 - deltas[i]
+    
+    # 1 - (1-delta_prime)product(1-delta_i)
+    new_delta = 1 - ((1 - delta_prime) * np.prod(deltas))
+
+
+    # now for the new value of epsilon, we have to take the minimum of three possible
+    # values, which we will compute in the same order as they come up in the paper
+
+    eps_val_1 = np.sum(epsilons)
+
+
+    # noew we are gonna calculate the additive term out front (to be used in the 
+    # second and third possible epsilon values)
+    # also, we will calculate the sum of squares for the epsilon since that get used
+    eps_prefix = 0
+    eps_squared = 0
+    for epsilon in epsilons:
+        eps_prefix += (math.exp(epsilon) - 1) * epsilon / (math.exp(epsilon) + 1)
+        eps_squared += epsilon ** 2
+
+    eps_val_2 = eps_prefix + math.sqrt(2* eps_squared * math.log(math.e + math.sqrt(eps_squared)/ delta_prime))
+    
+    eps_val_3 = eps_prefix + math.sqrt(2*eps_squared * math.log(1/delta_prime))
+
+    new_epsilon = min(eps_val_1,eps_val_2,eps_val_3)
+
+    return new_epsilon,new_delta
+
+
+    
+def homogeneous_strong_composition(epsilon,delta,delta_prime, k):
+    """
+    A function to calculate the strong composition of multiple differentially private
+    queries based on the composition theorems for homogeneous mechanisms in
+    http://proceedings.mlr.press/v37/kairouz15.pdf
+    
+    :param epsilon: a float to represent the epsilon value
+    :param delta: a float to represent the delta value
+    :param delta_prime: a float for the calculation of the final delta value
+    :param k: number of mechanisms to compose
+    
+    :returns new_epsilon, new_delta: a tuple of the new values
+    """
+
+    new_delta = 1 - ((1 - delta_prime) * ((1 - delta) ** k))
+
+    eps_prefix = epsilon * k * (math.exp(epsilon) - 1) / (math.exp(epsilon) + 1)
+
+    new_epsilon = min(
+            k * epsilon,
+            eps_prefix + epsilon * math.sqrt(2 * k * math.log(math.e + epsilon * math.sqrt(k) / delta_prime)),
+            eps_prefix + epsilon * math.sqrt(2 * k * math.log(1 / delta_prime))
+        )
+
+    return new_epsilon, new_delta
+
+
+def laplacian_eps_prime(p, epsilon, delta = 0):
+    """
+    a function to calculate the epsilon prime of the laplacian repeat mechanism
+    This is based on the amplification by subsampling https://arxiv.org/pdf/2210.00597
+
+    :param p: a float that comes from the poisson parameter of the aggregator
+    :param epsilon: the epsilon cost of the mechanism without subsampling
+    :param delta: the delta cost of the mechanism without subsampling
+
+    :returns epsilon_prime, delta_prime: a tuple of the new values
+    """
+
+    # does this need to be its own function? no, but consistency I guess
+    
+    eps_prime = math.log(1 + p * (math.exp(epsilon) - 1))
+    delta_prime = delta * p
+
+    return eps_prime, delta_prime
