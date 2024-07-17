@@ -569,7 +569,7 @@ class PartRepeatGNMax(Aggregator):
         self.ed_epsilon = 0 # overall epsilon
         self.gn_epsilon = 0 # the epsilon used by GNMax
         self.ed_delta = 0 # overall delta, can this just be the other delta?
-        self.eprime = eprime(p,1/lap_scale) # how to calculate the scale for the laplace noise?
+        self.eprime = eprime(p,2/lap_scale) # how to calculate the scale for the laplace noise?
 
         # Things to optimize(?):
         # use of confident?
@@ -790,7 +790,7 @@ class LapRepeatGNMax(Aggregator):
         self.ed_epsilon = 0 # overall epsilon
         self.ed_delta = 0 # overall delta, can this just be the other delta?
         self.gn_epsilon = 0
-        self.eprime = eprime(p,1/lap_scale) # how to calculate the scale for the laplace noise?
+        self.eprime = eprime(p,2/lap_scale) # how to calculate the scale for the laplace noise?
 
         # Things to optimize(?):
         # use of confident?
