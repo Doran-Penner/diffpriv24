@@ -4,7 +4,6 @@ from models import CNN
 import aggregate
 from os.path import isfile
 import globals
-from helper import l_inf_distances
 
 
 def calculate_prediction_matrix(data_loader, dat_obj):
@@ -82,7 +81,16 @@ def main():
     # change these or pass variables in the future
 
     dat_obj = globals.dataset
-    agg = aggregate.RepeatGNMax(50, 50, 1, 50, dat_obj=dat_obj, distance_fn=l_inf_distances)
+    agg = aggregate.PartRepeatGNMax(
+        GNMax_scale=500,
+        p=0.8,
+        tau=50,
+        dat_obj=dat_obj,
+        max_num=1000,
+        confident=True,
+        lap_scale=100,
+        GNMax_epsilon=5,
+    )
 
     student_data = dat_obj.student_data
     loader = torch.utils.data.DataLoader(student_data, shuffle=False, batch_size=256)

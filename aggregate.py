@@ -563,7 +563,7 @@ class PartRepeatGNMax(Aggregator):
         self.ed_epsilon = 0 # overall epsilon
         self.gn_epsilon = 0 # the epsilon used by GNMax
         self.ed_delta = 0 # overall delta, can this just be the other delta?
-        self.eprime = eprime(p,2/lap_scale) # how to calculate the scale for the laplace noise?
+        self.eprime, self.dprime = eprime(p,2/lap_scale) # how to calculate the scale for the laplace noise?
 
         # Things to optimize(?):
         # use of confident?
@@ -591,7 +591,7 @@ class PartRepeatGNMax(Aggregator):
         # check if we are still below the threshold for number of GNMax queries
         if self.total_queries <= self.max_num and self.ed_epsilon < self.GNMax_epsilon:
             # calculate and store epsilon cost for this query
-            q = data_dependent_cost(votes, self.num_labels, self.scale2)
+            q = data_dependent_cost(votes, self.num_labels, self.GNMax_scale)
             self.queries.append(q)
             self.eps_ma += privacy_accounting.single_epsilon_ma(q, self.alpha, self.GNMax_scale)
 
@@ -616,7 +616,11 @@ class PartRepeatGNMax(Aggregator):
         # take the same sub_sample of each of the previous records, and compute the distance
         # away from the current voting record, add laplacian noise, then 
         divergences = self.distance_fn(sub_record,prev_votes[:, sub_samp],self.num_labels)
-        divergences += torch.laplace(0,self.lap_scale, size=np.shape(divergences), device=globals.device)
+        divergences += torch.distributions.laplace.Laplace(
+            # all of this is to make the distribution be created on the device
+            loc=torch.zeros((), device=globals.device),
+            scale=torch.full((), self.lap_scale, device=globals.device),
+        ).sample(divergences.shape)
         min_divergence_idx = torch.argmin(divergences)
 
         # everything after this should be post-processing since we have report noisy min above this
@@ -653,7 +657,7 @@ class PartRepeatGNMax(Aggregator):
             # here is the hypothetical data dependent cost of gnmaxing the vote vector
             # we assume that this will be vector will not be repeat labeled
             temp_epsilon = self.eps_ma + privacy_accounting.single_epsilon_ma(
-                    data_dependent_cost(votes, self.num_labels, self.scale2), self.alpha, self.GNMax_scale
+                    data_dependent_cost(votes, self.num_labels, self.GNMax_scale), self.alpha, self.GNMax_scale
                 )
             self.gn_epsilon = privacy_accounting.renyi_to_ed(
                 temp_epsilon,
@@ -675,9 +679,13 @@ class PartRepeatGNMax(Aggregator):
                 )
 
             # now we can just combine the two other composed things? i think?
-            self.ed_epsilon, self.ed_delta = privacy_accounting.heterogeneous_strong_composition(
-                    np.asarray([self.gn_epsilon,temp_epsilon], [self.delta,temp_delta],1e-6)
+            self.ed_epsilon, self.ed_delta = (
+                privacy_accounting.heterogeneous_strong_composition(
+                    np.asarray([self.gn_epsilon, temp_epsilon]),
+                    np.asarray([self.delta, temp_delta]),
+                    1e-6,
                 )
+            )
         
         print(temp_epsilon, self.ed_epsilon)
         if self.ed_epsilon > max_epsilon:
@@ -784,7 +792,7 @@ class LapRepeatGNMax(Aggregator):
         self.ed_epsilon = 0 # overall epsilon
         self.ed_delta = 0 # overall delta, can this just be the other delta?
         self.gn_epsilon = 0
-        self.eprime = eprime(p,2/lap_scale) # how to calculate the scale for the laplace noise?
+        self.eprime, self.dprime = eprime(p,2/lap_scale) # how to calculate the scale for the laplace noise?
 
         # Things to optimize(?):
         # use of confident?
@@ -812,7 +820,7 @@ class LapRepeatGNMax(Aggregator):
         # check if we are still below the threshold for number of GNMax queries
         if len(self.prev_votes) == 0:
             # calculate and store epsilon cost for this query
-            q = data_dependent_cost(votes, self.num_labels, self.scale2)
+            q = data_dependent_cost(votes, self.num_labels, self.GNMax_scale)
             self.queries.append(q)
             self.eps_ma += privacy_accounting.single_epsilon_ma(q, self.alpha, self.GNMax_scale)
 
@@ -837,7 +845,11 @@ class LapRepeatGNMax(Aggregator):
         # take the same sub_sample of each of the previous records, and compute the distance
         # away from the current voting record, add laplacian noise, then 
         divergences = self.distance_fn(sub_record,prev_votes[:, sub_samp],self.num_labels)
-        divergences += torch.laplace(0,self.lap_scale, size=np.shape(divergences), device=globals.device)
+        divergences += torch.distributions.laplace.Laplace(
+            # all of this is to make the distribution be created on the device
+            loc=torch.zeros((), device=globals.device),
+            scale=torch.full((), self.lap_scale, device=globals.device),
+        ).sample(divergences.shape)
         min_divergence_idx = torch.argmin(divergences)
 
         # everything after this should be post-processing since we have report noisy min above this
@@ -846,7 +858,7 @@ class LapRepeatGNMax(Aggregator):
             return self.prev_labels[min_divergence_idx]
         else:
             # calculate and store epsilon cost for this query
-            q = data_dependent_cost(votes, self.num_labels, self.scale2)
+            q = data_dependent_cost(votes, self.num_labels, self.GNMax_scale)
             self.queries.append(q)
             self.eps_ma += privacy_accounting.single_epsilon_ma(q, self.alpha, self.GNMax_scale)
 
@@ -887,7 +899,7 @@ class LapRepeatGNMax(Aggregator):
         # here is the hypothetical data dependent cost of gnmaxing the vote vector
         # we assume that this will be vector will not be repeat labeled
         temp_epsilon_ma = self.eps_ma + privacy_accounting.single_epsilon_ma(
-                data_dependent_cost(votes, self.num_labels, self.scale2), self.alpha, self.GNMax_scale
+                data_dependent_cost(votes, self.num_labels, self.GNMax_scale), self.alpha, self.GNMax_scale
             )
         self.gn_epsilon = privacy_accounting.renyi_to_ed(
             temp_epsilon_ma,
