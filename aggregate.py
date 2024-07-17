@@ -617,12 +617,12 @@ class PartRepeatGNMax(Aggregator):
         sub_record = votes[sub_samp]
 
         # tensor-ize it for efficiency (?)
-        prev_votes = torch.tensor(np.asarray(self.prev_votes), device=device)
+        prev_votes = torch.tensor(np.asarray(self.prev_votes), device=globals.device)
 
         # take the same sub_sample of each of the previous records, and compute the distance
         # away from the current voting record, add laplacian noise, then 
         divergences = self.distance_fn(sub_record,prev_votes[:, sub_samp],self.num_labels)
-        divergences += torch.laplace(0,self.lap_scale, size=np.shape(divergences), device=device)
+        divergences += torch.laplace(0,self.lap_scale, size=np.shape(divergences), device=globals.device)
         min_divergence_idx = torch.argmin(divergences)
 
         # everything after this should be post-processing since we have report noisy min above this
@@ -692,8 +692,8 @@ class PartRepeatGNMax(Aggregator):
 
 class LapRepeatGNMax(Aggregator):
     """ 
-    A modified RepeatGNMax aggregator that will do some number of queries using a GNMax aggregator
-    And then it will do the remaining queries with a laplacian report noisy max repeat mechanism
+    This is a RepeatGNMax-like aggregator that uses laplacian report noisy min for the
+    previous votes comparison.
     
 
     Attributes
@@ -838,12 +838,12 @@ class LapRepeatGNMax(Aggregator):
         sub_record = votes[sub_samp]
 
         # tensor-ize it for efficiency (?)
-        prev_votes = torch.tensor(np.asarray(self.prev_votes), device=device)
+        prev_votes = torch.tensor(np.asarray(self.prev_votes), device=globals.device)
 
         # take the same sub_sample of each of the previous records, and compute the distance
         # away from the current voting record, add laplacian noise, then 
         divergences = self.distance_fn(sub_record,prev_votes[:, sub_samp],self.num_labels)
-        divergences += torch.laplace(0,self.lap_scale, size=np.shape(divergences), device=device)
+        divergences += torch.laplace(0,self.lap_scale, size=np.shape(divergences), device=globals.device)
         min_divergence_idx = torch.argmin(divergences)
 
         # everything after this should be post-processing since we have report noisy min above this
