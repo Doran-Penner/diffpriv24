@@ -462,7 +462,6 @@ class ConfidentGNMax(Aggregator):
             return -1
         return self.aggregate(votes)
 
-
 class PartRepeatGNMax(Aggregator):
     """ 
     A modified RepeatGNMax aggregator that will do some number of queries using a GNMax aggregator

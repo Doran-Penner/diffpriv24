@@ -11,10 +11,7 @@ def calculate_prediction_matrix(data_loader, dat_obj):
     Function for calculating a numpy matrix representing each teacher's vote on each query.
     :param data: DataLoader for all of the data that the student is going to train on (both student training and 
                  student valid)
-    :param device: string representing the device that the code is being run on so that pytorch can properly
-                   optimize
-    :param dataset: string representing the dataset that is being labeled (one of `'svhn'` or `'mnist'`)
-    :param num_models: the number of teacher models whose predictions we're getting
+    :param dat_obj: datasets._Dataset subclass which represents the dataset being labelled
     :returns: nothing, but saves a file containing the teachers' predictions
     """
     votes = [] # final voting record
@@ -51,9 +48,7 @@ def load_predicted_labels(aggregator, dat_obj):
     Function for loading and aggregatingthe predicted labels from the matrix created by 
     `calculate_prediction_matrix()`.
     :param aggregator: aggregate.Aggregator subclass used for the private mechanism
-    :param dataset_name: string used to represent which dataset is being trained on, one
-                         of `'svhn'` or `'mnist'`
-    :param num_models: int representing the number of teacher models being used
+    :param dat_obj: datasets._Dataset subclass which represents the dataset being labelled
     :returns: list containing the privately aggregated labels
     """
     votes = np.load(f"./saved/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy", allow_pickle=True)

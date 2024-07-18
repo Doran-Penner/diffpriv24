@@ -13,7 +13,7 @@ def l_inf_distances(votes, prev_votes, dat_obj):
     :param prev_votes: 2-dimensional tensor variable where each prev_votes[i] looks 
                        like the votes variable. needed to compare current votes 
                        histogram to previous ones.
-    :param num_labels: int representing the number of labels in the dataset
+    :param dat_obj: datasets._Dataset subclass which represents the dataset being labelled
     :returns: number (maybe technically a tensor) representing the max difference
               between vote histograms
     """
@@ -41,7 +41,7 @@ def swing_distance(votes, prev_votes, dat_obj):
     :param prev_votes: 2-dimensional tensor variable where each prev_votes[i] looks 
                        like the votes variable. needed to compare current votes 
                        histogram to previous ones.
-    :param num_labels: int representing the number of labels in the dataset
+    :param dat_obj: datasets._Dataset subclass which represents the dataset being labelled
     :returns: number (maybe technically a tensor) representing the number of voters
               that changed their vote
     """
@@ -55,6 +55,8 @@ def data_dependent_cost(votes, num_labels, scale2):
     Arguments:
     :param votes: array of labels, where each label is the vote of a single teacher. 
                   so, if there are 250 teachers, the length of votes is 250.
+    :param num_labels: int representing the number of labels that are being aggregated over
+    :param scale2: float representing the scale of the noise added by the gnmax aggregator
     :returns: q value
     """
     hist = [0]*num_labels

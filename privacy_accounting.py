@@ -10,6 +10,7 @@ def epsilon_ma(qs, alpha, sigma):
                what a q value is.
     :param alpha: integer representing the order of the renyi-divergence
     :param sigma: float representing the standard deviation for the noise used in GNMax
+    
     :returns: float representing tot, a sum of the total privacy budget spent.
     """
     data_ind = alpha / (sigma ** 2)
@@ -44,6 +45,7 @@ def single_epsilon_ma(q, alpha, sigma):
                   privacy
     :param sigma: float representing the scale value for the normal distribution used when
                   reporting the results of a novel query
+    
     :returns: float representing the additional ma epsilon cost incurred by a specific query
     """
     # NOTE if q = 1/e^(1/sigma^2) then we get a "divide by zero WARNING" but it still runs so it's okay?
@@ -72,7 +74,8 @@ def epsilon_ma_vec(qs, alpha, sigma):
                what a q value is.
     :param alpha: integer representing the order of the renyi-divergence
     :param sigma: float representing the standard deviation for the noise used in GNMax
-    :returns: float representing tot, a sum of the total privacy budget spent.
+    
+    returns: float representing tot, a sum of the total privacy budget spent.
     """
     qs = np.asarray(qs)
     # we need to use data-indep for q outside of (0,1), but just ignoring q values
@@ -114,6 +117,7 @@ def renyi_to_ed(epsilon, delta, alpha):
     :param epsilon: float representing the renyi epsilon value
     :param delta: float representing what delta you want in the conversion (the lower the delta, the higher the epsilon)
     :param alpha: float representing the renyi alpha value
+    
     :returns: float representing epsilon for epsilon-delta differential privacy
     """
     A = max((alpha-1)*epsilon - math.log(delta * alpha/((1-1/alpha)**(alpha-1))),0)
@@ -131,6 +135,7 @@ def epsilon_prime(alpha, p, sigma1):
               GNMax
     :param sigma1: float used to parametrize the noise added when comparing
                    voting records in RepeatGNMax
+    
     :returns: float representing the epsilon prime value for calculating
               renyi differential privacy
     """
@@ -143,6 +148,20 @@ def epsilon_prime(alpha, p, sigma1):
     return eprime
 
 def epsilon_prime_swing(alpha, p, sigma1):
+    """
+    Incorrect function used to calculate the epsilon prime for the swing voter
+    metric. Carter says that it's wrong. I don't doubt him.
+
+    :param alpha: numeric representing the order of the order of the renyi
+                  differential privacy
+    :param p: float used to parametrize the poisson subsampling in Repeat-
+              GNMax
+    :param sigma1: float used to parametrize the noise added when comparing
+                   voting records in RepeatGNMax
+    
+    :returns: float representing the epsilon prime value for calculating
+              renyi differential privacy
+    """
     # hacky: be careful of this if we change any functions
     return epsilon_prime(alpha, p, sigma1 * math.sqrt(2))
 
@@ -161,6 +180,7 @@ def repeat_epsilon(qs, K, alpha, sigma1, sigma2, p, delta):
               teachers to compare to previous queries
     :param delta: float representing the desired delta for epsilon delta differential
                   privacy
+    
     :returns: float representing the epsilon for the epsilon-delta differential privacy
               of the mechanism
     """
@@ -178,10 +198,10 @@ def gnmax_epsilon(qs, alpha, sigma, delta):
     :param alpha: int representing the order of the renyi divergence
     :param sigma: float representing the standard deviation of the gaussian noise used
     :param delta: float representingthe delta corresponding to the desired epsilon value
+    
     :returns: float representing the calculated epsilon value
     """
     return renyi_to_ed(epsilon_ma_vec(qs,alpha,sigma),delta,alpha)
-
 
 def heterogeneous_strong_composition(epsilons, deltas, delta_prime):
     """
@@ -189,11 +209,11 @@ def heterogeneous_strong_composition(epsilons, deltas, delta_prime):
     queries based on the composition theorems for heterogeneous mechanisms in
     http://proceedings.mlr.press/v37/kairouz15.pdf
     
-    :param epsilons: a numpy array of the epsilon values
-    :param deltas: a numpy array of the corresponding delta values
-    :param delta_prime: a float for the calculation of the final delta value
-    
-    :returns tuple: new_epsilon, new_delta
+    :param epsilons: numpy array of the epsilon values
+    :param deltas: numpy array of the corresponding delta values
+    :param delta_prime: float for the calculation of the final delta value
+
+    :returns: tuple containing new_epsilon, new_delta
     """
 
     # first we can calculate the new delta value
@@ -229,21 +249,19 @@ def heterogeneous_strong_composition(epsilons, deltas, delta_prime):
     new_epsilon = min(eps_val_1,eps_val_2,eps_val_3)
 
     return new_epsilon,new_delta
-
-
-    
+  
 def homogeneous_strong_composition(epsilon,delta,delta_prime, k):
     """
     A function to calculate the strong composition of multiple differentially private
     queries based on the composition theorems for homogeneous mechanisms in
     http://proceedings.mlr.press/v37/kairouz15.pdf
     
-    :param epsilon: a float to represent the epsilon value
-    :param delta: a float to represent the delta value
-    :param delta_prime: a float for the calculation of the final delta value
+    :param epsilon: float to represent the epsilon value
+    :param delta: float to represent the delta value
+    :param delta_prime: float for the calculation of the final delta value
     :param k: number of mechanisms to compose
     
-    :returns new_epsilon, new_delta: a tuple of the new values
+    :returns: tuple containing new_epsilon, new_delta
     """
 
     new_delta = 1 - ((1 - delta_prime) * ((1 - delta) ** k))
@@ -258,7 +276,6 @@ def homogeneous_strong_composition(epsilon,delta,delta_prime, k):
 
     return new_epsilon, new_delta
 
-
 def laplacian_eps_prime(p, epsilon, delta = 0):
     """
     a function to calculate the epsilon prime of the laplacian repeat mechanism
@@ -268,7 +285,7 @@ def laplacian_eps_prime(p, epsilon, delta = 0):
     :param epsilon: the epsilon cost of the mechanism without subsampling
     :param delta: the delta cost of the mechanism without subsampling
 
-    :returns epsilon_prime, delta_prime: a tuple of the new values
+    :returns: tuple containing epsilon_prime, delta_prime
     """
 
     # does this need to be its own function? no, but consistency I guess
