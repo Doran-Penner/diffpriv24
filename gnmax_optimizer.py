@@ -4,8 +4,6 @@ import get_predicted_labels
 import torch
 from os.path import isfile
 import torch_teachers
-import privacy_accounting
-import helper
 import time
 import pickle
 import globals
@@ -30,36 +28,18 @@ SAVEFILE_NAME = "saved/rep_gnmax_points.pkl"
 
 rng = np.random.default_rng()
 
-# vars are:
-# alpha in (2..10),
-# sigma1 in [1, 100],
-# sigma2 in [1, 100],
-# p in (0,1],
-# tau in [1, 100]
+NUM_POINTS = 15  # changed for our custom checking
 
-NUM_POINTS = 40  # changed for our custom checking
-
-# points = np.asarray([
-#     # change these range values to shrink scope (for optimization)
-#     rng.choice(np.arange(2,11), size=(NUM_POINTS,)),  # alpha
-#     rng.uniform(low=0.01, size=(NUM_POINTS,)),  # p
-#     rng.uniform(low=1e-1, high=256.0, size=(NUM_POINTS,)),  # tau
-#     rng.uniform(low=1e-1, high=256.0, size=(NUM_POINTS,)),  # sigma1
-#     rng.uniform(low=1e-1, high=256.0, size=(NUM_POINTS,))  # sigma2
-# ])
-
-_alpha = np.full((NUM_POINTS,), 3)
-_p = np.full((NUM_POINTS,), 0.75)
-_tau = _p * 50
-_sigma1 = np.arange(1,41) * 5 * _p  # [5, 10, ..., 200]
-_sigma2 = np.full((NUM_POINTS,), 50)
+_gnmax_scale = np.full((NUM_POINTS,), 50)
+_gnmax_eps = np.full((NUM_POINTS,), 5)
+_max_num = np.full((NUM_POINTS,), 1000)
+_lap_scale = np.linspace(start=10, end=150, num=NUM_POINTS)
 
 points = np.asarray([
-    _alpha,
-    _p,
-    _tau,
-    _sigma1,
-    _sigma2
+    _gnmax_scale,
+    _gnmax_eps,
+    _max_num,
+    _lap_scale,
 ])
 
 points = points.transpose()  # get transposed idiot
@@ -81,7 +61,7 @@ if not isfile(f"./saved/{ds.name}_{num_teachers}_teacher_predictions.npy"):
 
 
 for point in points:
-    alpha, p, tau, sigma1, sigma2 = point
+    gnmax_scale, gnmax_eps, max_num, lap_scale = point
     # save:
     # PARAMS,
     # number of labels made,
@@ -91,15 +71,17 @@ for point in points:
     # number of epochs
 
     # ... do stuff
-    agg = aggregate.RepeatGNMax(
-        sigma1,
-        sigma2,
-        p,
-        tau,
+    agg = aggregate.PartRepeatGNMax(
+        # ignoring p, tau, confident, alpha_set
+        GNMax_scale=gnmax_scale,
+        p=1,
+        tau=50,
         dat_obj=globals.dataset,
-        delta=1e-6,
-        distance_fn=helper.swing_distance,
-        epsilon_prime=privacy_accounting.epsilon_prime,
+        max_num=max_num,
+        confident=False,
+        lap_scale=lap_scale,
+        GNMax_epsilon=gnmax_eps,
+        alpha_set=list(range(2,21))
     )
    
     labels = get_predicted_labels.load_predicted_labels(agg, ds)
