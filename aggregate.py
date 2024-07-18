@@ -159,6 +159,50 @@ class NoisyMaxAggregator(Aggregator):
             return self.best_eps(qs, scale, max_epsilon, delta)
 
 
+class RepeatAggregator(Aggregator):
+    """
+    todo document better
+    abstract aggregator that aggregates based on past votes
+    NOTE: tau is either None or a tau value, if none then we always return closest
+    """
+
+    def __init__(self, noise_scale, tau, dat_obj, distance_fn, accountant, p=1.0, delta=1e-6, prev_votes=[], prev_labels=[]):
+        self.noise_scale = noise_scale
+        self.num_labels = dat_obj.num_labels
+        self.num_teachers = dat_obj.num_teachers
+        self.prev_votes = prev_votes
+        self.prev_labels = prev_labels
+        self.distance_fn = distance_fn
+        self.accountant = accountant
+        self.delta = delta
+        self.require_confident = tau is not None
+        self.tau = tau
+        self.p = p
+    
+    def aggregate(self, votes):
+
+        if self.prev_votes == []:
+            print("UH-OH: no prev_votes!")
+            return -1
+
+        dist_vec = [self.distance_fn(votes, prev_vote) for prev_vote in self.prev_votes]
+
+        shortest_dist = calc_shortest_dist()
+        nearest_label = func_of(shortest_dist)
+
+        if not self.require_confident or shortest_dist < self.tau:
+            return nearest_label
+        else:
+            return -1
+
+    def threshold_aggregate(self, votes, max_epsilon):
+        pass
+
+    def add_vote(self, votes, label):
+        self.prev_votes.append(votes)
+        self.prev_labels.append(label)
+
+
 class RepeatGNMax(Aggregator):
     """
     This is a class that can aggregate teacher votes according to the algorithm that
