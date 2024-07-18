@@ -76,7 +76,7 @@ class NoisyMaxAggregator(Aggregator):
     treshold_aggregate(votes, epsilon):
         function that aggregates votes until the epsilon spent reaches a certain threshold
     """
-    def __init__(self, scale, dat_obj, noise_fn=np.random.laplace):
+    def __init__(self, scale, dat_obj, noise_fn=np.random.laplace, alpha_set=list(range(2,11))):
         """
         Initializer function for NoisyMaxAggregator class
         :param scale: float specifying the amount of noise. The larger the scale 
@@ -95,7 +95,8 @@ class NoisyMaxAggregator(Aggregator):
         self.hit_max = False
         # NOTE: maybe better way to do this
         self.alpha = 2
-        self.alpha_set = [x for x in range(2, 11)]
+        self.alpha_set = alpha_set
+        self.eps = 0
 
     def aggregate(self,votes):
         """
@@ -136,6 +137,7 @@ class NoisyMaxAggregator(Aggregator):
         data_dep = data_dependent_cost(votes, self.num_labels, self.scale)
         self.queries.append(data_dep)
         eps = self.best_eps(self.queries, self.scale, max_epsilon, 1e-6)
+        self.eps = eps  # for keeping state
         print(eps)
         if eps > max_epsilon:
             print("uh oh!")
@@ -529,14 +531,14 @@ class PartRepeatGNMax(Aggregator):
             p,
             tau,
             dat_obj,
-            alpha=3,
             delta=1e-6,
             distance_fn = swing_distance,
             max_num = 1000,
             confident = True,
             eprime = privacy_accounting.laplacian_eps_prime,
             lap_scale = 50,
-            GNMax_epsilon = 5
+            GNMax_epsilon = 5,
+            alpha_set = list(range(2,11)),
         ):
 
         # general attributes
@@ -546,9 +548,12 @@ class PartRepeatGNMax(Aggregator):
 
         # GNMax attributes
         self.GNMax_scale = GNMax_scale
-        self.gnmax = NoisyMaxAggregator(GNMax_scale,dat_obj,np.random.normal)
-        self.alpha = alpha
+        self.gnmax = NoisyMaxAggregator(GNMax_scale,dat_obj,np.random.normal, alpha_set=alpha_set.copy())
+        self.alpha = 2
+        self.alpha_set = alpha_set
         self.max_num= max_num
+        
+        self.on_first_part = True
 
         # Repeat attributes
         self.p = p
@@ -592,26 +597,6 @@ class PartRepeatGNMax(Aggregator):
         """
         
         self.total_queries += 1
-
-        # check if we are still below the threshold for number of GNMax queries
-        if self.total_queries <= self.max_num and self.ed_epsilon < self.GNMax_epsilon:
-            # calculate and store epsilon cost for this query
-            q = data_dependent_cost(votes, self.num_labels, self.GNMax_scale)
-            self.queries.append(q)
-            more_eps_ma = privacy_accounting.single_epsilon_ma(q, self.alpha, self.GNMax_scale)
-            print(more_eps_ma)
-            self.eps_ma += more_eps_ma
-
-            # store the teacher responses to this query for later reference
-            self.prev_votes.append(votes)
-
-            # choose the best label with GNMax and save that value
-            label = self.gnmax.aggregate(votes)
-            self.prev_labels.append(label)
-
-            return label
-        
-        # otherwise, do Lapacian Repeat Mechanism
 
         # Create an array of boolean values for the poisson sub_sampling
         sub_samp = np.random.uniform(size=(len(votes),)) < self.p
@@ -659,24 +644,41 @@ class PartRepeatGNMax(Aggregator):
         #    still more optimal than a composition of a renyi composition and a bunch of 
         #    individual mechanisms
 
-        # NOTE maybe we could squeeze out a couple more tau responses?
-        if self.total_queries < self.max_num and self.ed_epsilon < self.GNMax_epsilon:
-            # here is the hypothetical data dependent cost of gnmaxing the vote vector
-            # we assume that this will be vector will not be repeat labeled
-            temp_epsilon = self.eps_ma + privacy_accounting.single_epsilon_ma(
-                    data_dependent_cost(votes, self.num_labels, self.GNMax_scale), self.alpha, self.GNMax_scale
-                )
-            self.gn_epsilon = privacy_accounting.renyi_to_ed(
-                temp_epsilon,
-                self.delta,
-                self.alpha,
-            )
-            self.ed_epsilon = self.gn_epsilon
-            self.ed_delta = self.delta
-        else:
-            # in this other case, we know that we will not be GNMaxing this vote vector,
-            # so we can just add the composed eprime to the queries using the strong comp
+        if self.on_first_part:
+            # do gnmax up to the threshold
+            label = self.gnmax.threshold_aggregate(votes, self.GNMax_epsilon)
+            self.ed_epsilon = self.gnmax.eps
 
+            hit_limit = label == -1 or self.total_queries >= (self.max_num - 1) or self.ed_epsilon >= self.GNMax_epsilon
+
+            if not hit_limit:
+                self.prev_votes.append(votes)
+                self.prev_labels.append(label)
+                self.total_queries += 1
+                self.gn_epsilon = self.ed_epsilon = self.gnmax.eps
+                return label
+            else:
+                self.on_first_part = False
+                # recompute over all alphas to find best final alpha
+                costs = [
+                    privacy_accounting.renyi_to_ed(
+                        privacy_accounting.epsilon_ma_vec(
+                            self.gnmax.queries, alpha, self.GNMax_scale
+                        ),
+                        self.delta,
+                        alpha,
+                    )
+                    for alpha in self.alpha_set
+                ]
+                min_cost = min(costs)
+                print("MIN FINAL COST:", min_cost)
+                min_cost_index = costs.index(min_cost)  # argmin(costs)
+                self.alpha = self.alpha_set[min_cost_index]
+                self.gn_epsilon = min_cost
+                # re-start, now on second partition
+                return self.threshold_aggregate(votes, max_epsilon)
+        else:
+            # do rep_lnmax
             # need a delta_prime, but we can just default it to 1e-6
             temp_epsilon, temp_delta = privacy_accounting.homogeneous_strong_composition(
                     self.eprime,
@@ -693,11 +695,13 @@ class PartRepeatGNMax(Aggregator):
                     1e-6,
                 )
             )
-        
-        print(temp_epsilon, self.ed_epsilon)
-        if self.ed_epsilon > max_epsilon:
-            return -1
-        return self.aggregate(votes)
+            
+            print(temp_epsilon, self.ed_epsilon)
+            if self.ed_epsilon > max_epsilon:
+                return -1
+            else:
+                return self.aggregate(votes)
+
 
 class LapRepeatGNMax(Aggregator):
     """ 
