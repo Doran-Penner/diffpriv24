@@ -93,6 +93,9 @@ class NoisyMaxAggregator(Aggregator):
         self.noise_fn=noise_fn
         self.queries = []
         self.hit_max = False
+        # NOTE: maybe better way to do this
+        self.alpha = 2
+        self.alpha_set = [x for x in range(2, 11)]
 
     def aggregate(self,votes):
         """
@@ -113,7 +116,7 @@ class NoisyMaxAggregator(Aggregator):
         label = np.argmax(hist)
         return label
 
-    def threshold_aggregate(self,votes,epsilon):
+    def threshold_aggregate(self, votes, max_epsilon):
         """
         Function for aggregating teacher votes with the specified algorithm without
         passing some epsilon value, passed as a parameter to this function
@@ -122,7 +125,7 @@ class NoisyMaxAggregator(Aggregator):
         :param votes: array of labels, where each label is the vote of a single 
                       teacher. so, if there are 250 teachers, the length of votes 
                       is 250
-        :param epsilon: float reprepesenting the maximum epsilon that the mechanism 
+        :param max_epsilon: float reprepesenting the maximum epsilon that the mechanism 
                         aggregates to. this is to say, it will not report the result
                         of a vote if that would exceed the privacy budget
         :returns: integer corresponding to the aggregated label, or -1 if the response
@@ -143,13 +146,27 @@ class NoisyMaxAggregator(Aggregator):
             # turns this into 0 and then we divide by 0
             tot = 2*10e-16
         self.queries.append(tot/2)
-        eps = privacy_accounting.gnmax_epsilon(self.queries, 3, self.scale, 1e-6)
+        eps = self.best_eps(self.queries, self.scale, max_epsilon, 1e-6)
         print(eps)
-        if eps > epsilon:
+        if eps > max_epsilon:
             print("uh oh!")
             self.hit_max = True  # FIXME this is a short & cheap solution, not the best one
             return -1
         return self.aggregate(votes)
+    
+    def best_eps(self, qs, scale, max_epsilon, delta):
+        """
+        todo document: this is for optimizing alpha
+        """
+        # (this is a bit cursed and could just be a loop, but it made sense in the moment)
+        eps = privacy_accounting.gnmax_epsilon(self.queries, self.alpha, self.scale, 1e-6)
+        if eps <= max_epsilon or len(self.alpha_set) <= 1:
+            return eps
+        else:
+            self.alpha_set.remove(self.alpha)
+            self.alpha = self.alpha_set[0]
+            return self.best_eps(qs, scale, max_epsilon, delta)
+
 
 class RepeatGNMax(Aggregator):
     """
@@ -593,7 +610,9 @@ class PartRepeatGNMax(Aggregator):
             # calculate and store epsilon cost for this query
             q = data_dependent_cost(votes, self.num_labels, self.GNMax_scale)
             self.queries.append(q)
-            self.eps_ma += privacy_accounting.single_epsilon_ma(q, self.alpha, self.GNMax_scale)
+            more_eps_ma = privacy_accounting.single_epsilon_ma(q, self.alpha, self.GNMax_scale)
+            print(more_eps_ma)
+            self.eps_ma += more_eps_ma
 
             # store the teacher responses to this query for later reference
             self.prev_votes.append(votes)

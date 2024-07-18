@@ -63,7 +63,7 @@ def load_predicted_labels(aggregator, dat_obj):
     # return agg.threshold_aggregate(votes)
     ### END insert
     # # NOTE hard-coded epsilon in line below, change sometime
-    agg = lambda x: aggregator.threshold_aggregate(x, 10)  # noqa: E731
+    agg = lambda x: aggregator.threshold_aggregate(x, 5)  # noqa: E731
     labels = np.apply_along_axis(agg, 0, votes)
     np.save(f'./saved/{dat_obj.name}_{dat_obj.num_teachers}_agg_teacher_predictions.npy', labels)
     return labels
@@ -81,16 +81,7 @@ def main():
     # change these or pass variables in the future
 
     dat_obj = globals.dataset
-    agg = aggregate.PartRepeatGNMax(
-        GNMax_scale=500,
-        p=0.8,
-        tau=50,
-        dat_obj=dat_obj,
-        max_num=1000,
-        confident=True,
-        lap_scale=100,
-        GNMax_epsilon=5,
-    )
+    agg = aggregate.NoisyMaxAggregator(20, dat_obj, noise_fn=np.random.normal)
 
     student_data = dat_obj.student_data
     loader = torch.utils.data.DataLoader(student_data, shuffle=False, batch_size=256)
@@ -99,7 +90,9 @@ def main():
         calculate_prediction_matrix(loader, dat_obj)
     
     labels = load_predicted_labels(agg, dat_obj)
-    print("FINAL tau usages:", agg.tau_tally)
+    # safe access of tau_tally without crashing
+    if (tau_usages := getattr(agg, "tau_tally", None)) is not None:
+        print("FINAL tau usages:", tau_usages)
 
     correct = 0
     guessed = 0

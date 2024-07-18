@@ -66,9 +66,8 @@ def single_epsilon_ma(q, alpha, sigma):
  
 def epsilon_ma_vec(qs, alpha, sigma):
     """
-    Function that (i think) does the same as epsilon_ma but in a vectorized way, granting
-    it additional speed. TODO : get response from Doran about what this function is
-
+    Function that does the same as epsilon_ma but in a vectorized way, granting
+    it additional speed.
     :param qs: list of q values for each uniquely answered query. Don't ask me
                what a q value is.
     :param alpha: integer representing the order of the renyi-divergence
@@ -181,7 +180,7 @@ def gnmax_epsilon(qs, alpha, sigma, delta):
     :param delta: float representingthe delta corresponding to the desired epsilon value
     :returns: float representing the calculated epsilon value
     """
-    return renyi_to_ed(epsilon_ma(qs,alpha,sigma),delta,alpha)
+    return renyi_to_ed(epsilon_ma_vec(qs,alpha,sigma),delta,alpha)
 
 
 def heterogeneous_strong_composition(epsilons, deltas, delta_prime):
