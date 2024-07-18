@@ -65,4 +65,8 @@ def data_dependent_cost(votes, num_labels, scale2):
         if label == np.argmax(hist):
             continue
         tot += math.erfc((max(hist)-hist[label])/(2*scale2))
+    if tot < 2*10e-16:
+        # need a lower bound, otherwise floating-point imprecision
+        # turns this into 0 and then we divide by 0
+        tot = 2*10e-16
     return tot/2

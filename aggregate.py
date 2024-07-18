@@ -133,24 +133,13 @@ class NoisyMaxAggregator(Aggregator):
         """
         if self.hit_max:
             return -1
-        hist = [0]*self.num_labels
-        for v in votes:
-            hist[int(v)] += 1
-        tot = 0
-        for label in range(self.num_labels):
-            if label == np.argmax(hist):
-                continue
-            tot += math.erfc((max(hist)-hist[label])/(2*self.scale))
-        if tot < 2*10e-16:
-            # need a lower bound, otherwise floating-point imprecision
-            # turns this into 0 and then we divide by 0
-            tot = 2*10e-16
-        self.queries.append(tot/2)
+        data_dep = data_dependent_cost(votes, self.num_labels, self.scale)
+        self.queries.append(data_dep)
         eps = self.best_eps(self.queries, self.scale, max_epsilon, 1e-6)
         print(eps)
         if eps > max_epsilon:
             print("uh oh!")
-            self.hit_max = True  # FIXME this is a short & cheap solution, not the best one
+            self.hit_max = True
             return -1
         return self.aggregate(votes)
     
