@@ -160,8 +160,8 @@ class NoisyMaxAggregator(Aggregator):
 
 class VectorNoisyMaxAggregator(Aggregator):
     """
-    This is a general class that can do ReportNoisyMax with laplacian noise or 
-    with gaussian noise.
+    It's the same as NoisyMaxAggregator, but returns the full prediction vector
+    instead of just the label.
     
     ...
 
@@ -229,7 +229,7 @@ class VectorNoisyMaxAggregator(Aggregator):
         for v in votes:
             hist[int(v)] += 1
         hist += self.noise_fn(loc=0.0, scale=float(self.scale), size=(self.num_labels,))
-        return np.array(torch.softmax(torch.Tensor(hist)))
+        return torch.softmax(torch.from_numpy(hist)).numpy()
 
     def threshold_aggregate(self, votes, max_epsilon):
         """
