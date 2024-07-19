@@ -88,7 +88,7 @@ def train(training_data, valid_data, dat_obj, lr=1e-3, epochs=70, batch_size=16,
     acc = torch.tensor(accs).mean()
     return (network, acc)
 
-def train_all(dat_obj):
+def train_all(dat_obj, epochs = 100):
     """
     This function trains all of the teacher models on the specified dataset
     :param dataset: string specifying which dataset to train the teachers on
