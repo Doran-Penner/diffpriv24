@@ -129,11 +129,11 @@ class NoisyMaxAggregator(Aggregator):
         :param max_epsilon: float reprepesenting the maximum epsilon that the mechanism 
                         aggregates to. this is to say, it will not report the result
                         of a vote if that would exceed the privacy budget
-        :returns: integer corresponding to the aggregated label, or -1 if the response
+        :returns: integer corresponding to the aggregated label, or None if the response
                   would exceed the epsilon budget
         """
         if self.hit_max:
-            return -1
+            return None
         data_dep = data_dependent_cost(votes, self.num_labels, self.scale)
         self.queries.append(data_dep)
         eps = self.best_eps(self.queries, self.scale, max_epsilon, 1e-6)
@@ -142,7 +142,7 @@ class NoisyMaxAggregator(Aggregator):
         if eps > max_epsilon:
             print("uh oh!")
             self.hit_max = True
-            return -1
+            return None
         return self.aggregate(votes)
     
     def best_eps(self, qs, scale, max_epsilon, delta):
@@ -208,8 +208,7 @@ class VectorNoisyMaxAggregator(Aggregator):
         self.noise_fn=noise_fn
         self.queries = []
         self.hit_max = False
-        # NOTE: maybe better way to do this
-        self.alpha = 2
+        self.alpha = alpha_set[-1]
         self.alpha_set = alpha_set
         self.eps = 0
 
@@ -229,7 +228,7 @@ class VectorNoisyMaxAggregator(Aggregator):
         for v in votes:
             hist[int(v)] += 1
         hist += self.noise_fn(loc=0.0, scale=float(self.scale), size=(self.num_labels,))
-        return torch.softmax(torch.from_numpy(hist)).numpy()
+        return torch.softmax(torch.from_numpy(hist), dim=0).numpy()
 
     def threshold_aggregate(self, votes, max_epsilon):
         """
@@ -243,35 +242,33 @@ class VectorNoisyMaxAggregator(Aggregator):
         :param max_epsilon: float reprepesenting the maximum epsilon that the mechanism 
                         aggregates to. this is to say, it will not report the result
                         of a vote if that would exceed the privacy budget
-        :returns: integer corresponding to the aggregated label, or -1 if the response
+        :returns: integer corresponding to the aggregated label, or None if the response
                   would exceed the epsilon budget
         """
         if self.hit_max:
-            return -1
+            return np.full(self.num_labels, None)
         data_dep = data_dependent_cost(votes, self.num_labels, self.scale)
         self.queries.append(data_dep)
-        eps = self.best_eps(self.queries, self.scale, max_epsilon, 1e-6)
-        self.eps = eps  # for keeping state
-        print(eps)
-        if eps > max_epsilon:
+
+        best_eps = privacy_accounting.gnmax_epsilon(self.queries, self.alpha, self.scale, 1e-6)
+        # if we're over-budget and still have possible alpha values to try...
+        while best_eps > max_epsilon and len(self.alpha_set) > 1:
+            new_contender = privacy_accounting.gnmax_epsilon(self.queries, self.alpha_set[-2], self.scale, 1e-6)
+            if new_contender < best_eps:
+                best_eps = new_contender
+                self.alpha_set.pop()
+                self.alpha = self.alpha_set[-1]
+            else:
+                # assume function eps(alpha) is convex, so nothing better we can do
+                break
+
+        self.eps = best_eps
+        print(self.eps)
+        if self.eps > max_epsilon:
             print("uh oh!")
             self.hit_max = True
-            return -1
+            return np.full(self.num_labels, None)
         return self.aggregate(votes)
-    
-    def best_eps(self, qs, scale, max_epsilon, delta):
-        """
-        todo document: this is for optimizing alpha
-        """
-        # (this is a bit cursed and could just be a loop, but it made sense in the moment)
-        eps = privacy_accounting.gnmax_epsilon(self.queries, self.alpha, self.scale, 1e-6)
-        if eps <= max_epsilon or len(self.alpha_set) <= 1:
-            return eps
-        else:
-            self.alpha_set.remove(self.alpha)
-            self.alpha = self.alpha_set[0]
-            return self.best_eps(qs, scale, max_epsilon, delta)
-
 
 
 class RepeatGNMax(Aggregator):
@@ -439,7 +436,7 @@ class RepeatGNMax(Aggregator):
         :param max_epsilon: float reprepesenting the maximum epsilon that the mechanism 
                             aggregates to. this is to say, it will not report the result
                             of a vote if that would exceed the privacy budget
-        :returns: integer corresponding to the aggregated label, or -1 if the response
+        :returns: integer corresponding to the aggregated label, or None if the response
                   would exceed the epsilon budget
         """
         # NOTE maybe we could squeeze out a couple more tau responses?
@@ -453,7 +450,7 @@ class RepeatGNMax(Aggregator):
         )
         print(epsilon_ma, ed_epsilon)
         if ed_epsilon > max_epsilon:
-            return -1
+            return None
         return self.aggregate(votes)
 
 class ConfidentGNMax(Aggregator):
@@ -549,7 +546,7 @@ class ConfidentGNMax(Aggregator):
             self.eps_ma += privacy_accounting.single_epsilon_ma(q, self.alpha, self.scale2)
             return self.gnmax.aggregate(votes)
         else:
-            return -1
+            return None
 
     def threshold_aggregate(self, votes, epsilon):
         """
@@ -563,7 +560,7 @@ class ConfidentGNMax(Aggregator):
         :param epsilon: float reprepesenting the maximum epsilon that the mechanism 
                         aggregates to. this is to say, it will not report the result
                         of a vote if that would exceed the privacy budget
-        :returns: integer corresponding to the aggregated label, or -1 if the response
+        :returns: integer corresponding to the aggregated label, or None if the response
                         would exceed the epsilon budget or if it is not confident
         """
         epsilon_ma = self.eps_ma + privacy_accounting.single_epsilon_ma(
@@ -576,7 +573,7 @@ class ConfidentGNMax(Aggregator):
         )
         print(epsilon_ma, ed_epsilon)
         if ed_epsilon > epsilon:
-            return -1
+            return None
         return self.aggregate(votes)
 
 class PartRepeatGNMax(Aggregator):
@@ -735,7 +732,7 @@ class PartRepeatGNMax(Aggregator):
             self.tau_tally += 1
             return self.prev_labels[min_divergence_idx]
         else:
-            return -1
+            return None
         
     def threshold_aggregate(self, votes, max_epsilon):
         """
@@ -749,7 +746,7 @@ class PartRepeatGNMax(Aggregator):
         :param epsilon: float reprepesenting the maximum epsilon that the mechanism 
                         aggregates to. this is to say, it will not report the result
                         of a vote if that would exceed the privacy budget
-        :returns: integer corresponding to the aggregated label, or -1 if the response
+        :returns: integer corresponding to the aggregated label, or None if the response
                   would exceed the epsilon budget
         """
         
@@ -764,7 +761,7 @@ class PartRepeatGNMax(Aggregator):
             label = self.gnmax.threshold_aggregate(votes, self.GNMax_epsilon)
             self.ed_epsilon = self.gnmax.eps
 
-            hit_limit = label == -1 or self.total_queries >= (self.max_num - 1) or self.ed_epsilon >= self.GNMax_epsilon
+            hit_limit = label is None or self.total_queries >= (self.max_num - 1) or self.ed_epsilon >= self.GNMax_epsilon
 
             if not hit_limit:
                 self.prev_votes.append(votes)
@@ -813,7 +810,7 @@ class PartRepeatGNMax(Aggregator):
             
             print(temp_epsilon, self.ed_epsilon)
             if self.ed_epsilon > max_epsilon:
-                return -1
+                return None
             else:
                 return self.aggregate(votes)
 
@@ -1011,7 +1008,7 @@ class LapRepeatGNMax(Aggregator):
         :param epsilon: float reprepesenting the maximum epsilon that the mechanism 
                         aggregates to. this is to say, it will not report the result
                         of a vote if that would exceed the privacy budget
-        :returns: integer corresponding to the aggregated label, or -1 if the response
+        :returns: integer corresponding to the aggregated label, or None if the response
                   would exceed the epsilon budget
         """
         
@@ -1048,5 +1045,5 @@ class LapRepeatGNMax(Aggregator):
         
         print(temp_epsilon_ma, self.ed_epsilon)
         if self.ed_epsilon > max_epsilon:
-            return -1
+            return None
         return self.aggregate(votes)

@@ -172,12 +172,9 @@ class _Svhn(_Dataset):
         )
 
     def student_overwrite_labels(self, labels):
-        # feels like we're hard-coding this -1 encoding which may not be as good for other datasets
-        # (e.g. regression) and also not as nice for randomly giving stuff to teachers to be labeled
-        # however! I think that's ambitious to change, so we're not going to worry about that for now
-
         # note: this is some duplicated code
         # we re-load so we don't modify labels of other references
+        breakpoint()  # FIXME this doesn't like prediction vectors
         og_test = torchvision.datasets.SVHN(
             "./data/svhn", split="test", download=True, transform=self._transform
         )
@@ -187,7 +184,7 @@ class _Svhn(_Dataset):
         # note: labels should be length of full test set
         assert len(labels) == len(student_data), 'input "labels" not the correct length'
 
-        labeled_indices = labels != -1  # array of bools
+        labeled_indices = labels is not None  # array of bools
         student_data.indices = student_data.indices[labeled_indices]
         student_data.dataset.labels[student_data.indices] = labels[labeled_indices]
 
