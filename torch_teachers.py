@@ -97,7 +97,7 @@ def train_all(dat_obj):
     """
     train_sets = dat_obj.teach_train
     valid_sets = dat_obj.teach_valid
-    for i in range(326, dat_obj.num_teachers):
+    for i in range(330, dat_obj.num_teachers):
         print(f"Training teacher {i} now!")
         start_time = time.time()
         n, acc = train(train_sets[i], valid_sets[i], dat_obj)
