@@ -16,4 +16,4 @@ if "been_run" not in vars():
     # note: here's our single place to hard-code the dataset & num_teachers,
     # if/when we change it we should be able to just change this
     # (check that to be sure though!)
-    dataset = make_dataset("svhn", 8192, seed=96)
+    dataset = make_dataset("svhn", 2048, seed=96)
