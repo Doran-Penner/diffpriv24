@@ -32,7 +32,11 @@ class SVHNVec(torchvision.datasets.svhn.SVHN):
 class _Dataset:
     def __init__(self):
         """
-        todo: document this. see _Svhn for args that we take
+        Initializer function for the _Dataset class.
+        
+        :param num_teachers: int representing the number of teachers that we are training
+                             and then aggregating votes over
+        :param seed: 
         """
         raise NotImplementedError
 
