@@ -99,7 +99,7 @@ def main():
 
     correct = 0
     for i, label in zip(which_labeled, labeled_labels):
-        if np.argmax(label) == student_data[i][1]:
+        if label.argmax() == student_data[i][1].argmax():
             correct += 1
 
     print(f"data points labeled: {labeled_len} out of {full_len} ({labeled_len / full_len:0.3f})")
