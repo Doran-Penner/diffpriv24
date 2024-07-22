@@ -88,13 +88,15 @@ class _Dataset:
     def one_hot(self, labels):
         """
         Turn a vector of 1-d labels into a vector of
-        one-hots (output a 2d array). Supports partially-labeled inputs
-        (i.e. some have None vectors from aggregation).
+        one-hots (output a 2d array).
         """
-        label_vecs = np.full((len(labels), self.num_labels), None)
+        # keeping old None-handling code for now
+        # label_vecs = np.full((len(labels), self.num_labels), None)
+        # eye = np.eye(self.num_labels)
+        # label_vecs[labels != None] = eye[labels[labels != None].astype(int)]  # noqa: E711
+        # return label_vecs
         eye = np.eye(self.num_labels)
-        label_vecs[labels != None] = eye[labels[labels != None].astype(int)]  # noqa: E711
-        return label_vecs
+        return eye[labels]
 
 
 # child classes will only have implementation code, not docstrings
