@@ -158,7 +158,7 @@ class NoisyMaxAggregator(Aggregator):
             self.alpha = self.alpha_set[0]
             return self.best_eps(qs, scale, max_epsilon, delta)
 
-class VectorNoisyMaxAggregator(Aggregator):
+class NoisyVectorAggregator(Aggregator):
     """
     It's the same as NoisyMaxAggregator, but returns the full prediction vector
     instead of just the label.
@@ -247,8 +247,7 @@ class VectorNoisyMaxAggregator(Aggregator):
         """
         if self.hit_max:
             return np.full(self.num_labels, None)
-        data_dep = data_dependent_cost(votes, self.num_labels, self.scale)
-        self.queries.append(data_dep)
+        self.queries.append(1)
 
         best_eps = privacy_accounting.gnmax_epsilon(self.queries, self.alpha, self.scale, 1e-6)
         # if we're over-budget and still have possible alpha values to try...

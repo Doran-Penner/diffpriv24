@@ -70,7 +70,7 @@ def main():
 
     dat_obj = globals.dataset
     max_epsilon = 10
-    agg = aggregate.VectorNoisyMaxAggregator(50, dat_obj, alpha_set=list(range(2,21)))
+    agg = aggregate.NoisyVectorAggregator(50, dat_obj, alpha_set=list(range(2,21)))
 
     student_data = dat_obj.student_data
     loader = torch.utils.data.DataLoader(student_data, shuffle=False, batch_size=256)
