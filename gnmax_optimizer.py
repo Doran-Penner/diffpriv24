@@ -83,8 +83,9 @@ for point in points:
         GNMax_epsilon=gnmax_eps,
         alpha_set=list(range(2,21))
     )
+    max_epsilon = 10
    
-    labels = get_predicted_labels.load_predicted_labels(agg, ds)
+    labels = get_predicted_labels.load_predicted_labels(agg, ds, max_epsilon)
     print("FINAL tau usages:", agg.tau_tally)
 
     correct = 0
@@ -93,7 +94,7 @@ for point in points:
     for i, label in enumerate(labels):
         if label == student_data[i][1]:
             correct += 1
-        if label == -1:
+        if label is not None:  # FIXME change to code in get_predicted_labels
             unlabeled += 1
     labeled = num_datapoints-unlabeled
     label_acc = 0

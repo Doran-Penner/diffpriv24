@@ -3,10 +3,27 @@ Abstraction for loading datasets: currently supports SVHN and
 we plan to support MNIST and more.
 """
 
+import numpy as np
 import torch
 import torchvision
 import torchvision.transforms.v2 as transforms
 import math
+from PIL import Image
+
+
+class SVHNVec(torchvision.datasets.svhn.SVHN):
+    """
+    Custom SVHN class to allow for probability vector targets instead of just integers.
+    """
+
+    def __getitem__(self, index):
+        img, target = self.data[index], self.labels[index]  # this is the change
+        img = Image.fromarray(np.transpose(img, (1, 2, 0)))
+        if self.transform is not None:
+            img = self.transform(img)
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+        return img, target
 
 
 # todo: add fancy-formatted documentation
@@ -72,6 +89,19 @@ class _Dataset:
         """
         raise NotImplementedError
 
+    def one_hot(self, labels):
+        """
+        Turn a vector of 1-d labels into a vector of
+        one-hots (output a 2d array).
+        """
+        # keeping old None-handling code for now
+        # label_vecs = np.full((len(labels), self.num_labels), None)
+        # eye = np.eye(self.num_labels)
+        # label_vecs[labels != None] = eye[labels[labels != None].astype(int)]  # noqa: E711
+        # return label_vecs
+        eye = np.eye(self.num_labels)
+        return eye[labels]
+
 
 # child classes will only have implementation code, not docstrings
 
@@ -115,21 +145,25 @@ class _Svhn(_Dataset):
             ]
         )
         # we normalize the input to the teachers, but not the student
-        og_train = torchvision.datasets.SVHN(
+        og_train = SVHNVec(
             "./data/svhn",
             split="train",
             download=True,
             transform=self._transform_normalize,
         )
-        og_extra = torchvision.datasets.SVHN(
+        og_extra = SVHNVec(
             "./data/svhn",
             split="extra",
             download=True,
             transform=self._transform_normalize,
         )
-        og_test = torchvision.datasets.SVHN(
+        og_test = SVHNVec(
             "./data/svhn", split="test", download=True, transform=self._transform
         )
+        # make all labels one-hot
+        og_train.labels = self.one_hot(og_train.labels)
+        og_extra.labels = self.one_hot(og_extra.labels)
+        og_test.labels = self.one_hot(og_test.labels)
         # first, randomly split the train+extra into train and valid collections
         all_teach_train, all_teach_valid = torch.utils.data.random_split(
             torch.utils.data.ConcatDataset([og_train, og_extra]),
@@ -176,13 +210,9 @@ class _Svhn(_Dataset):
         )
 
     def student_overwrite_labels(self, labels):
-        # feels like we're hard-coding this -1 encoding which may not be as good for other datasets
-        # (e.g. regression) and also not as nice for randomly giving stuff to teachers to be labeled
-        # however! I think that's ambitious to change, so we're not going to worry about that for now
-
         # note: this is some duplicated code
         # we re-load so we don't modify labels of other references
-        og_test = torchvision.datasets.SVHN(
+        og_test = SVHNVec(
             "./data/svhn", split="test", download=True, transform=self._transform
         )
         student_data_len = math.floor(len(og_test) * 0.9)
@@ -191,8 +221,12 @@ class _Svhn(_Dataset):
         # note: labels should be length of full test set
         assert len(labels) == len(student_data), 'input "labels" not the correct length'
 
-        labeled_indices = labels != -1  # array of bools
+        labeled_indices = np.any(labels != None, axis=1)  # noqa: E711
         student_data.indices = student_data.indices[labeled_indices]
+        # FIXME below isn't happy because of shape
+        student_data.dataset.labels = np.eye(self.num_labels)[
+            student_data.dataset.labels
+        ]
         student_data.dataset.labels[student_data.indices] = labels[labeled_indices]
 
         # check: does this work? I think so but not 100% sure

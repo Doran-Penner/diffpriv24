@@ -43,7 +43,7 @@ def calculate_prediction_matrix(data_loader, dat_obj):
     print("done with the predictions!")
 
 
-def load_predicted_labels(aggregator, dat_obj):
+def load_predicted_labels(aggregator, dat_obj, max_epsilon):
     """
     Function for loading and aggregatingthe predicted labels from the matrix created by 
     `calculate_prediction_matrix()`.
@@ -52,41 +52,25 @@ def load_predicted_labels(aggregator, dat_obj):
     :returns: list containing the privately aggregated labels
     """
     votes = np.load(f"./saved/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy", allow_pickle=True)
-    ### BEGIN insert
-    # votes = votes.transpose()
-    # agg = aggregate.L1Exp(num_labels=10, epsilon=100, total_num_queries=len(votes))
-    # return agg.threshold_aggregate(votes)
-    ### END insert
-    # # NOTE hard-coded epsilon in line below, change sometime
-    agg = lambda x: aggregator.threshold_aggregate(x, 10)  # noqa: E731
-    labels = np.apply_along_axis(agg, 0, votes)
+    labels = []
+    for vote in votes.T:
+        labels.append(aggregator.threshold_aggregate(vote, max_epsilon))
+    labels = np.asarray(labels)
     np.save(f'./saved/{dat_obj.name}_{dat_obj.num_teachers}_agg_teacher_predictions.npy', labels)
     return labels
 
 
 def main():
-    # PARAMTER LIST (incomplete?)
-    # alpha (not optimizing yet)
-    # epsilon threshold
-    # delta (fixed for calculation, not optimized)
-    # sigma {1,2}
-    # p (subsample chance)
-    # tau (threshold)
-
-    # change these or pass variables in the future
+    """
+    Aggregate the teacher predictions (assumed to be already calculated
+    and in a local file) via a given aggregation mechanism.
+    Note: the `calculate_prediction_matrix` functionality is
+    planned to be moved into `torch_teachers.train_all` soon!
+    """
 
     dat_obj = globals.dataset
-    agg = aggregate.PartRepeatGNMax(
-        GNMax_scale=50,
-        p=0.8,
-        tau=50,
-        dat_obj=dat_obj,
-        max_num=1000,
-        confident=True,
-        lap_scale=50,
-        GNMax_epsilon=5,
-        alpha_set=list(range(2,21))
-    )
+    max_epsilon = 10
+    agg = aggregate.NoisyVectorAggregator(50, dat_obj, alpha_set=list(range(2,21)))
 
     student_data = dat_obj.student_data
     loader = torch.utils.data.DataLoader(student_data, shuffle=False, batch_size=256)
@@ -94,24 +78,36 @@ def main():
     if not isfile(f"./saved/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy"):
         calculate_prediction_matrix(loader, dat_obj)
     
-    labels = load_predicted_labels(agg, dat_obj)
+    labels = load_predicted_labels(agg, dat_obj, max_epsilon)
     # safe access of tau_tally without crashing
     if (tau_usages := getattr(agg, "tau_tally", None)) is not None:
         print("FINAL tau usages:", tau_usages)
 
+    if len(labels.shape) == 1:
+        # turn all vectors into 1-hot; for "backwards compatibility" with our other aggregation mechanisms
+        label_vecs = np.full((len(labels), dat_obj.num_labels), None)
+        eye = np.eye(dat_obj.num_labels)
+        label_vecs[labels != None] = eye[labels[labels != None].astype(int)]  # noqa: E711
+        labels = label_vecs
+    
+    # this is a bit weird, but seems to work
+    full_len = len(labels)
+    # get indices of labeled datapoints, for use later
+    which_labeled = np.arange(full_len)[np.all(labels != None, axis=1)]  # noqa: E711
+    labeled_labels = labels[which_labeled]
+    labeled_len = len(labeled_labels)
+
     correct = 0
-    guessed = 0
-    unlabeled = 0
-    for i, label in enumerate(labels):
-        guessed += 1
-        if label == student_data[i][1]:
+    for i, label in zip(which_labeled, labeled_labels):
+        if label.argmax() == student_data[i][1].argmax():
             correct += 1
-        if label == -1:
-            unlabeled += 1
-    print("data points labeled:", guessed-unlabeled)
-    print("label accuracy:", correct/guessed)
-    if unlabeled != guessed:
-        print("label accuracy ON LABELED DATA:", correct/(guessed - unlabeled))
+
+    print(f"data points labeled: {labeled_len} out of {full_len} ({labeled_len / full_len:0.3f})")
+    if labeled_len != 0:
+        print(f"label accuracy on labeled data: {correct/labeled_len:0.3f}")
+    
+    # duplicated save but whatever, in case the function changes
+    np.save(f'./saved/{dat_obj.name}_{dat_obj.num_teachers}_agg_teacher_predictions.npy', labels)
 
 if __name__ == "__main__":
     main()
