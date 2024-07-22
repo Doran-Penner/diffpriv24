@@ -7,6 +7,7 @@ import torch
 import globals
 import scipy as sp
 from cleanlab.filter import find_label_issues
+from cleanlab.count import compute_confident_joint
 import get_predicted_labels
 from os.path import isfile
 
