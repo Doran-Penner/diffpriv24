@@ -67,6 +67,16 @@ class NoisyMaxAggregator(Aggregator):
     hit_max : boolean
         representing whether or not the epsilon budget is
         compeletely spent in the threshold_aggregate method
+    alpha : int
+        representing the alpha being used to calculate the
+        renyi differential privacy epsilon, using renyi
+        order equal to alpha
+    alpha_set : list
+        representing the set of potential alphas that can be
+        used to calculate the renyi differential privacy
+        epsilon cost
+    eps : float
+        representing the epsilon-delta epsilon value
 
     Methods
     ----------
@@ -75,18 +85,26 @@ class NoisyMaxAggregator(Aggregator):
 
     treshold_aggregate(votes, epsilon):
         function that aggregates votes until the epsilon spent reaches a certain threshold
+    
+    best_eps(qs, scale, max_epsilon, delta):
+        function used to calculate the alpha value that gives the lowest epsilon cost in
+        renyi-differential privacy of order alpha
     """
     def __init__(self, scale, dat_obj, noise_fn=np.random.laplace, alpha_set=list(range(2,11))):
         """
         Initializer function for NoisyMaxAggregator class
-        :param scale: float specifying the amount of noise. The larger the scale 
-                      value, the noisier it is. ReportNoisyMax is epsilon 
-                      differentially private if scale is equal to 1/epsilon
+        :param scale: float specifying the amount of noise. The larger the scale value,
+                      the noisier it is. ReportNoisyMax is epsilon differentially private
+                      if scale is equal to 1/epsilon
         :param dat_obj: datasets._Dataset object representing the dataset that is being
                         aggregated over. used to find self.num_labels
-        :param noise_fn: function specifying the distribution that the noise must
-                         be drawn from. for basic ReportNoisyMax, this is the
-                         Laplacian distribution
+        :param noise_fn: function specifying the distribution that the noise must be 
+                         drawn from. for basic ReportNoisyMax, this is the Laplacian 
+                         distribution
+        :param alpha_set: list representing the set of potential alphas that can be used 
+                          to calculate the renyi differential privacy epsilon cost . as
+                          a default set to range(2,11) since we figure that the optimal
+                          alpha value will be in this range.
         """
         self.scale = scale
         self.num_labels = dat_obj.num_labels
@@ -127,8 +145,8 @@ class NoisyMaxAggregator(Aggregator):
                       teacher. so, if there are 250 teachers, the length of votes 
                       is 250
         :param max_epsilon: float reprepesenting the maximum epsilon that the mechanism 
-                        aggregates to. this is to say, it will not report the result
-                        of a vote if that would exceed the privacy budget
+                            aggregates to. this is to say, it will not report the result
+                            of a vote if that would exceed the privacy budget
         :returns: integer corresponding to the aggregated label, or None if the response
                   would exceed the epsilon budget
         """
@@ -147,7 +165,17 @@ class NoisyMaxAggregator(Aggregator):
     
     def best_eps(self, qs, scale, max_epsilon, delta):
         """
-        todo document: this is for optimizing alpha
+        Function used to calculate the alpha value that gives the lowest epsilon cost in
+        renyi-differential privacy of order alpha
+
+        Arguments:
+        :param qs: list containing the q values for previous queries
+        :param scale: scale for the noise (actually it's never used i assume it was supposed to be?)
+        :param max_epsilon: max epsilon that the threshold_aggregate() method aggregates
+                            to, though in this function it's used to determine when to
+                            switch alpha values
+        :param delta: 
+        :returns: epsilon calculated with the best epsilon value for rdp
         """
         # (this is a bit cursed and could just be a loop, but it made sense in the moment)
         eps = privacy_accounting.gnmax_epsilon(self.queries, self.alpha, self.scale, 1e-6)
@@ -182,6 +210,14 @@ class NoisyVectorAggregator(Aggregator):
     hit_max : boolean
         representing whether or not the epsilon budget is
         compeletely spent in the threshold_aggregate method
+    alpha : int
+        representing the alpha value used when calculating
+        the renyi-differential privacy epsilon
+    alpha_set : list
+        containing possible alpha values that could give the
+        lowest possible epsilon value
+    eps : float
+        representing the current best epsilon value
 
     Methods
     ----------
@@ -202,6 +238,8 @@ class NoisyVectorAggregator(Aggregator):
         :param noise_fn: function specifying the distribution that the noise must
                          be drawn from. for basic ReportNoisyMax, this is the
                          Laplacian distribution
+        :param alpha_set: list containing possible alpha values that could give the 
+                          lowest possible epsilon value
         """
         self.scale = scale
         self.num_labels = dat_obj.num_labels
@@ -293,6 +331,14 @@ class ApproximateVectorAggregator(Aggregator):
     hit_max : boolean
         representing whether or not the epsilon budget is
         compeletely spent in the threshold_aggregate method
+    alpha : int
+        representing the alpha value used when calculating
+        the renyi-differential privacy epsilon
+    alpha_set : list
+        containing possible alpha values that could give the
+        lowest possible epsilon value
+    eps : float
+        representing the current best epsilon value
 
     Methods
     ----------
@@ -313,6 +359,8 @@ class ApproximateVectorAggregator(Aggregator):
         :param noise_fn: function specifying the distribution that the noise must
                          be drawn from. for basic ReportNoisyMax, this is the
                          Laplacian distribution
+        :param alpha_set: list containing possible alpha values that could give the 
+                          lowest possible epsilon value
         """
         self.scale = scale
         self.num_labels = dat_obj.num_labels
@@ -384,8 +432,6 @@ class ApproximateVectorAggregator(Aggregator):
             self.hit_max = True
             return np.full(self.num_labels, None)
         return self.aggregate(votes)
-
-
 
 class RepeatGNMax(Aggregator):
     """
@@ -1109,8 +1155,6 @@ class LapRepeatGNMax(Aggregator):
             self.prev_labels.append(label)
 
             return label
-        
-
         
     def threshold_aggregate(self, votes, max_epsilon):
         """
