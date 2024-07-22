@@ -12,8 +12,11 @@ from PIL import Image
 
 
 class SVHNVec(torchvision.datasets.svhn.SVHN):
+    """
+    Custom SVHN class to allow for probability vector targets instead of just integers.
+    """
     def __getitem__(self, index):
-        img, target = self.data[index], self.labels[index]
+        img, target = self.data[index], self.labels[index]  # this is the change
         img = Image.fromarray(np.transpose(img, (1,2,0)))
         if self.transform is not None:
             img = self.transform(img)
@@ -186,7 +189,7 @@ class _Svhn(_Dataset):
     def student_overwrite_labels(self, labels):
         # note: this is some duplicated code
         # we re-load so we don't modify labels of other references
-        og_test = torchvision.datasets.SVHN(
+        og_test = SVHNVec(
             "./data/svhn", split="test", download=True, transform=self._transform
         )
         student_data_len = math.floor(len(og_test) * 0.9)
