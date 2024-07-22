@@ -15,14 +15,16 @@ class SVHNVec(torchvision.datasets.svhn.SVHN):
     """
     Custom SVHN class to allow for probability vector targets instead of just integers.
     """
+
     def __getitem__(self, index):
         img, target = self.data[index], self.labels[index]  # this is the change
-        img = Image.fromarray(np.transpose(img, (1,2,0)))
+        img = Image.fromarray(np.transpose(img, (1, 2, 0)))
         if self.transform is not None:
             img = self.transform(img)
         if self.target_transform is not None:
             target = self.target_transform(target)
         return img, target
+
 
 # todo: add fancy-formatted documentation
 # note: how can we document input arguments if the user doesn't directly call this?
@@ -83,6 +85,17 @@ class _Dataset:
         """
         raise NotImplementedError
 
+    def one_hot(self, labels):
+        """
+        Turn a vector of 1-d labels into a vector of
+        one-hots (output a 2d array). Supports partially-labeled inputs
+        (i.e. some have None vectors from aggregation).
+        """
+        label_vecs = np.full((len(labels), self.num_labels), None)
+        eye = np.eye(self.num_labels)
+        label_vecs[labels != None] = eye[labels[labels != None].astype(int)]  # noqa: E711
+        return label_vecs
+
 
 # child classes will only have implementation code, not docstrings
 
@@ -141,6 +154,10 @@ class _Svhn(_Dataset):
         og_test = SVHNVec(
             "./data/svhn", split="test", download=True, transform=self._transform
         )
+        # make all labels one-hot
+        og_train.labels = self.one_hot(og_train.labels)
+        og_extra.labels = self.one_hot(og_extra.labels)
+        og_test.labels = self.one_hot(og_test.labels)
         # first, randomly split the train+extra into train and valid collections
         all_teach_train, all_teach_valid = torch.utils.data.random_split(
             torch.utils.data.ConcatDataset([og_train, og_extra]),
@@ -198,11 +215,12 @@ class _Svhn(_Dataset):
         # note: labels should be length of full test set
         assert len(labels) == len(student_data), 'input "labels" not the correct length'
 
-        breakpoint()
         labeled_indices = np.any(labels != None, axis=1)  # noqa: E711
         student_data.indices = student_data.indices[labeled_indices]
         # FIXME below isn't happy because of shape
-        student_data.dataset.labels = np.eye(self.num_labels)[student_data.dataset.labels]
+        student_data.dataset.labels = np.eye(self.num_labels)[
+            student_data.dataset.labels
+        ]
         student_data.dataset.labels[student_data.indices] = labels[labeled_indices]
 
         # check: does this work? I think so but not 100% sure
