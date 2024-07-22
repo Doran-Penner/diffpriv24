@@ -43,20 +43,19 @@ def calculate_prediction_matrix(data_loader, dat_obj):
     print("done with the predictions!")
 
 
-def load_predicted_labels(aggregator, dat_obj, max_epsilon):
+def load_predicted_labels(aggregator, votes, dat_obj, max_epsilon):
     """
     Function for loading and aggregatingthe predicted labels from the matrix created by 
     `calculate_prediction_matrix()`.
     :param aggregator: aggregate.Aggregator subclass used for the private mechanism
+    :param votes: (num_teachers, num_datapoints)-shape array of teacher votes
     :param dat_obj: datasets._Dataset subclass which represents the dataset being labelled
     :returns: list containing the privately aggregated labels
     """
-    votes = np.load(f"./saved/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy", allow_pickle=True)
     labels = []
     for vote in votes.T:
         labels.append(aggregator.threshold_aggregate(vote, max_epsilon))
     labels = np.asarray(labels)
-    np.save(f'./saved/{dat_obj.name}_{dat_obj.num_teachers}_agg_teacher_predictions.npy', labels)
     return labels
 
 
@@ -78,7 +77,9 @@ def main():
     if not isfile(f"./saved/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy"):
         calculate_prediction_matrix(loader, dat_obj)
     
-    labels = load_predicted_labels(agg, dat_obj, max_epsilon)
+    votes = np.load(f"./saved/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy", allow_pickle=True)
+    
+    labels = load_predicted_labels(agg, votes, dat_obj, max_epsilon)
     # safe access of tau_tally without crashing
     if (tau_usages := getattr(agg, "tau_tally", None)) is not None:
         print("FINAL tau usages:", tau_usages)
@@ -106,7 +107,6 @@ def main():
     if labeled_len != 0:
         print(f"label accuracy on labeled data: {correct/labeled_len:0.3f}")
     
-    # duplicated save but whatever, in case the function changes
     np.save(f'./saved/{dat_obj.name}_{dat_obj.num_teachers}_agg_teacher_predictions.npy', labels)
 
 if __name__ == "__main__":
