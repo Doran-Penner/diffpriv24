@@ -8,7 +8,18 @@ import torch
 import torchvision
 import torchvision.transforms.v2 as transforms
 import math
+from PIL import Image
 
+
+class SVHNVec(torchvision.datasets.svhn.SVHN):
+    def __getitem__(self, index):
+        img, target = self.data[index], self.labels[index]
+        img = Image.fromarray(np.transpose(img, (1,2,0)))
+        if self.transform is not None:
+            img = self.transform(img)
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+        return img, target
 
 # todo: add fancy-formatted documentation
 # note: how can we document input arguments if the user doesn't directly call this?
@@ -112,19 +123,19 @@ class _Svhn(_Dataset):
             ]
         )
         # we normalize the input to the teachers, but not the student
-        og_train = torchvision.datasets.SVHN(
+        og_train = SVHNVec(
             "./data/svhn",
             split="train",
             download=True,
             transform=self._transform_normalize,
         )
-        og_extra = torchvision.datasets.SVHN(
+        og_extra = SVHNVec(
             "./data/svhn",
             split="extra",
             download=True,
             transform=self._transform_normalize,
         )
-        og_test = torchvision.datasets.SVHN(
+        og_test = SVHNVec(
             "./data/svhn", split="test", download=True, transform=self._transform
         )
         # first, randomly split the train+extra into train and valid collections
