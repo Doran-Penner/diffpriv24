@@ -269,6 +269,122 @@ class NoisyVectorAggregator(Aggregator):
             return np.full(self.num_labels, None)
         return self.aggregate(votes)
 
+class ApproximateVectorAggregator(Aggregator):
+    """
+    It's the same as NoisyMaxAggregator, but returns the full prediction vector
+    instead of just the label.
+    
+    ...
+
+    Attributes
+    ----------
+    num_labels : int
+        specifying the number of labels to be aggregated
+    scale : float
+        specifying the amount of noise. The larger the scale 
+        value, the noisier it is. ReportNoisyMax is epsilon 
+        differentially private if scale is equal to 1/epsilon
+    noise_fn : function
+        specifying the distribution that the noise must
+        be drawn from. for basic ReportNoisyMax, this is the
+        Laplacian distribution
+    queries : list
+        containing the set of q values of previous queries
+    hit_max : boolean
+        representing whether or not the epsilon budget is
+        compeletely spent in the threshold_aggregate method
+
+    Methods
+    ----------
+    aggregate(votes):
+        function that returns the result of the aggregation mechanism
+
+    treshold_aggregate(votes, epsilon):
+        function that aggregates votes until the epsilon spent reaches a certain threshold
+    """
+    def __init__(self, scale, dat_obj, noise_fn=np.random.laplace, alpha_set=list(range(2,11))):
+        """
+        Initializer function for NoisyMaxAggregator class
+        :param scale: float specifying the amount of noise. The larger the scale 
+                      value, the noisier it is. ReportNoisyMax is epsilon 
+                      differentially private if scale is equal to 1/epsilon
+        :param dat_obj: datasets._Dataset object representing the dataset that is being
+                        aggregated over. used to find self.num_labels
+        :param noise_fn: function specifying the distribution that the noise must
+                         be drawn from. for basic ReportNoisyMax, this is the
+                         Laplacian distribution
+        """
+        self.scale = scale
+        self.num_labels = dat_obj.num_labels
+        self.noise_fn=noise_fn
+        self.queries = []
+        self.hit_max = False
+        self.alpha = alpha_set[-1]
+        self.alpha_set = alpha_set
+        self.eps = 0
+
+    def aggregate(self,votes):
+        """
+        Function for aggregating teacher votes according to the algorithm described
+        in the original PATE paper. This function is essentially ReportNoisyMax with
+        Laplacian noise.
+
+        Arguments:
+        :param votes: array of labels, where each label is the vote of a single 
+                      teacher. so, if there are 250 teachers, the length of votes 
+                      is 250
+        :return: index indicating the max argument in the array passed to the function
+        """
+        hist = [0]*self.num_labels
+        for v in votes:
+            hist[int(v)] += 1
+        hist += self.noise_fn(loc=0.0, scale=float(self.scale), size=(self.num_labels,))
+        max_index = np.argmax(hist)
+        leftover = len(votes) - hist[max_index]
+        approx_hist = [leftover/(self.num_labels - 1.0)]*self.num_labels # everything has value leftover/9 or whatever
+        approx_hist[max_index] = hist[max_index]
+        return torch.softmax(torch.from_numpy(hist), dim=0).numpy()
+
+    def threshold_aggregate(self, votes, max_epsilon):
+        """
+        Function for aggregating teacher votes with the specified algorithm without
+        passing some epsilon value, passed as a parameter to this function
+
+        Arguments:
+        :param votes: array of labels, where each label is the vote of a single 
+                      teacher. so, if there are 250 teachers, the length of votes 
+                      is 250
+        :param max_epsilon: float reprepesenting the maximum epsilon that the mechanism 
+                        aggregates to. this is to say, it will not report the result
+                        of a vote if that would exceed the privacy budget
+        :returns: integer corresponding to the aggregated label, or None if the response
+                  would exceed the epsilon budget
+        """
+        if self.hit_max:
+            return np.full(self.num_labels, None)
+        self.queries.append(1)
+
+        best_eps = privacy_accounting.gnmax_epsilon(self.queries, self.alpha, self.scale, 1e-6)
+        # if we're over-budget and still have possible alpha values to try...
+        while best_eps > max_epsilon and len(self.alpha_set) > 1:
+            new_contender = privacy_accounting.gnmax_epsilon(self.queries, self.alpha_set[-2], self.scale, 1e-6)
+            if new_contender < best_eps:
+                best_eps = new_contender
+                self.alpha_set.pop()
+                self.alpha = self.alpha_set[-1]
+            else:
+                # assume function eps(alpha) is convex, so nothing better we can do
+                break
+
+        self.eps = best_eps
+        print(self.eps)
+        if self.eps > max_epsilon:
+            print("uh oh!")
+            self.hit_max = True
+            return np.full(self.num_labels, None)
+        return self.aggregate(votes)
+
+
 
 class RepeatGNMax(Aggregator):
     """
