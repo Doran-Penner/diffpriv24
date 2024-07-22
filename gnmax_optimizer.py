@@ -94,7 +94,7 @@ for point in points:
     for i, label in enumerate(labels):
         if label == student_data[i][1]:
             correct += 1
-        if label is not None:
+        if label is not None:  # FIXME change to code in get_predicted_labels
             unlabeled += 1
     labeled = num_datapoints-unlabeled
     label_acc = 0

@@ -3,6 +3,7 @@ Abstraction for loading datasets: currently supports SVHN and
 we plan to support MNIST and more.
 """
 
+import numpy as np
 import torch
 import torchvision
 import torchvision.transforms.v2 as transforms
@@ -174,7 +175,6 @@ class _Svhn(_Dataset):
     def student_overwrite_labels(self, labels):
         # note: this is some duplicated code
         # we re-load so we don't modify labels of other references
-        breakpoint()  # FIXME this doesn't like prediction vectors
         og_test = torchvision.datasets.SVHN(
             "./data/svhn", split="test", download=True, transform=self._transform
         )
@@ -184,8 +184,11 @@ class _Svhn(_Dataset):
         # note: labels should be length of full test set
         assert len(labels) == len(student_data), 'input "labels" not the correct length'
 
-        labeled_indices = labels is not None  # array of bools
+        breakpoint()
+        labeled_indices = np.any(labels != None, axis=1)  # noqa: E711
         student_data.indices = student_data.indices[labeled_indices]
+        # FIXME below isn't happy because of shape
+        student_data.dataset.labels = np.eye(self.num_labels)[student_data.dataset.labels]
         student_data.dataset.labels[student_data.indices] = labels[labeled_indices]
 
         # check: does this work? I think so but not 100% sure

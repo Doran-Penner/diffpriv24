@@ -83,22 +83,31 @@ def main():
     if (tau_usages := getattr(agg, "tau_tally", None)) is not None:
         print("FINAL tau usages:", tau_usages)
 
+    if len(labels.shape) == 1:
+        # turn all vectors into 1-hot; for "backwards compatibility" with our other aggregation mechanisms
+        label_vecs = np.full((len(labels), dat_obj.num_labels), None)
+        eye = np.eye(dat_obj.num_labels)
+        label_vecs[labels != None] = eye[labels[labels != None].astype(int)]  # noqa: E711
+        labels = label_vecs
+    
+    # this is a bit weird, but seems to work
     full_len = len(labels)
     # get indices of labeled datapoints, for use later
     which_labeled = np.arange(full_len)[np.all(labels != None, axis=1)]  # noqa: E711
     labeled_labels = labels[which_labeled]
     labeled_len = len(labeled_labels)
-    if len(labeled_labels.shape) == 2:  # argmax all the vectors for summary stats
-        labeled_labels = np.argmax(labeled_labels, axis=1)
 
     correct = 0
     for i, label in zip(which_labeled, labeled_labels):
-        if label == student_data[i][1]:
+        if np.argmax(label) == student_data[i][1]:
             correct += 1
 
     print(f"data points labeled: {labeled_len} out of {full_len} ({labeled_len / full_len:0.3f})")
     if labeled_len != 0:
         print(f"label accuracy on labeled data: {correct/labeled_len:0.3f}")
+    
+    # duplicated save but whatever, in case the function changes
+    np.save(f'./saved/{dat_obj.name}_{dat_obj.num_teachers}_agg_teacher_predictions.npy', labels)
 
 if __name__ == "__main__":
     main()

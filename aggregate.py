@@ -761,7 +761,7 @@ class PartRepeatGNMax(Aggregator):
             label = self.gnmax.threshold_aggregate(votes, self.GNMax_epsilon)
             self.ed_epsilon = self.gnmax.eps
 
-            hit_limit = label is None or self.total_queries >= (self.max_num - 1) or self.ed_epsilon >= self.GNMax_epsilon
+            hit_limit = label == None or self.total_queries >= (self.max_num - 1) or self.ed_epsilon >= self.GNMax_epsilon  # noqa: E711
 
             if not hit_limit:
                 self.prev_votes.append(votes)
