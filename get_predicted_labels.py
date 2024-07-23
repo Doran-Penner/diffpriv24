@@ -8,7 +8,8 @@ def load_predicted_labels(aggregator, votes, dat_obj, max_epsilon):
     Function for loading and aggregating the predicted labels from the teacher prediction matrix.
     :param aggregator: aggregate.Aggregator subclass used for the private mechanism
     :param votes: (num_teachers, num_datapoints)-shape array of teacher votes
-    :param dat_obj: datasets._Dataset subclass which represents the dataset being labelled
+    :param dat_obj: datasets._Dataset subclass which represents the dataset being labeled
+    :param max_epsilon: maximum epsilon budget which the aggregation will not exceed
     :returns: list containing the privately aggregated labels
     """
     labels = []
