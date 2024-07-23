@@ -1,52 +1,11 @@
 import numpy as np
-import torch
-from models import CNN
 import aggregate
-from os.path import isfile
 import globals
-
-
-def calculate_prediction_matrix(data_loader, dat_obj):
-    """
-    Function for calculating a numpy matrix representing each teacher's vote on each query.
-    :param data: DataLoader for all of the data that the student is going to train on (both student training and 
-                 student valid)
-    :param dat_obj: datasets._Dataset subclass which represents the dataset being labelled
-    :returns: nothing, but saves a file containing the teachers' predictions
-    """
-    votes = [] # final voting record
-    for i in range(dat_obj.num_teachers):
-        print("Model",str(i))
-        state_dict = torch.load(f'./saved/{dat_obj.name}_teacher_{i}_of_{dat_obj.num_teachers-1}.tch',map_location=globals.device)
-        model = CNN(dat_obj).to(globals.device)
-        model.load_state_dict(state_dict)
-        model.eval()
-
-        ballot = [] # user i's voting record: 2-axis array
-        correct = 0
-        guessed = 0
-
-        for batch, labels in data_loader:
-            batch, labels = batch.to(globals.device), labels.to(globals.device)
-            pred_vectors = model(batch)  # 2-axis arr of model's prediction vectors
-            preds = torch.argmax(pred_vectors, dim=1)  # gets highest-value indices e.g. [2, 4, 1, 1, 5, ...]
-            correct_arr = torch.eq(preds, labels)  # compare to true labels, e.g. [True, False, False, ...]
-            correct += torch.sum(correct_arr)  # finds number of correct labels
-            guessed += len(batch)
-            ballot.append(preds.to(torch.device('cpu')))
-        
-        ballot = np.concatenate(ballot)
-
-        votes.append(ballot)
-        print(f"teacher {i}'s accuracy:", correct/guessed)
-    np.save(f"./saved/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy", np.asarray(votes))
-    print("done with the predictions!")
 
 
 def load_predicted_labels(aggregator, votes, dat_obj, max_epsilon):
     """
-    Function for loading and aggregatingthe predicted labels from the matrix created by 
-    `calculate_prediction_matrix()`.
+    Function for loading and aggregating the predicted labels from the teacher prediction matrix.
     :param aggregator: aggregate.Aggregator subclass used for the private mechanism
     :param votes: (num_teachers, num_datapoints)-shape array of teacher votes
     :param dat_obj: datasets._Dataset subclass which represents the dataset being labelled
@@ -63,8 +22,6 @@ def main():
     """
     Aggregate the teacher predictions (assumed to be already calculated
     and in a local file) via a given aggregation mechanism.
-    Note: the `calculate_prediction_matrix` functionality is
-    planned to be moved into `torch_teachers.train_all` soon!
     """
 
     dat_obj = globals.dataset
@@ -72,10 +29,6 @@ def main():
     agg = aggregate.NoisyVectorAggregator(50, dat_obj, alpha_set=list(range(2,21)))
 
     student_data = dat_obj.student_data
-    loader = torch.utils.data.DataLoader(student_data, shuffle=False, batch_size=256)
-
-    if not isfile(f"./saved/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy"):
-        calculate_prediction_matrix(loader, dat_obj)
     
     votes = np.load(f"./saved/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy", allow_pickle=True)
     

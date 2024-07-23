@@ -32,11 +32,6 @@ if not isfile(SAVEFILE_NAME):
 
 ds = globals.dataset
 
-loader = torch.utils.data.DataLoader(ds.student_data, shuffle=False, batch_size=256)
-
-if not isfile(f"./saved/{ds.name}_{ds.num_teachers}_teacher_predictions.npy"):
-    get_predicted_labels.calculate_prediction_matrix(loader, globals.dataset)
-
 votes = np.load(f"./saved/{ds.name}_{ds.num_teachers}_teacher_predictions.npy", allow_pickle=True)
 
 for point in points:

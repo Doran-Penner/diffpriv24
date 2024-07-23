@@ -3,6 +3,8 @@ from torch import nn, optim
 import time
 from models import CNN
 import globals
+import numpy as np
+from os.path import isfile
 
 
 def train(training_data, valid_data, dat_obj, lr=1e-3, epochs=70, batch_size=16, momentum=0.9, model="teacher"):
@@ -10,7 +12,7 @@ def train(training_data, valid_data, dat_obj, lr=1e-3, epochs=70, batch_size=16,
     This is a function that trains the model on a specified dataset.
     :param training_data: dataset containing the training data for the model
     :param valid_data: dataset containing the validation data for the model
-    :param dataset: string containing the name of the dataset that the model is being trained on. This is to tell model.py which model to give us
+    :param dat_obj: datasets._Dataset object representing the dataset being trained on
     :param device: string specifying which device the code is running on, so that the code can be appropriately optimized
     :param lr: float specifying the learning rate for the model
     :param epochs: int specifying the length of training
@@ -48,8 +50,7 @@ def train(training_data, valid_data, dat_obj, lr=1e-3, epochs=70, batch_size=16,
             acc = torch.tensor(accs).mean()
             print("Valid acc:",acc)
             valid_accs.append(acc)
-            if model == "student":
-                torch.save(network.state_dict(),f"./saved/{dat_obj.name}_student_{i}.ckp")
+            torch.save(network.state_dict(),f"./saved/{dat_obj.name}_{model}_{i}.ckp")
             ### end check
         network.train()
         train_acc = []
@@ -71,12 +72,11 @@ def train(training_data, valid_data, dat_obj, lr=1e-3, epochs=70, batch_size=16,
         print(acc)  # see trianing accuracy
         train_accs.append(acc)
     
-    if model == "student":
-        # NOTE this does not work with multiple students in the same folder at the same time
-        best_num_epochs = torch.argmax(torch.tensor(valid_accs)) * 5
-        print("Final num epochs:", best_num_epochs)
-        st_dict = torch.load(f"./saved/{dat_obj.name}_student_{best_num_epochs}.ckp",map_location=globals.device)
-        network.load_state_dict(st_dict)
+    # NOTE this does not work with multiple students in the same folder at the same time
+    best_num_epochs = torch.argmax(torch.tensor(valid_accs)) * 5
+    print("Final num epochs:", best_num_epochs)
+    st_dict = torch.load(f"./saved/{dat_obj.name}_{model}_{best_num_epochs}.ckp",map_location=globals.device)
+    network.load_state_dict(st_dict)
     
     network.eval()
     accs = []
@@ -91,8 +91,7 @@ def train(training_data, valid_data, dat_obj, lr=1e-3, epochs=70, batch_size=16,
 def train_all(dat_obj):
     """
     This function trains all of the teacher models on the specified dataset
-    :param dataset: string specifying which dataset to train the teachers on
-    :param num_teachers: integer specifying the number of teachers to train
+    :param dat_obj: datasets._Dataset object representing the dataset being trained on
     :return: Does not return anything, but saves the models instead
     """
     train_sets = dat_obj.teach_train
@@ -100,9 +99,39 @@ def train_all(dat_obj):
     for i in range(dat_obj.num_teachers):
         print(f"Training teacher {i} now!")
         start_time = time.time()
-        n, acc = train(train_sets[i], valid_sets[i], dat_obj)
+        n, acc = train(train_sets[i], valid_sets[i], dat_obj, epochs = 100)
         print("TEACHER",i,"ACC",acc)
-        torch.save(n.state_dict(),f"./saved/{dat_obj.name}_teacher_{i}_of_{dat_obj.num_teachers-1}.tch")
+        # torch.save(n.state_dict(),f"./saved/{dat_obj.name}_teacher_{i}_of_{dat_obj.num_teachers-1}.tch")
+
+
+        print("Model",str(i))
+        n.eval()
+
+        ballot = [] # user i's voting record: 2-axis array
+        correct = 0
+        guessed = 0
+
+        data_loader = torch.utils.data.DataLoader(dat_obj.student_data, shuffle=False, batch_size=256)
+
+        for batch, labels in data_loader:
+            batch, labels = batch.to(globals.device), labels.to(globals.device)
+            pred_vectors = n(batch)  # 2-axis arr of model's prediction vectors
+            preds = torch.argmax(pred_vectors, dim=1)  # gets highest-value indices e.g. [2, 4, 1, 1, 5, ...]
+            correct_arr = torch.eq(preds, labels)  # compare to true labels, e.g. [True, False, False, ...]
+            correct += torch.sum(correct_arr)  # finds number of correct labels
+            guessed += len(batch)
+            ballot.append(preds.to(torch.device('cpu')))
+        
+        ballot = np.concatenate(ballot)
+        if isfile(f"./saved/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy"):
+            votes = np.load(f"./saved/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy", allow_pickle=True)
+            votes = np.append(votes, ballot)
+        else:
+            votes = ballot
+        np.save(f"./saved/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy", votes)
+
+        print(f"teacher {i}'s accuracy:", correct/guessed)
+
         duration = time.time()- start_time
         print(f"It took {duration//60} minutes and {duration % 60} seconds to train teacher {i}.")
 
