@@ -133,7 +133,7 @@ class NoisyMaxAggregator(Aggregator):
             hist[int(v)] += 1
         hist += self.noise_fn(loc=0.0, scale=float(self.scale), size=(self.num_labels,))
         label = np.argmax(hist)
-        return label
+        return np.eye(self.num_labels)[label]
 
     def threshold_aggregate(self, votes, max_epsilon):
         """
@@ -151,7 +151,7 @@ class NoisyMaxAggregator(Aggregator):
                   would exceed the epsilon budget
         """
         if self.hit_max:
-            return None
+            return np.full(self.num_labels, None)
         data_dep = data_dependent_cost(votes, self.num_labels, self.scale)
         self.queries.append(data_dep)
         
@@ -172,7 +172,7 @@ class NoisyMaxAggregator(Aggregator):
         if self.eps > max_epsilon:
             print("uh oh!")
             self.hit_max = True
-            return None
+            return np.full(self.num_labels, None)
         return self.aggregate(votes)
 
 
