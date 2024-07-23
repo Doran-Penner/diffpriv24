@@ -154,37 +154,27 @@ class NoisyMaxAggregator(Aggregator):
             return None
         data_dep = data_dependent_cost(votes, self.num_labels, self.scale)
         self.queries.append(data_dep)
-        eps = self.best_eps(self.queries, self.scale, max_epsilon, 1e-6)
-        self.eps = eps  # for keeping state
-        print(eps)
-        if eps > max_epsilon:
+        
+        best_eps = privacy_accounting.gnmax_epsilon(self.queries, self.alpha, self.scale, 1e-6)
+        # if we're over-budget and still have possible alpha values to try...
+        while best_eps > max_epsilon and len(self.alpha_set) > 1:
+            new_contender = privacy_accounting.gnmax_epsilon(self.queries, self.alpha_set[-2], self.scale, 1e-6)
+            if new_contender < best_eps:
+                best_eps = new_contender
+                self.alpha_set.pop()
+                self.alpha = self.alpha_set[-1]
+            else:
+                # assume function eps(alpha) is convex, so nothing better we can do
+                break
+
+        self.eps = best_eps
+        print(self.eps)
+        if self.eps > max_epsilon:
             print("uh oh!")
             self.hit_max = True
             return None
         return self.aggregate(votes)
-    
-    def best_eps(self, qs, scale, max_epsilon, delta):
-        """
-        Function used to calculate the alpha value that gives the lowest epsilon cost in
-        renyi-differential privacy of order alpha
 
-        Arguments:
-        :param qs: list containing the q values for previous queries
-        :param scale: scale for the noise (actually it's never used i assume it was supposed to be?)
-        :param max_epsilon: max epsilon that the threshold_aggregate() method aggregates
-                            to, though in this function it's used to determine when to
-                            switch alpha values
-        :param delta: 
-        :returns: epsilon calculated with the best epsilon value for rdp
-        """
-        # (this is a bit cursed and could just be a loop, but it made sense in the moment)
-        eps = privacy_accounting.gnmax_epsilon(self.queries, self.alpha, self.scale, 1e-6)
-        if eps <= max_epsilon or len(self.alpha_set) <= 1:
-            return eps
-        else:
-            self.alpha_set.remove(self.alpha)
-            self.alpha = self.alpha_set[0]
-            return self.best_eps(qs, scale, max_epsilon, delta)
 
 class NoisyVectorAggregator(Aggregator):
     """
