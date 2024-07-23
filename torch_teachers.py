@@ -12,7 +12,7 @@ def train(training_data, valid_data, dat_obj, lr=1e-3, epochs=70, batch_size=16,
     This is a function that trains the model on a specified dataset.
     :param training_data: dataset containing the training data for the model
     :param valid_data: dataset containing the validation data for the model
-    :param dataset: string containing the name of the dataset that the model is being trained on. This is to tell model.py which model to give us
+    :param dat_obj: datasets._Dataset object representing the dataset being trained on
     :param device: string specifying which device the code is running on, so that the code can be appropriately optimized
     :param lr: float specifying the learning rate for the model
     :param epochs: int specifying the length of training
@@ -88,11 +88,10 @@ def train(training_data, valid_data, dat_obj, lr=1e-3, epochs=70, batch_size=16,
     acc = torch.tensor(accs).mean()
     return (network, acc)
 
-def train_all(dat_obj, epochs = 100):
+def train_all(dat_obj):
     """
     This function trains all of the teacher models on the specified dataset
-    :param dataset: string specifying which dataset to train the teachers on
-    :param num_teachers: integer specifying the number of teachers to train
+    :param dat_obj: datasets._Dataset object representing the dataset being trained on
     :return: Does not return anything, but saves the models instead
     """
     train_sets = dat_obj.teach_train
@@ -100,7 +99,7 @@ def train_all(dat_obj, epochs = 100):
     for i in range(dat_obj.num_teachers):
         print(f"Training teacher {i} now!")
         start_time = time.time()
-        n, acc = train(train_sets[i], valid_sets[i], dat_obj)
+        n, acc = train(train_sets[i], valid_sets[i], dat_obj, epochs = 100)
         print("TEACHER",i,"ACC",acc)
         # torch.save(n.state_dict(),f"./saved/{dat_obj.name}_teacher_{i}_of_{dat_obj.num_teachers-1}.tch")
 
