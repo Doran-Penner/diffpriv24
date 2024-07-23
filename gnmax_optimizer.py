@@ -12,34 +12,14 @@ start_time = time.time()
 
 SAVEFILE_NAME = "saved/rep_gnmax_points.pkl"
 
-### Using this info
-# as long as you don't interfere with the script as it's reading/writing,
-# you can see the results with the following code
-# (best to just do this in a REPL):
-
-# with open(SAVEFILE_NAME, "rb") as f:
-#     results = pickle.load(f)
-
-# # find the best point by validation accuracy:
-# best_point = max(results, key=(lambda x: results.get(x)[3]))
-# print("best point:", best_point)
-# print("values:", results[best_point])
-
-
 rng = np.random.default_rng()
 
-NUM_POINTS = 15  # changed for our custom checking
+NUM_POINTS = 20  # changed for our custom checking
 
-_gnmax_scale = np.full((NUM_POINTS,), 50)
-_gnmax_eps = np.full((NUM_POINTS,), 5)
-_max_num = np.full((NUM_POINTS,), 1000)
-_lap_scale = np.linspace(start=10, end=150, num=NUM_POINTS)
+_gauss_scale = np.linspace(start=10, stop=200, num=NUM_POINTS)
 
 points = np.asarray([
-    _gnmax_scale,
-    _gnmax_eps,
-    _max_num,
-    _lap_scale,
+    _gauss_scale,
 ])
 
 points = points.transpose()  # get transposed idiot
@@ -51,54 +31,42 @@ if not isfile(SAVEFILE_NAME):
         pickle.dump(dict(), f)
 
 ds = globals.dataset
-num_teachers = ds.num_teachers
 
-student_data = globals.dataset.student_data
-loader = torch.utils.data.DataLoader(student_data, shuffle=False, batch_size=256)
+loader = torch.utils.data.DataLoader(ds.student_data, shuffle=False, batch_size=256)
 
-if not isfile(f"./saved/{ds.name}_{num_teachers}_teacher_predictions.npy"):
+if not isfile(f"./saved/{ds.name}_{ds.num_teachers}_teacher_predictions.npy"):
     get_predicted_labels.calculate_prediction_matrix(loader, globals.dataset)
 
+votes = np.load(f"./saved/{ds.name}_{ds.num_teachers}_teacher_predictions.npy", allow_pickle=True)
 
 for point in points:
-    gnmax_scale, gnmax_eps, max_num, lap_scale = point
-    # save:
-    # PARAMS,
-    # number of labels made,
-    # accuracy of those labels,
-    # final training accuracy,
-    # final validation accuracy,
-    # number of epochs
+    gnmax_scale = point
 
-    # ... do stuff
-    agg = aggregate.PartRepeatGNMax(
-        # ignoring p, tau, confident, alpha_set
-        GNMax_scale=gnmax_scale,
-        p=1,
-        tau=50,
-        dat_obj=globals.dataset,
-        max_num=max_num,
-        confident=False,
-        lap_scale=lap_scale,
-        GNMax_epsilon=gnmax_eps,
-        alpha_set=list(range(2,21))
+    agg = aggregate.NoisyVectorAggregator(
+        gnmax_scale,
+        ds,
+        noise_fn=rng.normal,
+        alpha_set=list(range(2, 21)),
     )
+    max_epsilon = 10
    
-    labels = get_predicted_labels.load_predicted_labels(agg, ds)
-    print("FINAL tau usages:", agg.tau_tally)
+    labels = get_predicted_labels.load_predicted_labels(agg, votes, ds, max_epsilon)
+
+    # this is a bit weird, but seems to work
+    full_len = len(labels)
+    # get indices of labeled datapoints, for use later
+    which_labeled = np.arange(full_len)[np.all(labels != None, axis=1)]  # noqa: E711
+    labeled_labels = labels[which_labeled]
+    labeled_len = len(labeled_labels)
 
     correct = 0
-    num_datapoints = len(labels)
-    unlabeled = 0
-    for i, label in enumerate(labels):
-        if label == student_data[i][1]:
+    for i, label in zip(which_labeled, labeled_labels):
+        if label.argmax() == ds.student_data[i][1].argmax():
             correct += 1
-        if label == -1:
-            unlabeled += 1
-    labeled = num_datapoints-unlabeled
-    label_acc = 0
-    if labeled != 0:
-       label_acc = correct/labeled
+
+    print(f"data points labeled: {labeled_len} out of {full_len} ({labeled_len / full_len:0.3f})")
+    if labeled_len != 0:
+        print(f"label accuracy on labeled data: {correct/labeled_len:0.3f}")
 
     student_train, student_valid = ds.student_overwrite_labels(labels)
 
@@ -114,14 +82,14 @@ for point in points:
         batch_xs = batch_xs.to(globals.device)
         batch_ys = batch_ys.to(globals.device)
         preds = n(batch_xs)
-        test_accs.append((preds.argmax(dim=1) == batch_ys).float().mean())
+        test_accs.append((preds.argmax(dim=1) == batch_ys.argmax(dim=1)).float().mean())
     test_acc = torch.tensor(test_accs).mean()
 
     # now save the results! we write to disk every time so we can cancel the process with minimal loss
     # results format is dict of (alpha, p, tau, sigma1, sigma2) : (labeled, label_acc, val_acc, test_acc)
     with open(SAVEFILE_NAME, "rb") as f:
         past_results = pickle.load(f)
-    past_results[tuple(point)] = (labeled, label_acc, val_acc, test_acc)
+    past_results[tuple(point)] = (labeled_len, correct/labeled_len, val_acc, test_acc)
     with open(SAVEFILE_NAME, "wb") as f:
         pickle.dump(past_results, f)
 

@@ -46,7 +46,7 @@ def train(training_data, valid_data, dat_obj, lr=1e-3, epochs=70, batch_size=16,
                 batch_xs = batch_xs.to(globals.device)
                 batch_ys = batch_ys.to(globals.device)
                 preds = network(batch_xs)
-                accs.append((preds.argmax(dim=1) == batch_ys).float().mean())
+                accs.append((preds.argmax(dim=1) == batch_ys.argmax(dim=1)).float().mean())
             acc = torch.tensor(accs).mean()
             print("Valid acc:",acc)
             valid_accs.append(acc)
@@ -60,7 +60,7 @@ def train(training_data, valid_data, dat_obj, lr=1e-3, epochs=70, batch_size=16,
             batch_ys = batch_ys.to(globals.device)
 
             preds = network(batch_xs)
-            acc = (preds.argmax(dim=1) == batch_ys).float().mean()
+            acc = (preds.argmax(dim=1) == batch_ys.argmax(dim=1)).float().mean()
             train_acc.append(acc)
 
             loss_val = loss(preds, batch_ys)
@@ -84,7 +84,7 @@ def train(training_data, valid_data, dat_obj, lr=1e-3, epochs=70, batch_size=16,
         batch_xs = batch_xs.to(globals.device)
         batch_ys = batch_ys.to(globals.device)
         preds = network(batch_xs)
-        accs.append((preds.argmax(dim=1) == batch_ys).float().mean())
+        accs.append((preds.argmax(dim=1) == batch_ys.argmax(dim=1)).float().mean())
     acc = torch.tensor(accs).mean()
     return (network, acc)
 

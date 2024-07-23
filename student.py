@@ -18,7 +18,7 @@ def calculate_test_accuracy(network, test_data):
         batch_xs = batch_xs.to(globals.device)
         batch_ys = batch_ys.to(globals.device)
         preds = network(batch_xs)
-        accs.append((preds.argmax(dim=1) == batch_ys).float())
+        accs.append((preds.argmax(dim=1) == batch_ys.argmax(dim=1)).float())
     acc = torch.cat(accs).mean()
     return acc  # we don't see that :)
 
@@ -36,9 +36,9 @@ def main():
 
     n, val_acc = train(train_set, valid_set, ds, epochs=200, model="student")
 
-    print(f"Validation Accuracy: {val_acc}")
+    print(f"Validation Accuracy: {val_acc:0.3f}")
     test_acc = calculate_test_accuracy(n, test_set)
-    print(f"Test Accuracy: {test_acc}")
+    print(f"Test Accuracy: {test_acc:0.3f}")
     torch.save(n.state_dict(), f"./saved/{dataset_name}_student_final.ckp")
 
 if __name__ == '__main__':
