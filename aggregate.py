@@ -175,7 +175,6 @@ class NoisyMaxAggregator(Aggregator):
             return np.full(self.num_labels, None)
         return self.aggregate(votes)
 
-
 class NoisyVectorAggregator(Aggregator):
     """
     It's the same as NoisyMaxAggregator, but returns the full prediction vector
@@ -435,9 +434,133 @@ class ConfidentApproximateVectorAggregator(Aggregator):
             return np.full(self.num_labels, None)
         return self.aggregate(votes)
 
+class ConfidentGNMax(Aggregator):
+    """
+    This is a class that can aggregate teacher votes according to the algorithm described in
+    the paper `Scalable Private Learning with PATE` by N. Papernot et al
+    
+    ...
+
+    Attributes
+    ----------
+    num_labels : int
+        specifying the number of labels to be aggregated
+    scale1 : float
+        variable affecting the amount of noise used when determining if the teachers' votes
+        are confident enough to report
+    scale2 : float
+        variable affecting the amount of noise added to the aggregation function when 
+        releasing confident votes
+    tau : float 
+        variable determining the confidence threshold
+    alpha : int
+        variable representing the order of the renyi divergence used in renyi differential
+        privacy
+    delta : float
+        variable representing the delta value used for epsilon-delta differential privacy,
+        specifically used when calculating the epsilon value
+    gnmax : NoisyMaxAggregator instance
+        used to aggregate votes when the votes are confident
+    total_queries : int
+        representing the total number of queries that have been answered
+    eps_ma : float
+        representing the ma epsilon for renyi differential privacy
+    eprime : float
+        representing the epsilon prime for renyi differential privacy
+    
+
+    Methods
+    ----------
+    data_dependent_cost(votes, num_labels, scale2):
+        function that reports the data-dependent q value, used to calculate epsilon cost
+
+    aggregate(votes):
+        function that returns the result of the aggregation mechanism
+
+    treshold_aggregate(votes, epsilon):
+        function that aggregates votes until the epsilon spent reaches a certain threshold
+    """
+    def __init__(self, scale1, scale2, tau, dat_obj, alpha=3, delta=1e-6):
+        """
+        Initializer function for RepeatGNMax class
+
+        Arguments:
+        :param scale1: float variable affecting the amount of noise used when determining if 
+                       the teachers' votes are confident enough to report
+        :param scale2: float variable affecting the amount of noise added to the aggregation 
+                       function when releasing confident votes
+        :param tau: float variable determining the confidence threshold
+        :param alpha: numeric representing the alpha value for the order of the renyi
+                      differential privacy
+        :param delta: float representing the delta needed to calculate epsilon-delta epsilons
+        :param num_labels: int specifying the number of labels to be aggregated
+        """
+        self.scale1 = scale1
+        self.scale2 = scale2
+        self.tau = tau
+        self.alpha = alpha
+        self.delta = delta
+        self.num_labels = dat_obj.num_labels
+        self.total_queries = 0
+        self.gnmax = NoisyMaxAggregator(scale2,dat_obj,np.random.normal)
+        self.eprime = alpha / (scale1 * scale1) 
+        self.eps_ma = 0
+ 
+    def aggregate(self, votes):
+        """
+        Function for the aggregation mechanism
+
+        Arguments:
+        :param votes: array of labels, where each label is the vote of a single teacher. 
+                      so, if there are 250 teachers, the length of votes is 250.
+        :returns: The label with the most votes, after adding noise to the votes to make 
+                  it private.
+        """
+        self.total_queries += 1
+        hist = torch.zeros((self.num_labels,), device=globals.device)
+        for v in votes:
+            hist[v] += 1
+        noised_max = torch.max(hist) + torch.normal(0, self.scale1, size=hist.shape, device=globals.device)
+        if noised_max >= self.tau:
+            q = data_dependent_cost(votes, self.num_labels, self.scale2)
+            self.eps_ma += privacy_accounting.single_epsilon_ma(q, self.alpha, self.scale2)
+            return self.gnmax.aggregate(votes)
+        else:
+            return None
+
+    def threshold_aggregate(self, votes, epsilon):
+        """
+        Function for aggregating teacher votes with the specified algorithm without
+        passing some epsilon value, passed as a parameter to this function
+
+        Arguments:
+        :param votes: array of labels, where each label is the vote of a single 
+                      teacher. so, if there are 250 teachers, the length of votes 
+                      is 250
+        :param epsilon: float reprepesenting the maximum epsilon that the mechanism 
+                        aggregates to. this is to say, it will not report the result
+                        of a vote if that would exceed the privacy budget
+        :returns: integer corresponding to the aggregated label, or None if the response
+                        would exceed the epsilon budget or if it is not confident
+        """
+        epsilon_ma = self.eps_ma + privacy_accounting.single_epsilon_ma(
+            data_dependent_cost(votes, self.num_labels, self.scale2), self.alpha, self.scale2
+        )
+        ed_epsilon = privacy_accounting.renyi_to_ed(
+            (self.total_queries + 1) * self.eprime + epsilon_ma,
+            self.delta,
+            self.alpha,
+        )
+        print(epsilon_ma, ed_epsilon)
+        if ed_epsilon > epsilon:
+            return None
+        return self.aggregate(votes)
+
+# what lies beyond is deprecated . for now at least
+
 class RepeatGNMax(Aggregator):
     """
-    This is a class that can aggregate teacher votes according to the algorithm that
+    DEPRECATED: This is a class that can aggregate teacher votes according to the algorithm that
     Tory developed, called Repeat-GNMax.
     
     ...
@@ -617,132 +740,9 @@ class RepeatGNMax(Aggregator):
             return None
         return self.aggregate(votes)
 
-class ConfidentGNMax(Aggregator):
-    """
-    This is a class that can aggregate teacher votes according to the algorithm described in
-    the paper `Scalable Private Learning with PATE` by N. Papernot et al
-    
-    ...
-
-    Attributes
-    ----------
-    num_labels : int
-        specifying the number of labels to be aggregated
-    scale1 : float
-        variable affecting the amount of noise used when determining if the teachers' votes
-        are confident enough to report
-    scale2 : float
-        variable affecting the amount of noise added to the aggregation function when 
-        releasing confident votes
-    tau : float 
-        variable determining the confidence threshold
-    alpha : int
-        variable representing the order of the renyi divergence used in renyi differential
-        privacy
-    delta : float
-        variable representing the delta value used for epsilon-delta differential privacy,
-        specifically used when calculating the epsilon value
-    gnmax : NoisyMaxAggregator instance
-        used to aggregate votes when the votes are confident
-    total_queries : int
-        representing the total number of queries that have been answered
-    eps_ma : float
-        representing the ma epsilon for renyi differential privacy
-    eprime : float
-        representing the epsilon prime for renyi differential privacy
-    
-
-    Methods
-    ----------
-    data_dependent_cost(votes, num_labels, scale2):
-        function that reports the data-dependent q value, used to calculate epsilon cost
-
-    aggregate(votes):
-        function that returns the result of the aggregation mechanism
-
-    treshold_aggregate(votes, epsilon):
-        function that aggregates votes until the epsilon spent reaches a certain threshold
-    """
-    def __init__(self, scale1, scale2, tau, dat_obj, alpha=3, delta=1e-6):
-        """
-        Initializer function for RepeatGNMax class
-
-        Arguments:
-        :param scale1: float variable affecting the amount of noise used when determining if 
-                       the teachers' votes are confident enough to report
-        :param scale2: float variable affecting the amount of noise added to the aggregation 
-                       function when releasing confident votes
-        :param tau: float variable determining the confidence threshold
-        :param alpha: numeric representing the alpha value for the order of the renyi
-                      differential privacy
-        :param delta: float representing the delta needed to calculate epsilon-delta epsilons
-        :param num_labels: int specifying the number of labels to be aggregated
-        """
-        self.scale1 = scale1
-        self.scale2 = scale2
-        self.tau = tau
-        self.alpha = alpha
-        self.delta = delta
-        self.num_labels = dat_obj.num_labels
-        self.total_queries = 0
-        self.gnmax = NoisyMaxAggregator(scale2,dat_obj,np.random.normal)
-        self.eprime = alpha / (scale1 * scale1) 
-        self.eps_ma = 0
-
- 
-    def aggregate(self, votes):
-        """
-        Function for the aggregation mechanism
-
-        Arguments:
-        :param votes: array of labels, where each label is the vote of a single teacher. 
-                      so, if there are 250 teachers, the length of votes is 250.
-        :returns: The label with the most votes, after adding noise to the votes to make 
-                  it private.
-        """
-        self.total_queries += 1
-        hist = torch.zeros((self.num_labels,), device=globals.device)
-        for v in votes:
-            hist[v] += 1
-        noised_max = torch.max(hist) + torch.normal(0, self.scale1, size=hist.shape, device=globals.device)
-        if noised_max >= self.tau:
-            q = data_dependent_cost(votes, self.num_labels, self.scale2)
-            self.eps_ma += privacy_accounting.single_epsilon_ma(q, self.alpha, self.scale2)
-            return self.gnmax.aggregate(votes)
-        else:
-            return None
-
-    def threshold_aggregate(self, votes, epsilon):
-        """
-        Function for aggregating teacher votes with the specified algorithm without
-        passing some epsilon value, passed as a parameter to this function
-
-        Arguments:
-        :param votes: array of labels, where each label is the vote of a single 
-                      teacher. so, if there are 250 teachers, the length of votes 
-                      is 250
-        :param epsilon: float reprepesenting the maximum epsilon that the mechanism 
-                        aggregates to. this is to say, it will not report the result
-                        of a vote if that would exceed the privacy budget
-        :returns: integer corresponding to the aggregated label, or None if the response
-                        would exceed the epsilon budget or if it is not confident
-        """
-        epsilon_ma = self.eps_ma + privacy_accounting.single_epsilon_ma(
-            data_dependent_cost(votes, self.num_labels, self.scale2), self.alpha, self.scale2
-        )
-        ed_epsilon = privacy_accounting.renyi_to_ed(
-            (self.total_queries + 1) * self.eprime + epsilon_ma,
-            self.delta,
-            self.alpha,
-        )
-        print(epsilon_ma, ed_epsilon)
-        if ed_epsilon > epsilon:
-            return None
-        return self.aggregate(votes)
-
 class PartRepeatGNMax(Aggregator):
     """ 
-    A modified RepeatGNMax aggregator that will do some number of queries using a GNMax aggregator
+    DEPRECATED: A modified RepeatGNMax aggregator that will do some number of queries using a GNMax aggregator
     And then it will do the remaining queries with a laplacian report noisy max repeat mechanism
     
 
@@ -856,8 +856,6 @@ class PartRepeatGNMax(Aggregator):
         # what is a good lap scale
         # what is a good GNMax scale?
         # other things?
-    
-
 
     def aggregate(self, votes):
         """
@@ -978,10 +976,9 @@ class PartRepeatGNMax(Aggregator):
             else:
                 return self.aggregate(votes)
 
-
 class LapRepeatGNMax(Aggregator):
     """ 
-    This is a RepeatGNMax-like aggregator that uses laplacian report noisy min for the
+    DEPRECATED: This is a RepeatGNMax-like aggregator that uses laplacian report noisy min for the
     previous votes comparison.
     
 
@@ -1087,8 +1084,6 @@ class LapRepeatGNMax(Aggregator):
         # what is a good GNMax scale?
         # other things?
     
-
-
     def aggregate(self, votes):
         """
         Function for the aggregation mechanism. First we answer self.max_num number of
