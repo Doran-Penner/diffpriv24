@@ -2,15 +2,18 @@ import numpy as np
 import aggregate
 import get_predicted_labels
 import torch
+import os
 from os.path import isfile
 import torch_teachers
 import time
 import pickle
+import csv
 import globals
 
 start_time = time.time()
 
-SAVEFILE_NAME = "saved/rep_gnmax_points.pkl"
+SAVEFILE_NAME = "./saved/gnmax_optimizer_points.pkl"
+CSVPATH = "./saved/optimize.csv"
 
 rng = np.random.default_rng()
 
@@ -29,6 +32,15 @@ points = points.transpose()  # get transposed idiot
 if not isfile(SAVEFILE_NAME):
     with open(SAVEFILE_NAME, "wb") as f:
         pickle.dump(dict(), f)
+else:
+    print("WARNING: the savefile already exists, meaning that the newly-"
+          "generated data will be appended to or overwrite the old data.")
+    print("If you don't want this to happen, cancel this process in the next "
+          "10 seconds (with <Ctrl-C>) and delete the file at " + SAVEFILE_NAME)
+    # we sleep instead of awaiting input so this script can run in the background without hiccups
+    time.sleep(10)
+    print("Got no cancel, so continuing!")
+    time.sleep(1)
 
 ds = globals.dataset
 
@@ -81,12 +93,32 @@ for point in points:
     test_acc = torch.tensor(test_accs).mean()
 
     # now save the results! we write to disk every time so we can cancel the process with minimal loss
-    # results format is dict of (alpha, p, tau, sigma1, sigma2) : (labeled, label_acc, val_acc, test_acc)
+    # results format is dict of (point) : (labeled, label_acc, val_acc, test_acc)
     with open(SAVEFILE_NAME, "rb") as f:
         past_results = pickle.load(f)
     past_results[tuple(point)] = (labeled_len, correct/labeled_len, val_acc, test_acc)
     with open(SAVEFILE_NAME, "wb") as f:
         pickle.dump(past_results, f)
+
+### CSV creation
+with open(SAVEFILE_NAME, "rb") as f:
+    final_results = pickle.load(f)
+table = []
+# unpack the dict into a more normal list so we can easily write it to csv
+for keyval_pair in final_results.items():
+    key, val = keyval_pair
+    table.append(list(key) + list(val))
+# make everything a float for consistency
+for i, x in enumerate(table):
+    table[i] = list(map(lambda y: float(y), x))
+# delete any pre-existing csv
+if isfile(CSVPATH):
+    os.remove(CSVPATH)
+# finally, write to the file!
+with open(CSVPATH, "w", newline="") as f:
+    writer = csv.writer(f)
+    for row in table:
+        writer.writerow(row)
 
 total_time = time.time() - start_time
 
