@@ -40,7 +40,7 @@ class BayesCNN(nn.module):
         
         # copying the same code as above but with a few differences outlined
         # in the bayesian CNNs paper(s)
-
+        # https://github.com/Riashat/Deep-Bayesian-Active-Learning/blob/master/MC_Dropout_Keras/Dropout_Bald_Q10_N1000_Paper.py
         super().__init__()
         pad = 'same'
         size1, size2, channels = dat_obj.input_shape
