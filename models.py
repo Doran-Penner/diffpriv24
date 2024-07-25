@@ -52,7 +52,7 @@ class BayesCNN(nn.module):
         # not the paper actual stuff)
         layers = [nn.Conv2d(channels,64,5,padding=pad)]
         layers.append(nn.ReLU())
-        layers = [nn.Conv2d(64,128,5,padding=pad)]
+        layers.append(nn.Conv2d(64,128,5,padding=pad))
         layers.append(nn.ReLU())
         layers.append(nn.MaxPool2d(3,stride=2,padding=1))
         layers.append(nn.Dropout(p=0.25))
