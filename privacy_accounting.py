@@ -2,40 +2,6 @@ import math
 import numpy as np
 import scipy
 
-def epsilon_ma(qs, alpha, sigma):
-    """
-    This is a function to calculate the data-dependent or data-independent renyi epsilon
-    in a data-dependent way. Refer to Tory's algorithm for this please.
-    :param qs: list of q values for each uniquely answered query. Don't ask me
-               what a q value is.
-    :param alpha: integer representing the order of the renyi-divergence
-    :param sigma: float representing the standard deviation for the noise used in GNMax
-    
-    :returns: float representing tot, a sum of the total privacy budget spent.
-    """
-    data_ind = alpha / (sigma ** 2)
-    tot = 0
-    # tot = []
-    for q in qs:
-        if not (0 < q < 1):
-            tot += data_ind
-            continue
-        mu2 = sigma * math.sqrt(math.log(1 / q))
-        mu1 = mu2 + 1
-        e1 = mu1 / (sigma ** 2)
-        e2 = mu2 / (sigma ** 2)
-        Ahat = math.pow(q * math.exp(e2), (mu2 - 1) / mu2)
-        A = (1 - q) / (1 - Ahat)
-        B = math.exp(e1) / math.pow(q, 1 / (mu1 - 1))
-        data_dep = 1 / (alpha - 1) * math.log((1 - q) * (A ** (alpha - 1)) + q * (B ** (alpha - 1)))
-        # check conditions
-        if 0 < q < 1 < mu2 and q <= math.exp((mu2 - 1) * e2) / (mu1 * mu2 / ((mu1 - 1) * mu2 - 1)) and mu1 >= alpha:
-            tot += min(data_dep, data_ind)
-            # tot.append(min(data_dep, data_ind))
-        else:
-            tot += data_ind
-            # tot.append(data_ind)
-    return tot
 
 def single_epsilon_ma(q, alpha, sigma):
     """
