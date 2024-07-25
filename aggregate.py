@@ -375,6 +375,7 @@ class ConfidentApproximateVectorAggregator(Aggregator):
         self.alpha_set = alpha_set
         self.eps = 0
         self.total_queries = 0
+        self.delta = 1e-6
 
     def aggregate(self,votes):
         """
@@ -394,13 +395,13 @@ class ConfidentApproximateVectorAggregator(Aggregator):
             hist[int(v)] += 1
         conf = max(hist) + self.noise_fn(loc=0.0, scale=float(self.scale1))
         if conf < self.tau:
-            return torch.full(self.num_labels, -1)
+            return np.full((self.num_labels,), None)
         hist += self.noise_fn(loc=0.0, scale=float(self.scale2), size=(self.num_labels,))
         max_index = np.argmax(hist)
         leftover = len(votes) - conf
         approx_hist = [leftover/(self.num_labels - 1.0)]*self.num_labels # everything has value leftover/9 or whatever
         approx_hist[max_index] = conf
-        data_dep = data_dependent_cost(votes, self.num_labels, self.scale)
+        data_dep = data_dependent_cost(votes, self.num_labels, self.scale2)
         self.queries.append(data_dep)
         return torch.softmax(torch.from_numpy(hist), dim=0).numpy()
 
@@ -421,12 +422,12 @@ class ConfidentApproximateVectorAggregator(Aggregator):
         """
         if self.hit_max:
             return np.full(self.num_labels, None)
-        data_dep = data_dependent_cost(votes, self.num_labels, self.scale)
+        data_dep = data_dependent_cost(votes, self.num_labels, self.scale2)
 
-        best_eps = privacy_accounting.renyi_to_ed(self.alpha*(self.total_queries+1)/(2*self.scale1*self.scale1) + privacy_accounting.eps_ma_vec(self.queries + [data_dep], self.alpha, self.scale2, self.delta),self.delta,self.alpha)
+        best_eps = privacy_accounting.renyi_to_ed(self.alpha*(self.total_queries+1)/(2*self.scale1*self.scale1) + privacy_accounting.epsilon_ma_vec(self.queries + [data_dep], self.alpha, self.scale2),self.delta,self.alpha)
         # if we're over-budget and still have possible alpha values to try...
         while best_eps > max_epsilon and len(self.alpha_set) > 1:
-            new_contender = privacy_accounting.renyi_to_ed(self.alpha*(self.total_queries+1)/(2*self.scale1*self.scale1) + privacy_accounting.eps_ma_vec(self.queries + [data_dep], self.alpha_set[-2], self.scale2, self.delta), self.delta, self.alpha)
+            new_contender = privacy_accounting.renyi_to_ed(self.alpha*(self.total_queries+1)/(2*self.scale1*self.scale1) + privacy_accounting.epsilon_ma_vec(self.queries + [data_dep], self.alpha_set[-2], self.scale2), self.delta, self.alpha)
             if new_contender < best_eps:
                 best_eps = new_contender
                 self.alpha_set.pop()
