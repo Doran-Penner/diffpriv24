@@ -423,10 +423,10 @@ class ConfidentApproximateVectorAggregator(Aggregator):
             return np.full(self.num_labels, None)
         data_dep = data_dependent_cost(votes, self.num_labels, self.scale)
 
-        best_eps = privacy_accounting.renyi_to_ed(self.alpha*(self.total_queries+1)/(2*self.scale1*self.scale1) + privacy_accounting.eps_ma_vec(self.queries + [data_dep], self.alpha, self.scale2, 1e-6))
+        best_eps = privacy_accounting.renyi_to_ed(self.alpha*(self.total_queries+1)/(2*self.scale1*self.scale1) + privacy_accounting.eps_ma_vec(self.queries + [data_dep], self.alpha, self.scale2, self.delta),self.delta,self.alpha)
         # if we're over-budget and still have possible alpha values to try...
         while best_eps > max_epsilon and len(self.alpha_set) > 1:
-            new_contender = privacy_accounting.renyi_to_ed(self.alpha*(self.total_queries+1)/(2*self.scale1*self.scale1) + privacy_accounting.eps_ma_vec(self.queries + [data_dep], self.alpha_set[-2], self.scale2, 1e-6))
+            new_contender = privacy_accounting.renyi_to_ed(self.alpha*(self.total_queries+1)/(2*self.scale1*self.scale1) + privacy_accounting.eps_ma_vec(self.queries + [data_dep], self.alpha_set[-2], self.scale2, self.delta), self.delta, self.alpha)
             if new_contender < best_eps:
                 best_eps = new_contender
                 self.alpha_set.pop()
