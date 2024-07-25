@@ -1,7 +1,9 @@
 import numpy as np
 import aggregate
 import globals
-
+from helper import data_dependent_cost
+from privacy_accounting import gnmax_epsilon
+import torch
 
 def load_predicted_labels(aggregator, votes, dat_obj, max_epsilon):
     """
@@ -18,6 +20,23 @@ def load_predicted_labels(aggregator, votes, dat_obj, max_epsilon):
     labels = np.asarray(labels)
     return labels
 
+
+def label_by_indices(aggregator,votes,indices):
+    """
+    Function to label specific indices of a dataset. Used in active learning
+    :param aggregator: aggregator object used for the private aggregation
+    :param votes: array of teacher's votes
+    :param indices: a sequence of indices to label
+    :returns: labels,renyi epsilon costs
+    """
+
+    qs = []
+    labels = []
+    for i in indices:
+        qs.append(data_dependent_cost(votes[i], aggregator.num_labels, aggregator.scale))
+        labels.append(aggregator.aggregate(votes[i]))
+    labels = torch.tensor(labels)
+    return labels,qs
 
 def main():
     """

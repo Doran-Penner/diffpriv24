@@ -7,7 +7,7 @@ import numpy as np
 from os.path import isfile
 
 
-def train(training_data, valid_data, dat_obj, lr=1e-3, epochs=70, batch_size=16, momentum=0.9, model="teacher"):
+def train(training_data, valid_data, dat_obj, lr=1e-3, epochs=70, batch_size=16, momentum=0.9, model="teacher", net=CNN):
     """
     This is a function that trains the model on a specified dataset.
     :param training_data: dataset containing the training data for the model
@@ -29,7 +29,7 @@ def train(training_data, valid_data, dat_obj, lr=1e-3, epochs=70, batch_size=16,
     valid_loader = torch.utils.data.DataLoader(valid_data, shuffle=True, batch_size=batch_size)
     
 
-    network = CNN(dat_obj).to(globals.device)
+    network = net(dat_obj).to(globals.device)
     opt = optim.SGD(network.parameters(), lr=lr, momentum=momentum)
     loss = nn.CrossEntropyLoss()
 

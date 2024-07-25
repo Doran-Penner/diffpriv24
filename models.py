@@ -36,7 +36,7 @@ class CNN(nn.Module):
 
 class BayesCNN(nn.module):
 
-    def __init__(self,dat_obj,dropout_iterations=100):
+    def __init__(self,dat_obj):
         
         # copying the same code as above but with a few differences outlined
         # in the bayesian CNNs paper(s)
