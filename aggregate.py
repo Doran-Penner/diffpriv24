@@ -307,10 +307,16 @@ class ConfidentApproximateVectorAggregator(Aggregator):
     ----------
     num_labels : int
         specifying the number of labels to be aggregated
-    scale : float
+    scale1 : float 
         specifying the amount of noise. The larger the scale 
-        value, the noisier it is. ReportNoisyMax is epsilon 
-        differentially private if scale is equal to 1/epsilon
+        value, the noisier it is. Used to noisily check confidence
+    scale2 : float
+        specifying the amount of noise used to report the argmax
+        label. The larger the scale value, the noisier it is.
+    tau : float 
+        value specifying the confidence threshold at which data
+        is labeled. If the (noisy) maximum of this histogram exceeds
+        this threshold, the datapoint is labeled.
     noise_fn : function
         specifying the distribution that the noise must
         be drawn from. for basic ReportNoisyMax, this is the
@@ -328,6 +334,9 @@ class ConfidentApproximateVectorAggregator(Aggregator):
         lowest possible epsilon value
     eps : float
         representing the current best epsilon value
+    total_queries : int
+        representing the number of queries that have been made
+        so far
 
     Methods
     ----------
