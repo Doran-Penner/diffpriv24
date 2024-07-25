@@ -296,7 +296,7 @@ class NoisyVectorAggregator(Aggregator):
             return np.full(self.num_labels, None)
         return self.aggregate(votes)
 
-class ApproximateVectorAggregator(Aggregator):
+class ConfidentApproximateVectorAggregator(Aggregator):
     """
     It's the same as NoisyMaxAggregator, but returns the full prediction vector
     instead of just the label.
@@ -337,12 +337,16 @@ class ApproximateVectorAggregator(Aggregator):
     treshold_aggregate(votes, epsilon):
         function that aggregates votes until the epsilon spent reaches a certain threshold
     """
-    def __init__(self, scale, dat_obj, noise_fn=np.random.laplace, alpha_set=list(range(2,11))):
+    def __init__(self, scale1, scale2, tau,  dat_obj, noise_fn=np.random.laplace, alpha_set=list(range(2,11))):
         """
         Initializer function for NoisyMaxAggregator class
-        :param scale: float specifying the amount of noise. The larger the scale 
-                      value, the noisier it is. ReportNoisyMax is epsilon 
-                      differentially private if scale is equal to 1/epsilon
+        :param scale1: float specifying the amount of noise. The larger the scale 
+                       value, the noisier it is. Used to noisily check confidence
+        :param scale2: float specifying the amount of noise used to report the argmax
+                       label. The larger the scale value, the noisier it is.
+        :param tau: float value specifying the confidence threshold at which data
+                    is labeled. If the (noisy) maximum of this histogram exceeds
+                    this threshold, the datapoint is labeled.
         :param dat_obj: datasets._Dataset object representing the dataset that is being
                         aggregated over. used to find self.num_labels
         :param noise_fn: function specifying the distribution that the noise must
@@ -351,7 +355,9 @@ class ApproximateVectorAggregator(Aggregator):
         :param alpha_set: list containing possible alpha values that could give the 
                           lowest possible epsilon value
         """
-        self.scale = scale
+        self.scale1 = scale1
+        self.scale2 = scale2
+        self.tau = tau
         self.num_labels = dat_obj.num_labels
         self.noise_fn=noise_fn
         self.queries = []
@@ -359,6 +365,7 @@ class ApproximateVectorAggregator(Aggregator):
         self.alpha = alpha_set[-1]
         self.alpha_set = alpha_set
         self.eps = 0
+        self.total_queries = 0
 
     def aggregate(self,votes):
         """
@@ -372,14 +379,20 @@ class ApproximateVectorAggregator(Aggregator):
                       is 250
         :return: index indicating the max argument in the array passed to the function
         """
+        self.total_queries += 1
         hist = [0]*self.num_labels
         for v in votes:
             hist[int(v)] += 1
-        hist += self.noise_fn(loc=0.0, scale=float(self.scale), size=(self.num_labels,))
+        conf = max(hist) + self.noise_fn(loc=0.0, scale=float(self.scale1))
+        if conf < self.tau:
+            return torch.full(self.num_labels, -1)
+        hist += self.noise_fn(loc=0.0, scale=float(self.scale2), size=(self.num_labels,))
         max_index = np.argmax(hist)
-        leftover = len(votes) - hist[max_index]
+        leftover = len(votes) - conf
         approx_hist = [leftover/(self.num_labels - 1.0)]*self.num_labels # everything has value leftover/9 or whatever
-        approx_hist[max_index] = hist[max_index]
+        approx_hist[max_index] = conf
+        data_dep = data_dependent_cost(votes, self.num_labels, self.scale)
+        self.queries.append(data_dep)
         return torch.softmax(torch.from_numpy(hist), dim=0).numpy()
 
     def threshold_aggregate(self, votes, max_epsilon):
@@ -400,12 +413,11 @@ class ApproximateVectorAggregator(Aggregator):
         if self.hit_max:
             return np.full(self.num_labels, None)
         data_dep = data_dependent_cost(votes, self.num_labels, self.scale)
-        self.queries.append(data_dep)
 
-        best_eps = privacy_accounting.gnmax_epsilon(self.queries, self.alpha, self.scale, 1e-6)
+        best_eps = self.alpha*(self.total_queries+1)/(2*self.scale1*self.scale1) + privacy_accounting.gnmax_epsilon(self.queries + [data_dep], self.alpha, self.scale2, 1e-6)
         # if we're over-budget and still have possible alpha values to try...
         while best_eps > max_epsilon and len(self.alpha_set) > 1:
-            new_contender = privacy_accounting.gnmax_epsilon(self.queries, self.alpha_set[-2], self.scale, 1e-6)
+            new_contender = self.alpha*(self.total_queries+1)/(2*self.scale1*self.scale1) + privacy_accounting.gnmax_epsilon(self.queries + [data_dep], self.alpha_set[-2], self.scale2, 1e-6)
             if new_contender < best_eps:
                 best_eps = new_contender
                 self.alpha_set.pop()
