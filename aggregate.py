@@ -490,7 +490,7 @@ class ConfidentGNMax(Aggregator):
     treshold_aggregate(votes, epsilon):
         function that aggregates votes until the epsilon spent reaches a certain threshold
     """
-    def __init__(self, scale1, scale2, tau, dat_obj, alpha=3, delta=1e-6):
+    def __init__(self, scale1, scale2, tau, dat_obj, alpha=3, delta=1e-6, alpha_set=list(range(2,11))):
         """
         Initializer function for RepeatGNMax class
 
@@ -508,13 +508,16 @@ class ConfidentGNMax(Aggregator):
         self.scale1 = scale1
         self.scale2 = scale2
         self.tau = tau
-        self.alpha = alpha
+        self.alpha_set = alpha_set
+        self.alpha = alpha_set[-1]
         self.delta = delta
         self.num_labels = dat_obj.num_labels
         self.total_queries = 0
         self.gnmax = NoisyMaxAggregator(scale2,dat_obj,np.random.normal)
         self.eprime = alpha / (scale1 * scale1) 
         self.eps_ma = 0
+        self.eps = 0
+        self.hit_max = False
  
     def aggregate(self, votes):
         """
@@ -534,11 +537,11 @@ class ConfidentGNMax(Aggregator):
         if noised_max >= self.tau:
             q = data_dependent_cost(votes, self.num_labels, self.scale2)
             self.eps_ma += privacy_accounting.single_epsilon_ma(q, self.alpha, self.scale2)
-            return self.gnmax.aggregate(votes)
+            return np.eye(self.num_labels)[self.gnmax.aggregate(votes)]
         else:
-            return None
+            return np.full(self.num_labels, None)
 
-    def threshold_aggregate(self, votes, epsilon):
+    def threshold_aggregate(self, votes, max_epsilon):
         """
         Function for aggregating teacher votes with the specified algorithm without
         passing some epsilon value, passed as a parameter to this function
@@ -553,18 +556,38 @@ class ConfidentGNMax(Aggregator):
         :returns: integer corresponding to the aggregated label, or None if the response
                         would exceed the epsilon budget or if it is not confident
         """
+        if self.hit_max:
+            return np.full(self.num_labels, None)
+        data_dep = data_dependent_cost(votes, self.num_labels, self.scale2)
+
         epsilon_ma = self.eps_ma + privacy_accounting.single_epsilon_ma(
             data_dependent_cost(votes, self.num_labels, self.scale2), self.alpha, self.scale2
         )
-        ed_epsilon = privacy_accounting.renyi_to_ed(
-            (self.total_queries + 1) * self.eprime + epsilon_ma,
-            self.delta,
-            self.alpha,
+        best_eps = privacy_accounting.renyi_to_ed(
+            (self.total_queries + 1) * self.eprime + epsilon_ma, 
+            self.delta, 
+            self.alpha
         )
-        print(epsilon_ma, ed_epsilon)
-        if ed_epsilon > epsilon:
-            return None
+        # if we're over-budget and still have possible alpha values to try...
+        while best_eps > max_epsilon and len(self.alpha_set) > 1:
+            epsilon_ma = privacy_accounting.epsilon_ma_vec(self.queries + [data_dep], self.alpha_set[-2], self.scale2)
+            new_contender = privacy_accounting.renyi_to_ed(self.alpha_set[-2]/(2*self.scale1*self.scale1) + epsilon_ma, self.delta, self.alpha)
+            if new_contender < best_eps:
+                best_eps = new_contender
+                self.alpha_set.pop()
+                self.alpha = self.alpha_set[-1]
+            else:
+                # assume function eps(alpha) is convex, so nothing better we can do
+                break
+
+        self.eps = best_eps
+        print(self.eps)
+        if self.eps > max_epsilon:
+            print("uh oh!")
+            self.hit_max = True
+            return np.full(self.num_labels, None)
         return self.aggregate(votes)
+
 
 # what lies beyond is deprecated . for now at least
 
