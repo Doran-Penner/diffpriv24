@@ -50,7 +50,7 @@ def train(training_data, valid_data, dat_obj, lr=1e-3, epochs=70, batch_size=16,
             acc = torch.tensor(accs).mean()
             print("Valid acc:",acc)
             valid_accs.append(acc)
-            torch.save(network.state_dict(),f"./saved/{dat_obj.name}_{model}_{i}.ckp")
+            torch.save(network.state_dict(),f"{globals.SAVE_DIR}/{dat_obj.name}_{model}_{i}.ckp")
             ### end check
         network.train()
         train_acc = []
@@ -75,7 +75,7 @@ def train(training_data, valid_data, dat_obj, lr=1e-3, epochs=70, batch_size=16,
     # NOTE this does not work with multiple students in the same folder at the same time
     best_num_epochs = torch.argmax(torch.tensor(valid_accs)) * 5
     print("Final num epochs:", best_num_epochs)
-    st_dict = torch.load(f"./saved/{dat_obj.name}_{model}_{best_num_epochs}.ckp",map_location=globals.device)
+    st_dict = torch.load(f"{globals.SAVE_DIR}/{dat_obj.name}_{model}_{best_num_epochs}.ckp",map_location=globals.device)
     network.load_state_dict(st_dict)
     
     network.eval()
@@ -101,7 +101,7 @@ def train_all(dat_obj):
         start_time = time.time()
         n, acc = train(train_sets[i], valid_sets[i], dat_obj, epochs = 100)
         print("TEACHER",i,"ACC",acc)
-        # torch.save(n.state_dict(),f"./saved/{dat_obj.name}_teacher_{i}_of_{dat_obj.num_teachers-1}.tch")
+        # torch.save(n.state_dict(),f"{globals.SAVE_DIR}/{dat_obj.name}_teacher_{i}_of_{dat_obj.num_teachers-1}.tch")
 
 
         print("Model",str(i))
@@ -123,12 +123,12 @@ def train_all(dat_obj):
             ballot.append(preds.to(torch.device('cpu')))
         
         ballot = np.concatenate(ballot)
-        if isfile(f"./saved/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy"):
-            votes = np.load(f"./saved/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy", allow_pickle=True)
+        if isfile(f"{globals.SAVE_DIR}/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy"):
+            votes = np.load(f"{globals.SAVE_DIR}/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy", allow_pickle=True)
             votes = np.append(votes, ballot)
         else:
             votes = ballot
-        np.save(f"./saved/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy", votes)
+        np.save(f"{globals.SAVE_DIR}/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy", votes)
 
         print(f"teacher {i}'s accuracy:", correct/guessed)
 
