@@ -225,13 +225,13 @@ class _Svhn(_Dataset):
         labeled_indices = np.any(labels != None, axis=1)  # noqa: E711
         unlabeled_indices = np.any(labels == None, axis=1)
         student_data.indices = student_data.indices[labeled_indices]
-        unlabeled_data.indices = student_data.indices[unlabeled_indices]
+        unlabeled_data.indices = unlabeled_data.indices[unlabeled_indices]
         # FIXME below isn't happy because of shape
         student_data.dataset.labels = np.eye(self.num_labels)[
             student_data.dataset.labels
         ]
         student_data.dataset.labels[student_data.indices] = labels[labeled_indices]
-        unlabeled_data.dataset.labels = np.full((len(unlabeled_data.dataset.labels),self.num_labels), None)
+        unlabeled_data.dataset.labels[unlabeled_data.indices] = np.full((len(unlabeled_data.indices),self.num_labels), None)
 
         # check: does this work? I think so but not 100% sure
         stud_train, stud_valid = torch.utils.data.random_split(

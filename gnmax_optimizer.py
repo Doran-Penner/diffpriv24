@@ -20,7 +20,7 @@ rng = np.random.default_rng()
 NUM_POINTS = 21 # changed for our custom checking
 
 _gauss_scale = np.full(NUM_POINTS, 100)
-_scale2 = np.full(NUM_POINTS, 35)
+_scale2 = np.full(NUM_POINTS, 40)
 _tau = np.linspace(start=100, stop=200, num=NUM_POINTS)
 
 points = np.asarray([
@@ -48,7 +48,7 @@ else:
 
 ds = globals.dataset
 
-votes = np.load(f"./saved/{globals.prefix}_{ds.name}_{ds.num_teachers}_teacher_predictions.npy", allow_pickle=True)
+votes = np.load(f"./saved/{ds.name}_{ds.num_teachers}_teacher_predictions.npy", allow_pickle=True)
 
 for point in points:
     confidence_scale, argmax_scale, tau = point
@@ -80,9 +80,9 @@ for point in points:
     if labeled_len != 0:
         print(f"label accuracy on labeled data: {correct/labeled_len:0.3f}")
 
-    student_train, student_valid = ds.student_overwrite_labels(labels)
-
-    n, val_acc = training.train(student_train, student_valid, ds, epochs=100, batch_size=16, model="student")
+    student_train, student_valid, unlabeled = ds.student_overwrite_labels(labels, semi_supervise=True)
+    
+    n, val_acc = train_ssl(student_train, unlabeled, student_valid, ds, 0.95, num_rounds=10, epochs=500, batch_size=16)
 
     # NOTE: this is really bad practice since we're optimizing w.r.t. the test data,
     # but for now we just need to see if things actually work

@@ -2,6 +2,7 @@ import torch
 from torch import nn, optim
 from models import CNN
 import globals
+from copy import deepcopy
 
 def train(training_data, valid_data, dat_obj, lr=1e-3, epochs=70, batch_size=16, momentum=0.9, model="teacher", arch=CNN):
     """
@@ -87,26 +88,38 @@ def train(training_data, valid_data, dat_obj, lr=1e-3, epochs=70, batch_size=16,
 def train_ssl(training_data, unlabeled_data, valid_data, dat_obj, confidence_threshold, num_rounds=-1, lr=1e-3, epochs=70, batch_size=16, momentum=0.9, arch=CNN):
     """TODO: Document"""
     r = 0
-    self_labeled = torch.Tensor([])
+    self_labeled = deepcopy(unlabeled_data)
+    self_labeled.indices = []
     while r < num_rounds or num_rounds == -1:
+        print("Starting round",r)
+        print("Training data",len(training_data))
+        print("Self labeled",len(self_labeled))
+        print("Unlabeled",len(unlabeled_data))
+        r += 1
         # train model
-        net = train(torch.cat((training_data, self_labeled)), valid_data, dat_obj, lr=lr, epochs=epochs, batch_size=batch_size, momentum=momentum, model="student", arch=arch)
+        net, _ = train(torch.utils.data.ConcatDataset((training_data, self_labeled)), valid_data, dat_obj, lr=lr, epochs=epochs, batch_size=batch_size, momentum=momentum, model="student", arch=arch)
         # label unlabeled data
         unlabeled_loader = torch.utils.data.DataLoader(unlabeled_data, shuffle=False, batch_size=batch_size)
         net.eval()
-        preds = torch.Tensor([])
-        for batch_xs, _ in unlabeled_loader:
-            preds = torch.cat(preds,(batch_xs,net(batch_xs)))
         to_remove = []
-        for i, p in enumerate(preds):
-            if torch.max(p[1]) >= confidence_threshold:
-                to_remove.append(i)
-                self_labeled = torch.cat((self_labeled, p))
+        with torch.no_grad():
+            preds = torch.Tensor([])
+            for batch_xs, _ in unlabeled_loader:
+                batch_xs = batch_xs.to(globals.device)
+                preds = torch.cat((preds,net(batch_xs).to('cpu')))
+            del net
+            for i, p in enumerate(preds):
+                _p = torch.softmax(p, dim=0)
+                if torch.max(_p[1]) >= confidence_threshold:
+                    to_remove.append(i)
+                    self_labeled.indices.append(unlabeled_data.indices[i])
+                    label = torch.eye(dat_obj.num_labels)[torch.argmax(_p)]
+                    print("Overwriting with label",label)
+                    self_labeled.dataset.labels[unlabeled_data.indices[i]] = label
         # remove labeled data from unlabeled set
         mask = torch.ones(len(unlabeled_data), dtype=torch.bool)
         mask[to_remove] = False
-        unlabeled_data = unlabeled_data[mask]
+        unlabeled_data.indices = unlabeled_data.indices[mask]
         if len(unlabeled_data) == 0:
             break
-    final_net = train(torch.cat((training_data, self_labeled)), valid_data, dat_obj, lr=lr, epochs=epochs, batch_size=batch_size, momentum=momentum, model="student", arch=arch)
-    return final_net
+    return train(torch.cat((training_data, self_labeled)), valid_data, dat_obj, lr=lr, epochs=epochs, batch_size=batch_size, momentum=momentum, model="student", arch=arch)

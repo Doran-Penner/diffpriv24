@@ -13,8 +13,13 @@ def load_predicted_labels(aggregator, votes, dat_obj, max_epsilon):
     :returns: list containing the privately aggregated labels
     """
     labels = []
+    hist = np.zeros(10)
     for vote in votes.T:
+        label = aggregator.threshold_aggregate(vote,max_epsilon)
         labels.append(aggregator.threshold_aggregate(vote, max_epsilon))
+        if not np.any(label == None):
+            hist += np.float64(label)
+    print(hist)
     labels = np.asarray(labels)
     return labels
 
