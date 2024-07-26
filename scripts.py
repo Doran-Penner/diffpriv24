@@ -1,6 +1,5 @@
 import numpy as np
 import globals
-import pickle
 
 # NOTE: these are random utility functions for convenience,
 # not part of the pipeline and not guaranteed to work!
