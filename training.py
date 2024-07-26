@@ -47,7 +47,7 @@ def train(training_data, valid_data, dat_obj, lr=1e-3, epochs=70, batch_size=16,
             acc = torch.tensor(accs).mean()
             print("Valid acc:",acc)
             valid_accs.append(acc)
-            torch.save(network.state_dict(),f"./saved/{globals.prefix}_{dat_obj.name}_{model}_{i}.ckp")
+            torch.save(network.state_dict(),f"{globals.SAVE_DIR}/{globals.prefix}_{dat_obj.name}_{model}_{i}.ckp")
             ### end check
         network.train()
         train_acc = []
@@ -72,7 +72,7 @@ def train(training_data, valid_data, dat_obj, lr=1e-3, epochs=70, batch_size=16,
     # NOTE this does not work with multiple students in the same folder at the same time
     best_num_epochs = torch.argmax(torch.tensor(valid_accs)) * 5
     print("Final num epochs:", best_num_epochs)
-    st_dict = torch.load(f"./saved/{globals.prefix}_{dat_obj.name}_{model}_{best_num_epochs}.ckp",map_location=globals.device)
+    st_dict = torch.load(f"{globals.SAVE_DIR}/{globals.prefix}_{dat_obj.name}_{model}_{best_num_epochs}.ckp",map_location=globals.device)
     network.load_state_dict(st_dict)
     
     network.eval()

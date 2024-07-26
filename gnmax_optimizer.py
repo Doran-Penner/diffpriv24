@@ -12,8 +12,8 @@ from training import train_ssl
 
 start_time = time.time()
 
-SAVEFILE_NAME = f"./saved/{globals.prefix}_gnmax_optimizer_points.pkl"
-CSVPATH = f"./saved/{globals.prefix}_optimize.csv"
+SAVEFILE_NAME = f"{globals.SAVE_DIR}/{globals.prefix}_gnmax_optimizer_points.pkl"
+CSVPATH = f"{globals.SAVE_DIR}/{globals.prefix}_optimize.csv"
 
 rng = np.random.default_rng()
 
@@ -48,7 +48,7 @@ else:
 
 ds = globals.dataset
 
-votes = np.load(f"./saved/{ds.name}_{ds.num_teachers}_teacher_predictions.npy", allow_pickle=True)
+votes = np.load(f"{globals.SAVE_DIR}/{ds.name}_{ds.num_teachers}_teacher_predictions.npy", allow_pickle=True)
 
 for point in points:
     confidence_scale, argmax_scale, tau = point

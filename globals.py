@@ -12,6 +12,8 @@ if "been_run" not in vars():
     else:
         device = torch.device('cpu')
     print("using device", device)
+
+    SAVE_DIR = "../saved"
     
     prefix = input("What experiment are you running, Carter? ")
 
