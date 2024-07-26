@@ -30,6 +30,23 @@ class SVHNVec(torchvision.datasets.svhn.SVHN):
 # note: how can we document input arguments if the user doesn't directly call this?
 # solution: we document it in the helper/creation function, which will be defined in the end
 class _Dataset:
+    '''
+    This is a class that abstracts the torch dataset class.
+    TODO: finish documenting
+
+    ...
+
+    Attributes
+    ----------
+    name : string
+        communicating in a readable way which dataset we are using
+    num_teachers : int
+        representing the number of teachers
+    num_labels : int
+        representing the number of labels that the datapoints can have
+    input_shape : tuple
+        representing the shape of a datapoint
+    '''
     def __init__(self):
         """
         Initializer function for the _Dataset class.
