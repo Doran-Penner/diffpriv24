@@ -37,8 +37,8 @@ def train(training_data, valid_data, dat_obj, lr=1e-3, epochs=70, batch_size=16,
     valid_accs = []  # only used for student
 
     for i in range(epochs):
-        if i % 5 == 0:
-            print("Epoch",i)
+        if i % 5 == 4: # changed this to 4 because we will actually take the 5th,10th,15th... rounds
+            print("Epoch",i+1) # +1 so we 1-index the rounds rather than 0-index
             ### check valid accuracy
             network.eval()
             accs = []

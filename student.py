@@ -3,7 +3,6 @@ import numpy as np
 from torch_teachers import train
 import globals
 import random
-import torch.nn.functional as F
 import aggregate
 from get_predicted_labels import label_by_indices
 from privacy_accounting import gnmax_epsilon
@@ -31,7 +30,7 @@ def calculate_test_accuracy(network, test_data):
     return acc  # we don't see that :)
 
 
-def active_train(network=BayesCNN,dropout_iterations=100,acquisitions=20,acquisitions_iterations=45, initial_size=100):
+def active_train(network=BayesCNN,dropout_iterations=100,acquisitions=25,acquisitions_iterations=36, initial_size=100):
     """
     Function to do active learning with the BayesCNN based on the same code as the 
     BayesCNN architecture
@@ -67,6 +66,9 @@ def active_train(network=BayesCNN,dropout_iterations=100,acquisitions=20,acquisi
     val_accs = []
     # not sure if i want/need test_acc, but for purposes It will be left
     test_accs = []
+    # also not super helpful later on, but this will keep track of epsilon as we go
+    eps = []
+
 
     data_pool,valid_data = torch.utils.data.random_split(dataset.student_data, [0.9, 0.1])
 
@@ -87,7 +89,7 @@ def active_train(network=BayesCNN,dropout_iterations=100,acquisitions=20,acquisi
 
     # initial training before active loop:
     
-    model, val_acc = train(X_train, valid_data, dataset, epochs=50, model="student",net=network)
+    model, val_acc = train(X_train, valid_data, dataset, epochs=200, model="student",net=network)
 
 
     val_accs.append(val_acc)
@@ -99,6 +101,8 @@ def active_train(network=BayesCNN,dropout_iterations=100,acquisitions=20,acquisi
 
     # now to start active learning loop!
     for round in range(acquisitions_iterations):
+
+        print("Acquisition Round: ", round)
         # Note, we don't want to calculate the acquistion function for every single point
         # since that would be pretty computationally expensive (maybe try it some time)
         # so we will take a subset of the pool data to check
@@ -113,6 +117,8 @@ def active_train(network=BayesCNN,dropout_iterations=100,acquisitions=20,acquisi
         all_entropy = torch.zeros(size=(pool_subset_size,),dtype=torch.float32)
 
         for d in range(dropout_iterations):
+
+            print("\tDropout iteration: ", d)
             dropout_scores = predict_stochastic(model,pool_dropout)
             dropout_scores = dropout_scores.to(torch.device('cpu'),dtype=torch.float32)
 
@@ -135,26 +141,23 @@ def active_train(network=BayesCNN,dropout_iterations=100,acquisitions=20,acquisi
 
         all_bald = all_bald.flatten()
 
-        # don't fully understand what this is doing, but it's what the other code has
-        acquired_indices = all_bald.argsort()[-acquisitions:][::-1]
-
+        
+        acquired_indices = all_bald.argsort()[-acquisitions:]
         # since we are acquiring the indices of the list of indices we need to undo
         # that process so we have the original dataset indices to label from
         dataset_indices = pool_dropout.indices[acquired_indices]
 
         new_labels, new_qs = label_by_indices(agg,votes,dataset_indices)
 
-        X_train.indices = torch.cat((X_train.indices,dataset_indices))
+        X_train.indices += dataset_indices
 
         X_train.dataset.labels[dataset_indices] = new_labels
         full_qs.extend(new_qs)
 
-        # delete the chosen items from the data_pool
-        mask = torch.ones(len(data_pool.indices))
-        mask[acquired_indices] = 0
-        data_pool.indices[torch.nonzero(mask)]
+        eps.append(gnmax_epsilon(full_qs,agg.alpha,agg.scale,1e-6))
 
-        del model
+        # delete the chosen items from the data_pool
+        data_pool.indices = [x for i,x in enumerate(data_pool.indices) if i not in dataset_indices]
         
         # retrain the model!
         model, val_acc = train(X_train, valid_data, dataset, epochs=200, model="student",net=network)
@@ -164,17 +167,21 @@ def active_train(network=BayesCNN,dropout_iterations=100,acquisitions=20,acquisi
         # again, not sure how much we want to use this, but i'll leave it here for now!
         test_accs.append(calculate_test_accuracy(model,dataset.student_test))
     
-    # turn this into a graph later weeeeee
-    print(val_accs)
-    print(test_accs)
     
+
     # finally, we just have to sum-up the epsilon (for now it will be un-noised)
     # and return the model!
     epsilon = gnmax_epsilon(full_qs,agg.alpha,agg.scale,1e-6)
 
+
     return model, epsilon
 
+def print_assessment(eps,valid_accuracies,test_accuracies):
+    # a pretty print function for active_train
 
+    print("acquisition:\tvalidation\ttest\t\tepsilon")
+    for i in range(len(valid_accuracies)):
+        print(f"{i}\t\t{valid_accuracies[i]}\t\t{test_accuracies[i]}\t\t{eps[i]}")
 
 def predict_stochastic(model,X):
     """
@@ -183,12 +190,13 @@ def predict_stochastic(model,X):
     I am going to just keep it this way.
     """
     X_data = torch.utils.data.DataLoader(X, shuffle=True,batch_size=64)
-    model = model.eval()
+    model.eval()
     pred_list = []
-    for batch_xs, _ in X_data:
-        batch_xs = batch_xs.to(globals.device,dtype=torch.float32)
-        preds = model(batch_xs)
-        pred_list.append(preds)
+    with torch.no_grad():
+        for batch_xs, _ in X_data:
+            batch_xs = batch_xs.to(globals.device,dtype=torch.float32)
+            preds = model(batch_xs)
+            pred_list.append(preds.to(torch.device('cpu')))
 
     ret_tensor = torch.cat(pred_list,dim=0)
     
@@ -196,24 +204,24 @@ def predict_stochastic(model,X):
 
 
 
-def main():
-    # this is where we set the parameters that are used by the functions in this file (ie, if we
-    # want to use a different database, we would change it here)
-    ds = globals.dataset
-    dataset_name = ds.name
-    num_teachers = ds.num_teachers
-
-    labels = np.load(f"./saved/{dataset_name}_{num_teachers}_agg_teacher_predictions.npy", allow_pickle=True)
-
-    train_set, valid_set = ds.student_overwrite_labels(labels)
-    test_set = ds.student_test
-
-    n, val_acc = train(train_set, valid_set, ds, epochs=200, model="student")
-
-    print(f"Validation Accuracy: {val_acc:0.3f}")
-    test_acc = calculate_test_accuracy(n, test_set)
-    print(f"Test Accuracy: {test_acc:0.3f}")
-    torch.save(n.state_dict(), f"./saved/{dataset_name}_student_final.ckp")
+#def main():
+#    # this is where we set the parameters that are used by the functions in this file (ie, if we
+#    # want to use a different database, we would change it here)
+#    ds = globals.dataset
+#    dataset_name = ds.name
+#    num_teachers = ds.num_teachers
+#
+#    labels = np.load(f"./saved/{dataset_name}_{num_teachers}_agg_teacher_predictions.npy", allow_pickle=True)
+#
+#    train_set, valid_set = ds.student_overwrite_labels(labels)
+#    test_set = ds.student_test
+#
+#    n, val_acc = train(train_set, valid_set, ds, epochs=200, model="student")
+#
+#    print(f"Validation Accuracy: {val_acc:0.3f}")
+#    test_acc = calculate_test_accuracy(n, test_set)
+#    print(f"Test Accuracy: {test_acc:0.3f}")
+#    torch.save(n.state_dict(), f"./saved/{dataset_name}_student_final.ckp")
 
 if __name__ == '__main__':
     active_train()

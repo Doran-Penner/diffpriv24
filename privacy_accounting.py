@@ -89,9 +89,9 @@ def epsilon_ma_vec(qs, alpha, sigma):
     mu1 = mu2 + 1
     e1 = mu1 / (sigma ** 2)
     e2 = mu2 / (sigma ** 2)
-    Ahat = np.pow(qs * np.exp(e2), (mu2 - 1) / mu2)
+    Ahat = np.power(qs * np.exp(e2), (mu2 - 1) / mu2)
     A = (1 - qs) / (1 - Ahat)
-    B = np.exp(e1) / np.pow(qs, (1 / (mu1 - 1)))
+    B = np.exp(e1) / np.power(qs, (1 / (mu1 - 1)))
     data_dep = (
         1
         / (alpha - 1)
