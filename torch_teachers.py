@@ -43,8 +43,8 @@ def train(training_data, valid_data, dat_obj, lr=1e-3, epochs=70, batch_size=16,
             network.eval()
             accs = []
             for batch_xs, batch_ys in valid_loader:
-                batch_xs = batch_xs.to(globals.device)
-                batch_ys = batch_ys.to(globals.device)
+                batch_xs = batch_xs.to(globals.device,dtype=torch.float32)
+                batch_ys = batch_ys.to(globals.device,dtype=torch.float32) # added this purely to try to get rid of an error?
                 preds = network(batch_xs)
                 accs.append((preds.argmax(dim=1) == batch_ys.argmax(dim=1)).float().mean())
             acc = torch.tensor(accs).mean()
@@ -56,8 +56,8 @@ def train(training_data, valid_data, dat_obj, lr=1e-3, epochs=70, batch_size=16,
         train_acc = []
         for batch_xs, batch_ys in train_loader:
             opt.zero_grad()
-            batch_xs = batch_xs.to(globals.device)
-            batch_ys = batch_ys.to(globals.device)
+            batch_xs = batch_xs.to(globals.device,dtype=torch.float32)
+            batch_ys = batch_ys.to(globals.device,dtype=torch.float32)
 
             preds = network(batch_xs)
             acc = (preds.argmax(dim=1) == batch_ys.argmax(dim=1)).float().mean()
@@ -81,8 +81,8 @@ def train(training_data, valid_data, dat_obj, lr=1e-3, epochs=70, batch_size=16,
     network.eval()
     accs = []
     for batch_xs, batch_ys in valid_loader:
-        batch_xs = batch_xs.to(globals.device)
-        batch_ys = batch_ys.to(globals.device)
+        batch_xs = batch_xs.to(globals.device,dtype=torch.float32)
+        batch_ys = batch_ys.to(globals.device,dtype=torch.float32)
         preds = network(batch_xs)
         accs.append((preds.argmax(dim=1) == batch_ys.argmax(dim=1)).float().mean())
     acc = torch.tensor(accs).mean()

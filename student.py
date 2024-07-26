@@ -7,7 +7,7 @@ import torch.nn.functional as F
 import aggregate
 from get_predicted_labels import label_by_indices
 from privacy_accounting import gnmax_epsilon
-
+from models import BayesCNN
 
 
 
@@ -23,15 +23,15 @@ def calculate_test_accuracy(network, test_data):
     test_loader = torch.utils.data.DataLoader(test_data, shuffle=True, batch_size=batch_size)
     accs = []
     for batch_xs, batch_ys in test_loader:
-        batch_xs = batch_xs.to(globals.device)
-        batch_ys = batch_ys.to(globals.device)
+        batch_xs = batch_xs.to(globals.device,dtype=torch.float32)
+        batch_ys = batch_ys.to(globals.device,dtype=torch.float32)
         preds = network(batch_xs)
         accs.append((preds.argmax(dim=1) == batch_ys.argmax(dim=1)).float())
     acc = torch.cat(accs).mean()
     return acc  # we don't see that :)
 
 
-def active_train(network,dropout_iterations=100,acquisitions=20,acquisitions_iterations=45, initial_size=100):
+def active_train(network=BayesCNN,dropout_iterations=100,acquisitions=20,acquisitions_iterations=45, initial_size=100):
     """
     Function to do active learning with the BayesCNN based on the same code as the 
     BayesCNN architecture
@@ -59,7 +59,7 @@ def active_train(network,dropout_iterations=100,acquisitions=20,acquisitions_ite
 
     # teacher votes (assuming the votes have already been given just not aggregated)
     votes = np.load(f"./saved/{dataset.name}_{dataset.num_teachers}_teacher_predictions.npy", allow_pickle=True)
-
+    votes = votes.T
     # abstraction later maybe
     agg = aggregate.NoisyMaxAggregator(40,dataset,noise_fn=np.random.normal)
 
@@ -72,6 +72,7 @@ def active_train(network,dropout_iterations=100,acquisitions=20,acquisitions_ite
 
     X_train = torch.utils.data.Subset(data,data_pool.indices[:initial_size]) # take the indices of the first initial_size data points
     data_pool.indices = data_pool.indices[initial_size:]
+    valid_data = torch.utils.data.Subset(data,valid_data.indices)
 
     # labels for the valid and training sets to start off with
     valid_labels, v_qs = label_by_indices(agg,votes,valid_data.indices)
@@ -85,7 +86,7 @@ def active_train(network,dropout_iterations=100,acquisitions=20,acquisitions_ite
     valid_data.dataset.labels[valid_data.indices] = valid_labels
 
     # initial training before active loop:
-    model, val_acc = train(X_train, valid_data, dataset, epochs=200, model="student",net=network)
+    model, val_acc = train(X_train, valid_data, dataset, epochs=50, model="student",net=network)
 
     val_accs.append(val_acc)
 
@@ -101,10 +102,10 @@ def active_train(network,dropout_iterations=100,acquisitions=20,acquisitions_ite
         # so we will take a subset of the pool data to check
 
         pool_subset_size = 2000 # same as the code for the paper but might want to be tweaked
-        pool_subset = torch.tensor(random.sample(range(0,len(data_pool.indices)),pool_subset_size))
+        pool_subset = torch.tensor(random.sample(data_pool.indices,pool_subset_size))
 
         # subset object of the pool subset to calculate acquisition function on.
-        pool_dropout = torch.utils.data.Subset(data,data_pool.indices[pool_subset])
+        pool_dropout = torch.utils.data.Subset(data,pool_subset)
 
         # this will store the scores and entropy for the dropout iterations
         all_scores = np.zeros(shape=(pool_subset_size,dataset.num_labels))
@@ -176,7 +177,16 @@ def predict_stochastic(model,X):
     """
     X_data = torch.utils.data.DataLoader(X, shuffle=True,batch_size=64)
     model = model.eval()
-    return model(X_data)
+    ret_tensor = torch.empty((len(X.indices),10))
+    i = 0
+    for batch_xs, _ in X_data:
+        batch_xs = batch_xs.to(globals.device,dtype=torch.float32)
+        preds = model(batch_xs)
+        for j in range(10):
+            # brute force way around an error
+            ret_tensor[i][j] = preds[j]
+        i += 1
+    return ret_tensor
 
 
 
@@ -199,5 +209,5 @@ def main():
     print(f"Test Accuracy: {test_acc:0.3f}")
     torch.save(n.state_dict(), f"./saved/{dataset_name}_student_final.ckp")
 
-if __name__ == '__main__':
-    main()
+#if __name__ == '__main__':
+#    main()

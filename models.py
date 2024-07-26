@@ -34,7 +34,7 @@ class CNN(nn.Module):
     def forward(self, x):
         return self.model(x)
 
-class BayesCNN(nn.module):
+class BayesCNN(nn.Module):
 
     def __init__(self,dat_obj):
         
@@ -62,7 +62,7 @@ class BayesCNN(nn.module):
         layers.append(nn.ReLU())
         layers.append(nn.Dropout(p=0.5))
         layers.append(nn.Linear(256,dat_obj.num_labels))
-        layers.append(nn.Softmax())
+        layers.append(nn.Softmax(dim=0))
 
         self.layers = layers
         self.model = nn.Sequential(*layers)

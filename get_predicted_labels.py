@@ -35,7 +35,7 @@ def label_by_indices(aggregator,votes,indices):
     for i in indices:
         qs.append(data_dependent_cost(votes[i], aggregator.num_labels, aggregator.scale))
         labels.append(aggregator.aggregate(votes[i]))
-    labels = torch.tensor(labels)
+    labels = torch.tensor(labels,dtype=torch.float32)
     return labels,qs
 
 def main():
