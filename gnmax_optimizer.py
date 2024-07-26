@@ -4,16 +4,16 @@ import get_predicted_labels
 import torch
 import os
 from os.path import isfile
-import torch_teachers
 import time
 import pickle
 import csv
 import globals
+import training
 
 start_time = time.time()
 
-SAVEFILE_NAME = "./saved/gnmax_optimizer_points.pkl"
-CSVPATH = "./saved/optimize.csv"
+SAVEFILE_NAME = f"./saved/{globals.prefix}_gnmax_optimizer_points.pkl"
+CSVPATH = f"./saved/{globals.prefix}_optimize.csv"
 
 rng = np.random.default_rng()
 
@@ -44,7 +44,7 @@ else:
 
 ds = globals.dataset
 
-votes = np.load(f"./saved/{ds.name}_{ds.num_teachers}_teacher_predictions.npy", allow_pickle=True)
+votes = np.load(f"./saved/{globals.prefix}_{ds.name}_{ds.num_teachers}_teacher_predictions.npy", allow_pickle=True)
 
 for point in points:
     gnmax_scale = point
@@ -77,7 +77,7 @@ for point in points:
 
     student_train, student_valid = ds.student_overwrite_labels(labels)
 
-    n, val_acc = torch_teachers.train(student_train, student_valid, ds, epochs=100, batch_size=16, model="student")
+    n, val_acc = training.train(student_train, student_valid, ds, epochs=100, batch_size=16, model="student")
 
     # NOTE: this is really bad practice since we're optimizing w.r.t. the test data,
     # but for now we just need to see if things actually work

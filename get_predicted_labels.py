@@ -31,7 +31,7 @@ def main():
 
     student_data = dat_obj.student_data
     
-    votes = np.load(f"./saved/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy", allow_pickle=True)
+    votes = np.load(f"./saved/{globals.prefix}_{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy", allow_pickle=True)
     
     labels = load_predicted_labels(agg, votes, dat_obj, max_epsilon)
     # safe access of tau_tally without crashing
@@ -61,7 +61,7 @@ def main():
     if labeled_len != 0:
         print(f"label accuracy on labeled data: {correct/labeled_len:0.3f}")
     
-    np.save(f'./saved/{dat_obj.name}_{dat_obj.num_teachers}_agg_teacher_predictions.npy', labels)
+    np.save(f'./saved/{globals.prefix}_{dat_obj.name}_{dat_obj.num_teachers}_agg_teacher_predictions.npy', labels)
 
 if __name__ == "__main__":
     main()

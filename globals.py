@@ -13,6 +13,8 @@ if "been_run" not in vars():
         device = torch.device('cpu')
     print("using device", device)
     
+    prefix = input("What experiment are you running, Carter? ")
+
     # note: here's our single place to hard-code the dataset & num_teachers,
     # if/when we change it we should be able to just change this
     # (check that to be sure though!)

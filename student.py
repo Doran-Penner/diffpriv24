@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from torch_teachers import train
+from training import train
 import globals
 
 def calculate_test_accuracy(network, test_data):
