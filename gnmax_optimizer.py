@@ -8,7 +8,7 @@ import time
 import pickle
 import csv
 import globals
-import training
+from training import train_ssl
 
 start_time = time.time()
 
@@ -17,12 +17,16 @@ CSVPATH = f"./saved/{globals.prefix}_optimize.csv"
 
 rng = np.random.default_rng()
 
-NUM_POINTS = 20  # changed for our custom checking
+NUM_POINTS = 21 # changed for our custom checking
 
-_gauss_scale = np.linspace(start=10, stop=200, num=NUM_POINTS)
+_gauss_scale = np.full(NUM_POINTS, 100)
+_scale2 = np.full(NUM_POINTS, 35)
+_tau = np.linspace(start=100, stop=200, num=NUM_POINTS)
 
 points = np.asarray([
     _gauss_scale,
+    _scale2,
+    _tau
 ])
 
 points = points.transpose()  # get transposed idiot
@@ -47,15 +51,16 @@ ds = globals.dataset
 votes = np.load(f"./saved/{globals.prefix}_{ds.name}_{ds.num_teachers}_teacher_predictions.npy", allow_pickle=True)
 
 for point in points:
-    gnmax_scale = point
+    confidence_scale, argmax_scale, tau = point
 
-    agg = aggregate.NoisyVectorAggregator(
-        gnmax_scale,
+    agg = aggregate.ConfidentGNMax(
+        confidence_scale,
+        argmax_scale,
+        tau,
         ds,
-        noise_fn=rng.normal,
         alpha_set=list(range(2, 21)),
     )
-    max_epsilon = 10
+    max_epsilon = 1
    
     labels = get_predicted_labels.load_predicted_labels(agg, votes, ds, max_epsilon)
 
