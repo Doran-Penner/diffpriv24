@@ -10,7 +10,7 @@ import globals
 
 start_time = time.time()
 
-SAVEFILE_NAME = "saved/rep_gnmax_points.pkl"
+SAVEFILE_NAME = f"{globals.SAVE_DIR}/rep_gnmax_points.pkl"
 
 rng = np.random.default_rng()
 
@@ -32,7 +32,7 @@ if not isfile(SAVEFILE_NAME):
 
 ds = globals.dataset
 
-votes = np.load(f"./saved/{ds.name}_{ds.num_teachers}_teacher_predictions.npy", allow_pickle=True)
+votes = np.load(f"{globals.SAVE_DIR}/{ds.name}_{ds.num_teachers}_teacher_predictions.npy", allow_pickle=True)
 
 for point in points:
     gnmax_scale = point

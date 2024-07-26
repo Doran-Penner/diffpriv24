@@ -57,7 +57,7 @@ def active_train(network=BayesCNN,dropout_iterations=100,acquisitions=25,acquisi
     full_qs = []
 
     # teacher votes (assuming the votes have already been given just not aggregated)
-    votes = np.load(f"./saved/{dataset.name}_{dataset.num_teachers}_teacher_predictions.npy", allow_pickle=True)
+    votes = np.load(f"{globals.SAVE_DIR}/{dataset.name}_{dataset.num_teachers}_teacher_predictions.npy", allow_pickle=True)
     votes = votes.T
     # abstraction later maybe
     agg = aggregate.NoisyMaxAggregator(40,dataset,noise_fn=np.random.normal)
@@ -211,7 +211,7 @@ def predict_stochastic(model,X):
 #    dataset_name = ds.name
 #    num_teachers = ds.num_teachers
 #
-#    labels = np.load(f"./saved/{dataset_name}_{num_teachers}_agg_teacher_predictions.npy", allow_pickle=True)
+#    labels = np.load(f"{globals.SAVE_DIR}/{dataset_name}_{num_teachers}_agg_teacher_predictions.npy", allow_pickle=True)
 #
 #    train_set, valid_set = ds.student_overwrite_labels(labels)
 #    test_set = ds.student_test
@@ -221,7 +221,7 @@ def predict_stochastic(model,X):
 #    print(f"Validation Accuracy: {val_acc:0.3f}")
 #    test_acc = calculate_test_accuracy(n, test_set)
 #    print(f"Test Accuracy: {test_acc:0.3f}")
-#    torch.save(n.state_dict(), f"./saved/{dataset_name}_student_final.ckp")
+#    torch.save(n.state_dict(), f"{globals.SAVE_DIR}/{dataset_name}_student_final.ckp")
 
 if __name__ == '__main__':
     active_train()

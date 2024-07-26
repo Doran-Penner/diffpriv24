@@ -12,6 +12,8 @@ if "been_run" not in vars():
     else:
         device = torch.device('cpu')
     print("using device", device)
+
+    SAVE_DIR = "../saved"
     
     # note: here's our single place to hard-code the dataset & num_teachers,
     # if/when we change it we should be able to just change this
