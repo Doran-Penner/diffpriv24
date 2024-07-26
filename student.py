@@ -167,7 +167,7 @@ def active_train(network=BayesCNN,dropout_iterations=100,acquisitions=25,acquisi
         # again, not sure how much we want to use this, but i'll leave it here for now!
         test_accs.append(calculate_test_accuracy(model,dataset.student_test))
     
-    
+    print_assessment(eps,val_accs,test_accs)
 
     # finally, we just have to sum-up the epsilon (for now it will be un-noised)
     # and return the model!
