@@ -86,7 +86,9 @@ def active_train(network=BayesCNN,dropout_iterations=100,acquisitions=20,acquisi
     valid_data.dataset.labels[valid_data.indices] = valid_labels
 
     # initial training before active loop:
+    
     model, val_acc = train(X_train, valid_data, dataset, epochs=50, model="student",net=network)
+
 
     val_accs.append(val_acc)
 
@@ -106,30 +108,30 @@ def active_train(network=BayesCNN,dropout_iterations=100,acquisitions=20,acquisi
 
         # subset object of the pool subset to calculate acquisition function on.
         pool_dropout = torch.utils.data.Subset(data,pool_subset)
-
         # this will store the scores and entropy for the dropout iterations
-        all_scores = np.zeros(shape=(pool_subset_size,dataset.num_labels))
-        all_entropy = np.zeros(shape=pool_subset_size)
+        all_scores = torch.zeros(size=(pool_subset_size,dataset.num_labels),dtype=torch.float32)
+        all_entropy = torch.zeros(size=(pool_subset_size,),dtype=torch.float32)
 
         for d in range(dropout_iterations):
             dropout_scores = predict_stochastic(model,pool_dropout)
+            dropout_scores = dropout_scores.to(torch.device('cpu'),dtype=torch.float32)
 
             # get the scores added up for later calculations
-            all_scores = all_scores + dropout_scores
+            all_scores = torch.add(all_scores,dropout_scores)
 
-            dropout_score_log = np.log2(dropout_scores)
-            entropy_compute = - np.multiply(dropout_scores,dropout_score_log)
-            entropy_per_dropout = np.sum(entropy_compute,axis=1)
-            all_entropy = all_entropy + entropy_per_dropout
+            dropout_score_log = torch.log2(dropout_scores)
+            entropy_compute = - torch.mul(dropout_scores,dropout_score_log)
+            entropy_per_dropout = torch.sum(entropy_compute,axis=1)
+            all_entropy = torch.add(all_entropy, entropy_per_dropout)
 
-        avg_scores = np.divide(all_scores,dropout_iterations)
-        avg_scores_log = np.log2(avg_scores)
-        entropy_avg_scores = - np.multiply(avg_scores,avg_scores_log)
-        entropy_avg_scores = np.sum(entropy_avg_scores,axis=1)
+        avg_scores = torch.div(all_scores,dropout_iterations)
+        avg_scores_log = torch.log2(avg_scores)
+        entropy_avg_scores = - torch.mul(avg_scores,avg_scores_log)
+        entropy_avg_scores = torch.sum(entropy_avg_scores,axis=1)
 
-        average_entropy = np.divide(all_entropy, dropout_iterations)
+        average_entropy = torch.div(all_entropy, dropout_iterations)
 
-        all_bald = entropy_avg_scores - average_entropy
+        all_bald = torch.sub(entropy_avg_scores, average_entropy)
 
         all_bald = all_bald.flatten()
 
@@ -152,6 +154,8 @@ def active_train(network=BayesCNN,dropout_iterations=100,acquisitions=20,acquisi
         mask[acquired_indices] = 0
         data_pool.indices[torch.nonzero(mask)]
 
+        del model
+        
         # retrain the model!
         model, val_acc = train(X_train, valid_data, dataset, epochs=200, model="student",net=network)
         
@@ -160,9 +164,12 @@ def active_train(network=BayesCNN,dropout_iterations=100,acquisitions=20,acquisi
         # again, not sure how much we want to use this, but i'll leave it here for now!
         test_accs.append(calculate_test_accuracy(model,dataset.student_test))
     
+    # turn this into a graph later weeeeee
+    print(val_accs)
+    print(test_accs)
+    
     # finally, we just have to sum-up the epsilon (for now it will be un-noised)
     # and return the model!
-
     epsilon = gnmax_epsilon(full_qs,agg.alpha,agg.scale,1e-6)
 
     return model, epsilon
@@ -177,15 +184,14 @@ def predict_stochastic(model,X):
     """
     X_data = torch.utils.data.DataLoader(X, shuffle=True,batch_size=64)
     model = model.eval()
-    ret_tensor = torch.empty((len(X.indices),10))
-    i = 0
+    pred_list = []
     for batch_xs, _ in X_data:
         batch_xs = batch_xs.to(globals.device,dtype=torch.float32)
         preds = model(batch_xs)
-        for j in range(10):
-            # brute force way around an error
-            ret_tensor[i][j] = preds[j]
-        i += 1
+        pred_list.append(preds)
+
+    ret_tensor = torch.cat(pred_list,dim=0)
+    
     return ret_tensor
 
 
@@ -209,5 +215,5 @@ def main():
     print(f"Test Accuracy: {test_acc:0.3f}")
     torch.save(n.state_dict(), f"./saved/{dataset_name}_student_final.ckp")
 
-#if __name__ == '__main__':
-#    main()
+if __name__ == '__main__':
+    active_train()
