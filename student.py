@@ -177,11 +177,11 @@ def active_learning(network=BBB3Conv3FC,acquisition_iterations=10,initial_size=1
 
 
 def print_assessment(test_dict,initial_size,acquisition_iterations,num_acquisitions):
-    acqusitions = np.linspace(initial_size,initial_size+acquisition_iterations * num_acquisitions, num = num_acquisitions)
+    acqusitions = np.linspace(initial_size,initial_size+acquisition_iterations * num_acquisitions, num = num_acquisitions+1)
     accuracies = test_dict["test_acc"]
     epsilons = test_dict["epsilon"]
     # print out results:
-    print("acquisitions:\ttest_acc\tepsilon")
+    print("acquisitions:\ttest_acc\t\tepsilon")
     for i in range(len(test_dict["epsilon"])):
         print(f"{acqusitions[i]}\t\t{accuracies[i]}\t\t{epsilons[i]}")
 
