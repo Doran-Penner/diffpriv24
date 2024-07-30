@@ -201,14 +201,14 @@ class _Svhn(_Dataset):
 
         # future: can we randomly split the student learning and test data?
         # would need to somehow keep track of the indices for teacher labeling
-        # NOTE changes torch.arange to list(range()) so we have a list instead
-        # of a tensor for the indices
+        # NOTE changed the indices to a np.array for continuity with 
+        # the BALD code
         student_data_len = math.floor(len(og_test) * 0.9)
         self.student_data = torch.utils.data.Subset(
-            og_test, list(range(student_data_len))
+            og_test, np.arange(student_data_len)
         )
         self.student_test = torch.utils.data.Subset(
-            og_test, list(range(student_data_len, len(og_test)))
+            og_test, np.arange(student_data_len, len(og_test))
         )
 
     def student_overwrite_labels(self, labels):

@@ -108,11 +108,11 @@ def active_learning(network=BBB3Conv3FC,acquisition_iterations=10,initial_size=1
     data_pool = dat_obj.student_data
 
     # initial training set randomly chosen
-    sample_indices = random.sample(data_pool.indices,initial_size)
+    sample_indices = np.asarray(random.sample(data_pool.indices,initial_size))
     X_train = torch.utils.data.Subset(dataset, sample_indices)
 
     # remove the initial training data from data_pool
-    data_pool.indices = [x for i,x in enumerate(data_pool.indices) if i not in sample_indices]
+    data_pool.indices = np.setdiff1d(data_pool.indices,sample_indices)
 
     # get labels for the training data and then store renyi epsilon cost
     Y_train, train_qs = label_by_indices(agg,votes,X_train.indices)
@@ -125,7 +125,7 @@ def active_learning(network=BBB3Conv3FC,acquisition_iterations=10,initial_size=1
     val_data = torch.utils.data.Subset(dataset,val_inds)
 
     # remove the valid data from the data_pool
-    data_pool.indices = [x for i,x in enumerate(data_pool.indices) if i not in val_inds]
+    data_pool.indices = np.setdiff1d(data_pool.indices,val_inds)
 
     # label the validation data and store the labels/epsilon costs
     val_ys, val_qs = label_by_indices(agg,votes,val_data.indices)
@@ -149,12 +149,13 @@ def active_learning(network=BBB3Conv3FC,acquisition_iterations=10,initial_size=1
         print("Round: ", round)
 
         # get the best indices using our acquisition function
+        # np array
         selected_indices = acquirer.select_batch(model,data_pool)
 
         # add these indices to X_train, and remove them from data_pool
         # make sure that having out-of-order indices doesn't severely mess things up
-        X_train.indices += selected_indices
-        data_pool.indices = [x for i,x in enumerate(data_pool.indices) if i not in selected_indices]
+        X_train.indices = np.concat(X_train.indices,selected_indices)
+        data_pool.indices = np.setdiff1d(data_pool.indices,selected_indices)
 
         new_labels, new_qs = label_by_indices(agg,votes,selected_indices)
 
