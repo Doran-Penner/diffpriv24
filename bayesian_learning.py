@@ -4,7 +4,7 @@ code taken from https://github.com/kumar-shridhar/PyTorch-BayesianCNN/blob/maste
 
 """
 
-from globals import device
+import globals
 import Bayes_utils as utils
 import numpy as np
 import torch
@@ -22,20 +22,21 @@ def train_model(net, optimizer, criterion, trainloader, num_ens=1, beta_type=0.1
 
         optimizer.zero_grad()
 
-        inputs, labels = inputs.to(device), labels.to(device)
-        outputs = torch.zeros(inputs.shape[0], net.num_classes, num_ens).to(device)
+        inputs, labels = inputs.to(globals.device), labels.to(globals.device)
+        outputs = torch.zeros(inputs.shape[0], net.num_classes, num_ens).to(globals.device)
 
         kl = 0.0
         for j in range(num_ens):
             net_out, _kl = net(inputs)
             kl += _kl
             outputs[:, :, j] = F.log_softmax(net_out, dim=1)
-        
+
         kl = kl / num_ens
         kl_list.append(kl.item())
         log_outputs = utils.logmeanexp(outputs, dim=2)
 
         beta = utils.get_beta(i-1, len(trainloader), beta_type, epoch, num_epochs)
+        breakpoint()
         loss = criterion(log_outputs, labels, kl, beta)
         loss.backward()
         optimizer.step()

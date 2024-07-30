@@ -40,7 +40,7 @@ def student_train(training_data,valid_data, lr_start=1e-3,epochs=70,batch_size=1
     based on:
     https://github.com/kumar-shridhar/PyTorch-BayesianCNN/blob/master/main_bayesian.py
     """
-    
+
     train_loader = torch.utils.data.DataLoader(training_data, shuffle=True, batch_size=batch_size)
     valid_loader = torch.utils.data.DataLoader(valid_data, shuffle=True, batch_size=batch_size)
     model = net(globals.dataset).to(globals.device) # same as torch_teachers.train (but w/o the dat_obj passed)
@@ -48,13 +48,13 @@ def student_train(training_data,valid_data, lr_start=1e-3,epochs=70,batch_size=1
     criterion = utils.ELBO(len(training_data)).to(globals.device)
     optimizer = Adam(model.parameters(), lr=lr_start)
     lr_sched = lr_scheduler.ReduceLROnPlateau(optimizer, patience=6, verbose=True)
-    valid_loss_max = np.Inf
+    valid_loss_max = np.inf
     for e in range(epochs):
 
         train_loss, train_acc, train_kl = train_model(model, optimizer, criterion, train_loader, epoch=e, num_epochs=epochs)
         valid_loss, valid_acc = validate_model(model, criterion, valid_loader, epoch=e, num_epochs=epochs)
         lr_sched.step(valid_loss)
-        
+
 
         print('Epoch: {} \tTraining Loss: {:.4f} \tTraining Accuracy: {:.4f} \tValidation Loss: {:.4f} \tValidation Accuracy: {:.4f} \ttrain_kl_div: {:.4f}'.format(
             e, train_loss, train_acc, valid_loss, valid_acc, train_kl))
