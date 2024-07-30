@@ -20,7 +20,7 @@ import torch.nn as nn
 from torch.nn.parameter import Parameter
 import torch.nn.functional as F
 from torch.distributions.normal import Normal
-
+import Bayes_utils as utils
 
 # from [1]/layers/misc.py
 
@@ -129,9 +129,9 @@ class BBBConv2d(ModuleWrapper):
             return act_mu
 
     def kl_loss(self):
-        kl = KL_DIV(self.prior_mu, self.prior_sigma, self.W_mu, self.W_sigma)
+        kl = utils.calculate_kl(self.prior_mu, self.prior_sigma, self.W_mu, self.W_sigma)
         if self.use_bias:
-            kl += KL_DIV(self.prior_mu, self.prior_sigma, self.bias_mu, self.bias_sigma)
+            kl += utils.calculate_kl(self.prior_mu, self.prior_sigma, self.bias_mu, self.bias_sigma)
         return kl
 
 
@@ -198,9 +198,9 @@ class BBBLinear(ModuleWrapper):
             return act_mu
 
     def kl_loss(self):
-        kl = KL_DIV(self.prior_mu, self.prior_sigma, self.W_mu, self.W_sigma)
+        kl = utils.calculate_kl(self.prior_mu, self.prior_sigma, self.W_mu, self.W_sigma)
         if self.use_bias:
-            kl += KL_DIV(self.prior_mu, self.prior_sigma, self.bias_mu, self.bias_sigma)
+            kl += utils.calculate_kl(self.prior_mu, self.prior_sigma, self.bias_mu, self.bias_sigma)
         return kl
 
 # from [1]/models/BayesianModels/Bayesian3Conv3FC.py

@@ -62,8 +62,8 @@ def validate_model(net, criterion, validloader, num_ens=1, beta_type=0.1, epoch=
 
         log_outputs = utils.logmeanexp(outputs, dim=2)
 
-        beta = metrics.get_beta(i-1, len(validloader), beta_type, epoch, num_epochs)
+        beta = utils.get_beta(i-1, len(validloader), beta_type, epoch, num_epochs)
         valid_loss += criterion(log_outputs, labels, kl, beta).item()
-        accs.append(metrics.acc(log_outputs, labels))
+        accs.append(utils.acc(log_outputs, labels))
 
     return valid_loss/len(validloader), np.mean(accs)
