@@ -136,6 +136,7 @@ def active_learning(network=BBB3Conv3FC,acquisition_iterations=10,initial_size=1
 
     # saving relevant information for later (mainly for testing purposes)
     test_dict["valid_loss"].append(valid_loss)
+    print(gnmax_epsilon(data_dep_eps_costs,alpha=agg.alpha,sigma=agg.scale,delta=1e6))
     test_dict["epsilon"].append(gnmax_epsilon(data_dep_eps_costs,alpha=agg.alpha,sigma=agg.scale,delta=1e6))
     test_dict["test_acc"].append(calculate_test_accuracy(model,dat_obj.student_test))
     
