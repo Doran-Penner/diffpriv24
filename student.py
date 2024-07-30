@@ -108,8 +108,7 @@ def active_learning(network=BBB3Conv3FC,acquisition_iterations=10,initial_size=1
     data_pool = dat_obj.student_data
 
     # initial training set randomly chosen
-    sample_indices =random.sample(data_pool.indices,initial_size)
-    sample_indices = np.asarray(sample_indices)
+    sample_indices = np.random.choice(data_pool.indices,size = initial_size)
     X_train = torch.utils.data.Subset(dataset, sample_indices)
 
     # remove the initial training data from data_pool
@@ -122,7 +121,7 @@ def active_learning(network=BBB3Conv3FC,acquisition_iterations=10,initial_size=1
 
     
     # get the validation set!
-    val_inds = random.sample(data_pool.indices,2000) # smallish validation set :)
+    val_inds = np.random.choice(data_pool.indices,size = 2000) # smallish validation set :)
     val_data = torch.utils.data.Subset(dataset,val_inds)
 
     # remove the valid data from the data_pool
