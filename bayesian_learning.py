@@ -23,6 +23,9 @@ def train_model(net, optimizer, criterion, trainloader, num_ens=1, beta_type=0.1
         optimizer.zero_grad()
 
         inputs, labels = inputs.to(globals.device), labels.to(globals.device)
+        
+        labels = torch.argmax(labels,dim=1)
+        
         outputs = torch.zeros(inputs.shape[0], net.num_classes, num_ens).to(globals.device)
 
         kl = 0.0
