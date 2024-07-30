@@ -72,7 +72,7 @@ def student_train(training_data,valid_data, lr_start=1e-3,epochs=70,batch_size=1
     return model, valid_loss_max
 
 
-def active_learning(network=BBB3Conv3FC,acquisition_iterations=10,initial_size=100,acquisition_method=BatchBALD,num_acquisitions=10,print_summary=True,epochs=10):
+def active_learning(network=BBB3Conv3FC,acquisition_iterations=100,initial_size=100,acquisition_method=BatchBALD,num_acquisitions=20,print_summary=True,epochs=100):
 
     """
     Function to do active learning with a BayesianNet object. (a, hopefully, cleaner version of active_train)
