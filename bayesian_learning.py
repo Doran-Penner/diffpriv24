@@ -55,8 +55,8 @@ def validate_model(net, criterion, validloader, num_ens=1, beta_type=0.1, epoch=
     accs = []
 
     for i, (inputs, labels) in enumerate(validloader):
-        inputs, labels = inputs.to(device), labels.to(device)
-        outputs = torch.zeros(inputs.shape[0], net.num_classes, num_ens).to(device)
+        inputs, labels = inputs.to(globals.device), labels.to(globals.device)
+        outputs = torch.zeros(inputs.shape[0], net.num_classes, num_ens).to(globals.device)
         kl = 0.0
         for j in range(num_ens):
             net_out, _kl = net(inputs)
