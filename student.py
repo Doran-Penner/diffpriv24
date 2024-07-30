@@ -166,43 +166,6 @@ def active_learning(network=BBB3Conv3FC,acquisition_iterations=10,initial_size=1
         test_dict["valid_loss"].append(valid_loss)
         test_dict["test_acc"].append(calculate_test_accuracy(model,dat_obj.student_test))
         test_dict["epsilon"].append(gnmax_epsilon(data_dep_eps_costs)) # TODO possibly change this for abstraction later!
-    """
-    OLD CODE:        
-    # train the model on the initial data!
-    model = student_train(X_train,net=network)
-
-    # again will probably get rid of this later, but for now.
-    test_dict["test_acc"].append(calculate_test_accuracy(model,dat_obj.student_test))
-    test_dict["epsilon"].append(gnmax_epsilon(data_dep_eps_costs)) # TODO possibly change this for abstraction later!
-
-    # setup the acquirer
-    # the BALD code I have found used 2000, but the BatchBALD code used 500
-    # so i split the middle and am hoping for the best
-    pool_subset_size = 1000
-    acquirer = acquisition_method(num_acquisitions,dat_obj,subset_size=pool_subset_size)
-
-    # now to start active learning loop!
-    for round in range(acquisition_iterations):
-        print("Round: ", round)
-        
-        # get the best indices using our acquisition function
-        selected_indices = acquirer.select_batch(model,data_pool)
-
-        # add these indices to X_train, and remove them from data_pool
-        # make sure that having out-of-order indices doesn't severely mess things up
-        X_train.indices += selected_indices
-        data_pool.indices = [x for i,x in enumerate(data_pool.indices) if i not in selected_indices]
-
-        new_labels, new_qs = label_by_indices(agg,votes,selected_indices)
-
-        X_train.dataset.labels[selected_indices] = new_labels
-        data_dep_eps_costs += new_qs
-
-        # retrain the student!
-        model = student_train(X_train)
-        test_dict["test_acc"].append(calculate_test_accuracy(model,dat_obj.student_test))
-        test_dict["epsilon"].append(gnmax_epsilon(data_dep_eps_costs)) # TODO possibly change this for abstraction later!
-    """
 
     if print_summary:
         print_assessment(test_dict,initial_size,acquisition_iterations,num_acquisitions)
