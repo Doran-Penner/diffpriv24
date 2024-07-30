@@ -29,9 +29,8 @@ def calculate_test_accuracy(network, test_data):
         batch_xs = batch_xs.to(globals.device,dtype=torch.float32)
         batch_ys = batch_ys.to(globals.device,dtype=torch.float32)
         preds = network(batch_xs)
-        # preds is a tuple for some reason
-        preds  = torch.stack(list(preds), dim=0)
-        accs.append((torch.argmax(preds,dim=1) == torch.argmax(batch_ys,dim=1)).float())
+        # preds is a tuple of (tensor[64,10],) for some reason
+        accs.append((torch.argmax(preds[0],dim=1) == torch.argmax(batch_ys,dim=1)).float())
     acc = torch.cat(accs).mean()
     return acc  # we don't see that :)
 
