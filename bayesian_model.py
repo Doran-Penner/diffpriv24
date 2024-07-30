@@ -1,8 +1,8 @@
 """
 
-Code Taken from https://github.com/french-paragon/BayesianMnist/blob/master/viModel.py
+new shit code Taken from https://github.com/kumar-shridhar/PyTorch-BayesianCNN [1]
+old shit Code Taken from https://github.com/french-paragon/BayesianMnist/blob/master/viModel.py [2]
 
-Changes will be marked with comments!
 """
 
 #!/usr/bin/env python3
@@ -18,9 +18,346 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.nn.parameter import Parameter
-
+import torch.nn.functional as F
 from torch.distributions.normal import Normal
 
+
+# from [1]/layers/misc.py
+
+class ModuleWrapper(nn.Module):
+    """Wrapper for nn.Module with support for arbitrary flags and a universal forward pass"""
+
+    def __init__(self):
+        super(ModuleWrapper, self).__init__()
+
+    def set_flag(self, flag_name, value):
+        setattr(self, flag_name, value)
+        for m in self.children():
+            if hasattr(m, 'set_flag'):
+                m.set_flag(flag_name, value)
+
+    def forward(self, x):
+        for module in self.children():
+            x = module(x)
+
+        kl = 0.0
+        for module in self.modules():
+            if hasattr(module, 'kl_loss'):
+                kl = kl + module.kl_loss()
+
+        return x, kl
+
+
+class FlattenLayer(ModuleWrapper):
+
+    def __init__(self, num_features):
+        super(FlattenLayer, self).__init__()
+        self.num_features = num_features
+
+    def forward(self, x):
+        return x.view(-1, self.num_features)
+
+
+
+# from [1]/layers/BBB_LRT/BBBConv.py
+
+class BBBConv2d(ModuleWrapper):
+
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1,
+                 padding=0, dilation=1, bias=True, priors=None):
+        super(BBBConv2d, self).__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.kernel_size = (kernel_size, kernel_size)
+        self.stride = stride
+        self.padding = padding
+        self.dilation = dilation
+        self.groups = 1
+        self.use_bias = bias
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+        if priors is None:
+            priors = {
+                'prior_mu': 0,
+                'prior_sigma': 0.1,
+                'posterior_mu_initial': (0, 0.1),
+                'posterior_rho_initial': (-3, 0.1),
+            }
+        self.prior_mu = priors['prior_mu']
+        self.prior_sigma = priors['prior_sigma']
+        self.posterior_mu_initial = priors['posterior_mu_initial']
+        self.posterior_rho_initial = priors['posterior_rho_initial']
+
+        self.W_mu = Parameter(torch.Tensor(out_channels, in_channels, *self.kernel_size))
+        self.W_rho = Parameter(torch.Tensor(out_channels, in_channels, *self.kernel_size))
+        if self.use_bias:
+            self.bias_mu = Parameter(torch.Tensor(out_channels))
+            self.bias_rho = Parameter(torch.Tensor(out_channels))
+        else:
+            self.register_parameter('bias_mu', None)
+            self.register_parameter('bias_rho', None)
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        self.W_mu.data.normal_(*self.posterior_mu_initial)
+        self.W_rho.data.normal_(*self.posterior_rho_initial)
+
+        if self.use_bias:
+            self.bias_mu.data.normal_(*self.posterior_mu_initial)
+            self.bias_rho.data.normal_(*self.posterior_rho_initial)
+
+    def forward(self, x, sample=True):
+
+        self.W_sigma = torch.log1p(torch.exp(self.W_rho))
+        if self.use_bias:
+            self.bias_sigma = torch.log1p(torch.exp(self.bias_rho))
+            bias_var = self.bias_sigma ** 2
+        else:
+            self.bias_sigma = bias_var = None
+
+        act_mu = F.conv2d(
+            x, self.W_mu, self.bias_mu, self.stride, self.padding, self.dilation, self.groups)
+        act_var = 1e-16 + F.conv2d(
+            x ** 2, self.W_sigma ** 2, bias_var, self.stride, self.padding, self.dilation, self.groups)
+        act_std = torch.sqrt(act_var)
+
+        if self.training or sample:
+            eps = torch.empty(act_mu.size()).normal_(0, 1).to(self.device)
+            return act_mu + act_std * eps
+        else:
+            return act_mu
+
+    def kl_loss(self):
+        kl = KL_DIV(self.prior_mu, self.prior_sigma, self.W_mu, self.W_sigma)
+        if self.use_bias:
+            kl += KL_DIV(self.prior_mu, self.prior_sigma, self.bias_mu, self.bias_sigma)
+        return kl
+
+
+
+# from [1]/layers/BBB_LRT/BBBLinear.py
+
+class BBBLinear(ModuleWrapper):
+
+    def __init__(self, in_features, out_features, bias=True, priors=None):
+        super(BBBLinear, self).__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.use_bias = bias
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+        if priors is None:
+                priors = {
+                'prior_mu': 0,
+                'prior_sigma': 0.1,
+                'posterior_mu_initial': (0, 0.1),
+                'posterior_rho_initial': (-3, 0.1),
+            }
+        self.prior_mu = priors['prior_mu']
+        self.prior_sigma = priors['prior_sigma']
+        self.posterior_mu_initial = priors['posterior_mu_initial']
+        self.posterior_rho_initial = priors['posterior_rho_initial']
+
+        self.W_mu = Parameter(torch.Tensor(out_features, in_features))
+        self.W_rho = Parameter(torch.Tensor(out_features, in_features))
+        if self.use_bias:
+            self.bias_mu = Parameter(torch.Tensor(out_features))
+            self.bias_rho = Parameter(torch.Tensor(out_features))
+        else:
+            self.register_parameter('bias_mu', None)
+            self.register_parameter('bias_rho', None)
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        self.W_mu.data.normal_(*self.posterior_mu_initial)
+        self.W_rho.data.normal_(*self.posterior_rho_initial)
+
+        if self.use_bias:
+            self.bias_mu.data.normal_(*self.posterior_mu_initial)
+            self.bias_rho.data.normal_(*self.posterior_rho_initial)
+
+    def forward(self, x, sample=True):
+
+        self.W_sigma = torch.log1p(torch.exp(self.W_rho))
+        if self.use_bias:
+            self.bias_sigma = torch.log1p(torch.exp(self.bias_rho))
+            bias_var = self.bias_sigma ** 2
+        else:
+            self.bias_sigma = bias_var = None
+
+        act_mu = F.linear(x, self.W_mu, self.bias_mu)
+        act_var = 1e-16 + F.linear(x ** 2, self.W_sigma ** 2, bias_var)
+        act_std = torch.sqrt(act_var)
+
+        if self.training or sample:
+            eps = torch.empty(act_mu.size()).normal_(0, 1).to(self.device)
+            return act_mu + act_std * eps
+        else:
+            return act_mu
+
+    def kl_loss(self):
+        kl = KL_DIV(self.prior_mu, self.prior_sigma, self.W_mu, self.W_sigma)
+        if self.use_bias:
+            kl += KL_DIV(self.prior_mu, self.prior_sigma, self.bias_mu, self.bias_sigma)
+        return kl
+
+# from [1]/models/BayesianModels/Bayesian3Conv3FC.py
+
+class BBB3Conv3FC(ModuleWrapper):
+    """
+
+    Simple Neural Network having 3 Convolution
+    and 3 FC layers with Bayesian layers.
+    """
+    def __init__(self, dat_obj, priors=None, layer_type='lrt', activation_type='softplus'):
+        super(BBB3Conv3FC, self).__init__()
+
+
+
+        self.num_classes = dat_obj.num_labels
+        self.layer_type = layer_type
+        self.priors = priors
+
+#        if layer_type=='lrt':
+#            BBBLinear = BBB_LRT_Linear
+#            BBBConv2d = BBB_LRT_Conv2d
+#        elif layer_type=='bbb':
+#            BBBLinear = BBB_Linear
+#            BBBConv2d = BBB_Conv2d
+#        else:            raise ValueError("Undefined layer_type")
+        
+        if activation_type=='softplus':
+            self.act = nn.Softplus
+        elif activation_type=='relu':
+            self.act = nn.ReLU
+        else:
+            raise ValueError("Only softplus or relu supported")
+
+        self.conv1 = BBBConv2d(3, 32, 5, padding=2, bias=True, priors=self.priors)
+        self.act1 = self.act()
+        self.pool1 = nn.MaxPool2d(kernel_size=3, stride=2)
+
+        self.conv2 = BBBConv2d(32, 64, 5, padding=2, bias=True, priors=self.priors)
+        self.act2 = self.act()
+        self.pool2 = nn.MaxPool2d(kernel_size=3, stride=2)
+
+        self.conv3 = BBBConv2d(64, 128, 5, padding=1, bias=True, priors=self.priors)
+        self.act3 = self.act()
+        self.pool3 = nn.MaxPool2d(kernel_size=3, stride=2)
+
+        self.flatten = FlattenLayer(2 * 2 * 128)
+        self.fc1 = BBBLinear(2 * 2 * 128, 1000, bias=True, priors=self.priors)
+        self.act4 = self.act()
+
+        self.fc2 = BBBLinear(1000, 1000, bias=True, priors=self.priors)
+        self.act5 = self.act()
+
+        self.fc3 = BBBLinear(1000, 10, bias=True, priors=self.priors)
+
+
+# from [1]/models/BayesianModels/BayesianAlexNet.py
+
+class BBBAlexNet(ModuleWrapper):
+    '''The architecture of AlexNet with Bayesian Layers'''
+
+    def __init__(self, outputs, inputs, priors, layer_type='lrt', activation_type='softplus'):
+        super(BBBAlexNet, self).__init__()
+
+        self.num_classes = outputs
+        self.layer_type = layer_type
+        self.priors = priors
+
+#        if layer_type=='lrt':
+#            BBBLinear = BBB_LRT_Linear
+#            BBBConv2d = BBB_LRT_Conv2d
+#        elif layer_type=='bbb':
+#            BBBLinear = BBB_Linear
+#            BBBConv2d = BBB_Conv2d
+#        else:            raise ValueError("Undefined layer_type")
+        
+        if activation_type=='softplus':
+            self.act = nn.Softplus
+        elif activation_type=='relu':
+            self.act = nn.ReLU
+        else:
+            raise ValueError("Only softplus or relu supported")
+
+        self.conv1 = BBBConv2d(inputs, 64, 11, stride=4, padding=5, bias=True, priors=self.priors)
+        self.act1 = self.act()
+        self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
+
+        self.conv2 = BBBConv2d(64, 192, 5, padding=2, bias=True, priors=self.priors)
+        self.act2 = self.act()
+        self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
+
+        self.conv3 = BBBConv2d(192, 384, 3, padding=1, bias=True, priors=self.priors)
+        self.act3 = self.act()
+
+        self.conv4 = BBBConv2d(384, 256, 3, padding=1, bias=True, priors=self.priors)
+        self.act4 = self.act()
+
+        self.conv5 = BBBConv2d(256, 128, 3, padding=1, bias=True, priors=self.priors)
+        self.act5 = self.act()
+        self.pool3 = nn.MaxPool2d(kernel_size=2, stride=2)
+
+        self.flatten = FlattenLayer(1 * 1 * 128)
+        self.classifier = BBBLinear(1 * 1 * 128, outputs, bias=True, priors=self.priors)
+
+
+# from [1]/models/BayesianModels/BayesianLeNet
+
+class BBBLeNet(ModuleWrapper):
+    '''The architecture of LeNet with Bayesian Layers'''
+
+    def __init__(self, outputs, inputs, priors, layer_type='lrt', activation_type='softplus'):
+        super(BBBLeNet, self).__init__()
+
+        self.num_classes = outputs
+        self.layer_type = layer_type
+        self.priors = priors
+
+#        if layer_type=='lrt':
+#            BBBLinear = BBB_LRT_Linear
+#            BBBConv2d = BBB_LRT_Conv2d
+#        elif layer_type=='bbb':
+#            BBBLinear = BBB_Linear
+#            BBBConv2d = BBB_Conv2d
+#        else:            raise ValueError("Undefined layer_type")
+        
+        if activation_type=='softplus':
+            self.act = nn.Softplus
+        elif activation_type=='relu':
+            self.act = nn.ReLU
+        else:
+            raise ValueError("Only softplus or relu supported")
+
+        self.conv1 = BBBConv2d(inputs, 6, 5, padding=0, bias=True, priors=self.priors)
+        self.act1 = self.act()
+        self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
+
+        self.conv2 = BBBConv2d(6, 16, 5, padding=0, bias=True, priors=self.priors)
+        self.act2 = self.act()
+        self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
+
+        self.flatten = FlattenLayer(5 * 5 * 16)
+        self.fc1 = BBBLinear(5 * 5 * 16, 120, bias=True, priors=self.priors)
+        self.act3 = self.act()
+
+        self.fc2 = BBBLinear(120, 84, bias=True, priors=self.priors)
+        self.act4 = self.act()
+
+        self.fc3 = BBBLinear(84, outputs, bias=True, priors=self.priors)
+
+
+
+
+
+
+
+
+# Old Shit
 class VIModule(nn.Module) :
 	"""
 	A mixin class to attach loss functions to layer. This is usefull when doing variational inference with deep learning.
@@ -200,11 +537,7 @@ class MeanFieldGaussian2DConvolution(VIModule) :
 			mx = nn.functional.pad(x, padkernel, mode=self.padding_mode, value=0)
 		else :
 			mx = x
-		# for whatever reason this isn't working
-		# it is saying that types are wrong:
-		# mx says it is an int??? but should be a tensor (the input)
-		# stride is an int, but says it should be a tuple (but the website says int works)
-		# dilation is an int, but says it should be a tuple (but the website says int works)
+		breakpoint()
 		return nn.functional.conv2d(mx, self.samples['weights'], bias = self.samples['bias'] if self.has_bias else None,stride=self.stride, padding='valid', dilation=self.dilation, groups=self.groups)
 		
 class BayesianNet(VIModule):
@@ -259,7 +592,7 @@ class BayesianNet(VIModule):
 		
 		x = nn.functional.relu(nn.functional.max_pool2d(x, 2))
 		
-		x = x.view(-1, 512) # unsure what exactly this does, should it not just be .flatten?
+		x = x.view(-1, 512)
 		
 		x = nn.functional.relu(self.linear1(x, stochastic=stochastic))
 		

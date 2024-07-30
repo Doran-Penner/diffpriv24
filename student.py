@@ -7,11 +7,12 @@ import aggregate
 from get_predicted_labels import label_by_indices
 from privacy_accounting import gnmax_epsilon
 from models import BayesCNN
-from bayesian_model import BayesianNet
-from torch.optim import Adam
+from bayesian_model import BayesianNet, BBB3Conv3FC
+from torch.optim import Adam, lr_scheduler
 from acquisition_funcs import BatchBALD
 from matplotlib import pyplot as plt
-
+import Bayes_utils as utils
+from bayesian_learning import train_model, validate_model
 
 def calculate_test_accuracy(network, test_data):
     """
@@ -33,47 +34,44 @@ def calculate_test_accuracy(network, test_data):
     return acc  # we don't see that :)
 
 
-def student_train(training_data,lr=1e-3, epochs=70,batch_size=16,net=BayesianNet):
-    """
-    function to train a student of a certain class. For the time being this function does not deal
-    with validation data, and just takes the final epoch. This is in line with the code found at
-    https://github.com/french-paragon/BayesianMnist/blob/master/viExperiment.py
-    """
 
+def student_train(training_data,valid_data, lr_start=1e-3,epochs=70,batch_size=16,net=BBB3Conv3FC):
+    """
+    based on:
+    https://github.com/kumar-shridhar/PyTorch-BayesianCNN/blob/master/main_bayesian.py
+    """
+    
     train_loader = torch.utils.data.DataLoader(training_data, shuffle=True, batch_size=batch_size)
-
+    valid_loader = torch.utils.data.DataLoader(valid_data, shuffle=True, batch_size=batch_size)
     model = net(globals.dataset).to(globals.device) # same as torch_teachers.train (but w/o the dat_obj passed)
 
-    N = len(training_data) # number of data points we are training on!
+    criterion = utils.ELBO(len(training_data)).to(globals.device)
+    optimizer = Adam(model.parameters(), lr=lr_start)
+    lr_sched = lr_scheduler.ReduceLROnPlateau(optimizer, patience=6, verbose=True)
+    valid_loss_max = np.Inf
+    for e in range(epochs):
 
-    loss = torch.nn.NLLLoss(reduction='mean') #negative log likelihood will be part of the ELBO
-    optimizer = Adam(model.parameters(), lr=lr)
-    optimizer.zero_grad()
+        train_loss, train_acc, train_kl = train_model(model, optimizer, criterion, train_loader, epoch=e, num_epochs=epochs)
+        valid_loss, valid_acc = validate_model(model, criterion, valid_loader, epoch=e, num_epochs=epochs)
+        lr_sched.step(valid_loss)
+        
 
-    for n in np.arange(epochs) :
-        if n % 5 ==4:
-            print("Epoch:", n+1)
+        print('Epoch: {} \tTraining Loss: {:.4f} \tTraining Accuracy: {:.4f} \tValidation Loss: {:.4f} \tValidation Accuracy: {:.4f} \ttrain_kl_div: {:.4f}'.format(
+            e, train_loss, train_acc, valid_loss, valid_acc, train_kl))
+        
+        if valid_loss <= valid_loss_max:
+            print('Validation loss decreased ({:.6f} --> {:.6f}).  Saving model ...'.format(
+                valid_loss_max, valid_loss))
+            torch.save(model.state_dict(),f"{globals.SAVE_DIR}/{globals.dataset.name}_{model}.ckp")
+            valid_loss_max = valid_loss
 
-        for batch_xs, batch_ys in enumerate(train_loader) :
+    st_dict = torch.load(f"{globals.SAVE_DIR}/{globals.dataset.name}_{model}.ckp",map_location=globals.device)
+    model.load_state_dict(st_dict)
 
-            pred = model(batch_xs, stochastic=True)
-
-            logprob = loss(pred, batch_ys)
-            l = N*logprob
-
-            modelloss = model.evalAllLosses()
-            l += modelloss
-            
-            optimizer.zero_grad()
-            l.backward()
-            
-            optimizer.step()
-
-    return model
+    return model, valid_loss_max
 
 
-
-def active_learning(network=BayesianNet,acquisition_iterations=10,initial_size=100,acquisition_method=BatchBALD,num_acquisitions=10,print_summary=True):
+def active_learning(network=BBB3Conv3FC,acquisition_iterations=10,initial_size=100,acquisition_method=BatchBALD,num_acquisitions=10,print_summary=True,epochs=10):
 
     """
     Function to do active learning with a BayesianNet object. (a, hopefully, cleaner version of active_train)
@@ -93,7 +91,6 @@ def active_learning(network=BayesianNet,acquisition_iterations=10,initial_size=1
 
     # start with the initial training!
     dat_obj = globals.dataset
-
     dataset = dat_obj.student_data.dataset
 
     data_dep_eps_costs = []
@@ -104,7 +101,7 @@ def active_learning(network=BayesianNet,acquisition_iterations=10,initial_size=1
     agg = aggregate.NoisyMaxAggregator(40,dat_obj,noise_fn=np.random.normal) # TODO possibly change this for abstraction later
 
     # for testing purposes, to be removed later
-    test_dict = {"epsilon":[],"test_acc":[]}
+    test_dict = {"epsilon":[],"test_acc":[],"valid_loss":[]}
 
     # the pool of student training data that we can pull from!
     data_pool = dat_obj.student_data
@@ -119,8 +116,58 @@ def active_learning(network=BayesianNet,acquisition_iterations=10,initial_size=1
     # get labels for the training data and then store renyi epsilon cost
     Y_train, train_qs = label_by_indices(agg,votes,X_train.indices)
     X_train.dataset.labels[X_train.indices] = Y_train
-    data_dep_eps_costs.append(train_qs)
+    data_dep_eps_costs += train_qs
 
+    
+    # get the validation set!
+    val_inds = random.sample(data_pool.indices,2000) # smallish validation set :)
+    val_data = torch.utils.data.Subset(dataset,val_inds)
+
+    # remove the valid data from the data_pool
+    data_pool.indices = [x for i,x in enumerate(data_pool.indices) if i not in val_inds]
+
+    # label the validation data and store the labels/epsilon costs
+    val_ys, val_qs = label_by_indices(agg,votes,val_data.indices)
+    data_dep_eps_costs += val_qs
+    val_data.dataset.labels[val_data.indices] = val_ys
+
+    model, valid_loss = student_train(X_train,val_data,epochs=epochs,net=network)
+
+    # saving relevant information for later (mainly for testing purposes)
+    test_dict["valid_loss"].append(valid_loss)
+    test_dict["epsilon"].append(gnmax_epsilon(data_dep_eps_costs,sigma=40))
+    test_dict["test_acc"].append(calculate_test_accuracy(model,dat_obj.student_test))
+    
+    # size of the subset of the pool we wish to acquire from
+    pool_subset_size = 1000
+    
+    # this stores the algorithm we wish to use for the acquisition of datapoints
+    acquirer = acquisition_method(num_acquisitions,dat_obj,subset_size=pool_subset_size)
+
+    for round in range(acquisition_iterations):
+        print("Round: ", round)
+
+        # get the best indices using our acquisition function
+        selected_indices = acquirer.select_batch(model,data_pool)
+
+        # add these indices to X_train, and remove them from data_pool
+        # make sure that having out-of-order indices doesn't severely mess things up
+        X_train.indices += selected_indices
+        data_pool.indices = [x for i,x in enumerate(data_pool.indices) if i not in selected_indices]
+
+        new_labels, new_qs = label_by_indices(agg,votes,selected_indices)
+
+        X_train.dataset.labels[selected_indices] = new_labels
+        data_dep_eps_costs += new_qs
+
+        # retrain the student!
+        model, valid_loss = student_train(X_train,val_data, epochs=epochs,net=network)
+
+        test_dict["valid_loss"].append(valid_loss)
+        test_dict["test_acc"].append(calculate_test_accuracy(model,dat_obj.student_test))
+        test_dict["epsilon"].append(gnmax_epsilon(data_dep_eps_costs)) # TODO possibly change this for abstraction later!
+    """
+    OLD CODE:        
     # train the model on the initial data!
     model = student_train(X_train,net=network)
 
@@ -155,7 +202,8 @@ def active_learning(network=BayesianNet,acquisition_iterations=10,initial_size=1
         model = student_train(X_train)
         test_dict["test_acc"].append(calculate_test_accuracy(model,dat_obj.student_test))
         test_dict["epsilon"].append(gnmax_epsilon(data_dep_eps_costs)) # TODO possibly change this for abstraction later!
-    
+    """
+
     if print_summary:
         print_assessment(test_dict,initial_size,acquisition_iterations,num_acquisitions)
     
@@ -364,6 +412,47 @@ def predict_stochastic(model,X):
     ret_tensor = torch.cat(pred_list,dim=0)
     
     return ret_tensor
+
+def old_student_train(training_data,lr=1e-3, epochs=70,batch_size=16,net=BayesianNet):
+    """
+    function to train a student of a certain class. For the time being this function does not deal
+    with validation data, and just takes the final epoch. This is in line with the code found at
+    https://github.com/french-paragon/BayesianMnist/blob/master/viExperiment.py
+
+    Not used anymore (but keeping it around in case we want to use it again later)
+    """
+
+    train_loader = torch.utils.data.DataLoader(training_data, shuffle=True, batch_size=batch_size)
+
+    model = net(globals.dataset).to(globals.device) # same as torch_teachers.train (but w/o the dat_obj passed)
+
+    N = len(training_data) # number of data points we are training on!
+
+    loss = torch.nn.NLLLoss(reduction='mean') #negative log likelihood will be part of the ELBO
+    optimizer = Adam(model.parameters(), lr=lr)
+    optimizer.zero_grad()
+
+    for n in np.arange(epochs) :
+        if n % 5 ==4:
+            print("Epoch:", n+1)
+
+        for i, batch in enumerate(train_loader) :
+            batch_xs, batch_ys = batch
+
+            pred = model(batch_xs, stochastic=True)
+
+            logprob = loss(pred, batch_ys)
+            l = N*logprob
+
+            modelloss = model.evalAllLosses()
+            l += modelloss
+            
+            optimizer.zero_grad()
+            l.backward()
+            
+            optimizer.step()
+
+    return model
 
 
 
