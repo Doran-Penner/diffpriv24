@@ -109,6 +109,7 @@ def epsilon_ma_vec(qs, alpha, sigma):
     # np.where(conds, xs, ys) iterates through all arrays and returns array of
     # x in xs when cond in conds is true and y in ys otherwise
     tot = np.where(can_use_data_dep, best, data_ind)
+    print("RDP eps: ", np.sum(tot))
     return np.sum(tot)
 
 def renyi_to_ed(epsilon, delta, alpha):
@@ -191,7 +192,7 @@ def repeat_epsilon(qs, K, alpha, sigma1, sigma2, p, delta):
     print("first term:", K*eprime)
     print("second term:",eps)
     rdp_epsilon = K * eprime + eps
-    print("RDP_eps: ", rdp_epsilon)
+
     return renyi_to_ed(rdp_epsilon, delta, alpha)
 
 def gnmax_epsilon(qs, alpha, sigma, delta):
