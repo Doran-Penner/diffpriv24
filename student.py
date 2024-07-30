@@ -108,7 +108,8 @@ def active_learning(network=BBB3Conv3FC,acquisition_iterations=10,initial_size=1
     data_pool = dat_obj.student_data
 
     # initial training set randomly chosen
-    sample_indices = np.asarray(random.sample(data_pool.indices,initial_size))
+    sample_indices =random.sample(data_pool.indices,initial_size)
+    sample_indices = np.asarray(sample_indices)
     X_train = torch.utils.data.Subset(dataset, sample_indices)
 
     # remove the initial training data from data_pool
