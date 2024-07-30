@@ -154,7 +154,7 @@ def active_learning(network=BBB3Conv3FC,acquisition_iterations=10,initial_size=1
 
         # add these indices to X_train, and remove them from data_pool
         # make sure that having out-of-order indices doesn't severely mess things up
-        X_train.indices = np.concat(X_train.indices,selected_indices)
+        X_train.indices = np.concat((X_train.indices,selected_indices))
         data_pool.indices = np.setdiff1d(data_pool.indices,selected_indices)
 
         new_labels, new_qs = label_by_indices(agg,votes,selected_indices)
