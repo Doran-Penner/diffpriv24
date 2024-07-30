@@ -122,6 +122,8 @@ def renyi_to_ed(epsilon, delta, alpha):
     """
     A = max((alpha-1)*epsilon - math.log(delta * alpha/((1-1/alpha)**(alpha-1))),0)
     B = math.log((math.exp((alpha-1)*epsilon)-1)/(alpha*delta)+1)
+    print("A: ", A)
+    print("B:", B)
     return 1/(alpha - 1) * min(A,B)
 
 def epsilon_prime(alpha, p, sigma1):
@@ -189,6 +191,7 @@ def repeat_epsilon(qs, K, alpha, sigma1, sigma2, p, delta):
     print("first term:", K*eprime)
     print("second term:",eps)
     rdp_epsilon = K * eprime + eps
+    print("RDP_eps: ", rdp_epsilon)
     return renyi_to_ed(rdp_epsilon, delta, alpha)
 
 def gnmax_epsilon(qs, alpha, sigma, delta):
