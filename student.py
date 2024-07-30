@@ -29,7 +29,7 @@ def calculate_test_accuracy(network, test_data):
         batch_xs = batch_xs.to(globals.device,dtype=torch.float32)
         batch_ys = batch_ys.to(globals.device,dtype=torch.float32)
         preds = network(batch_xs)
-        accs.append((preds.argmax(dim=1) == batch_ys.argmax(dim=1)).float())
+        accs.append((torch.argmax(preds,dim=1) == torch.argmax(batch_ys,dim=1)).float())
     acc = torch.cat(accs).mean()
     return acc  # we don't see that :)
 
