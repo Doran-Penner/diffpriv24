@@ -200,14 +200,12 @@ class MeanFieldGaussian2DConvolution(VIModule) :
 			mx = nn.functional.pad(x, padkernel, mode=self.padding_mode, value=0)
 		else :
 			mx = x
-		
-		return nn.functional.conv2d(mx, 
-							  self.samples['weights'], 
-							  bias = self.samples['bias'] if self.has_bias else None,
-							  stride= self.stride, 
-							  padding=0, 
-							  dilation=self.dilation, 
-							  groups=self.groups)
+		# for whatever reason this isn't working
+		# it is saying that types are wrong:
+		# mx says it is an int??? but should be a tensor (the input)
+		# stride is an int, but says it should be a tuple (but the website says int works)
+		# dilation is an int, but says it should be a tuple (but the website says int works)
+		return nn.functional.conv2d(mx, self.samples['weights'], bias = self.samples['bias'] if self.has_bias else None,stride=self.stride, padding='valid', dilation=self.dilation, groups=self.groups)
 		
 class BayesianNet(VIModule):
 	# Changed the name to BayesianNet

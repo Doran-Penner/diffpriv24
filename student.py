@@ -51,6 +51,9 @@ def student_train(training_data,lr=1e-3, epochs=70,batch_size=16,net=BayesianNet
     optimizer.zero_grad()
 
     for n in np.arange(epochs) :
+        if n % 5 ==4:
+            print("Epoch:", n+1)
+
         for batch_xs, batch_ys in enumerate(train_loader) :
 
             pred = model(batch_xs, stochastic=True)
@@ -70,10 +73,22 @@ def student_train(training_data,lr=1e-3, epochs=70,batch_size=16,net=BayesianNet
 
 
 
-def active_learning(network=BayesianNet,acquisition_iterations=25,initial_size=100,acquisition_method=BatchBALD,num_acquisitions=15):
+def active_learning(network=BayesianNet,acquisition_iterations=10,initial_size=100,acquisition_method=BatchBALD,num_acquisitions=10,print_summary=True):
 
     """
     Function to do active learning with a BayesianNet object. (a, hopefully, cleaner version of active_train)
+    
+
+
+    :param network: The class of student you wish to train
+    :param acquisition_iterations: the number of rounds of acquisitions you wish to do
+    :param initial_size: the size of the initial training set before you choose new points
+    :param acquisition_method: the class of acquirer you wish to use to pick points to label
+    :param num_acquisitions: the number of acquisitions per acquisition iteration
+    :param print_summary: a boolean to determine if we print out the summary at the end
+
+    :returns model: a fully trained student model
+    :returns test_dict: a dictionary of form {"epsilon":[],"test_acc":[]} that stores values per acquisition iteration
     """
 
     # start with the initial training!
@@ -83,10 +98,10 @@ def active_learning(network=BayesianNet,acquisition_iterations=25,initial_size=1
 
     data_dep_eps_costs = []
 
-    votes = np.load(f"{globals.SAVE_DIR}/{dataset.name}_{dataset.num_teachers}_teacher_predictions.npy", allow_pickle=True)
+    votes = np.load(f"{globals.SAVE_DIR}/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy", allow_pickle=True)
     votes = votes.T
 
-    agg = aggregate.NoisyMaxAggregator(40,dataset,noise_fn=np.random.normal) # TODO possibly change this for abstraction later
+    agg = aggregate.NoisyMaxAggregator(40,dat_obj,noise_fn=np.random.normal) # TODO possibly change this for abstraction later
 
     # for testing purposes, to be removed later
     test_dict = {"epsilon":[],"test_acc":[]}
@@ -107,7 +122,9 @@ def active_learning(network=BayesianNet,acquisition_iterations=25,initial_size=1
     data_dep_eps_costs.append(train_qs)
 
     # train the model on the initial data!
-    model = student_train(X_train)
+    model = student_train(X_train,net=network)
+
+    # again will probably get rid of this later, but for now.
     test_dict["test_acc"].append(calculate_test_accuracy(model,dat_obj.student_test))
     test_dict["epsilon"].append(gnmax_epsilon(data_dep_eps_costs)) # TODO possibly change this for abstraction later!
 
@@ -139,12 +156,21 @@ def active_learning(network=BayesianNet,acquisition_iterations=25,initial_size=1
         test_dict["test_acc"].append(calculate_test_accuracy(model,dat_obj.student_test))
         test_dict["epsilon"].append(gnmax_epsilon(data_dep_eps_costs)) # TODO possibly change this for abstraction later!
     
-    acqusitions = np.linspace(initial_size,initial_size+acquisition_iterations * num_acquisitions, num = num_acquisitions)
+    if print_summary:
+        print_assessment(test_dict,initial_size,acquisition_iterations,num_acquisitions)
+    
 
+    return model, test_dict
+
+
+def print_assessment(test_dict,initial_size,acquisition_iterations,num_acquisitions):
+    acqusitions = np.linspace(initial_size,initial_size+acquisition_iterations * num_acquisitions, num = num_acquisitions)
+    accuracies = test_dict["test_acc"]
+    epsilons = test_dict["epsilon"]
     # print out results:
     print("acquisitions:\ttest_acc\tepsilon")
     for i in range(len(test_dict["epsilon"])):
-        print(f"{acqusitions[i]}\t\t{test_dict["test_acc"][i]}\t\t{test_dict["epsilon"][i]}")
+        print(f"{acqusitions[i]}\t\t{accuracies[i]}\t\t{epsilons[i]}")
 
     # plot it because plots are fun :)
     fig, ax1 = plt.subplots()
@@ -164,7 +190,6 @@ def active_learning(network=BayesianNet,acquisition_iterations=25,initial_size=1
 
     fig.tight_layout() 
     plt.show()
-
 
     
 
@@ -362,4 +387,4 @@ def predict_stochastic(model,X):
 #    torch.save(n.state_dict(), f"{globals.SAVE_DIR}/{dataset_name}_student_final.ckp")
 
 if __name__ == '__main__':
-    active_train()
+    active_learning()
