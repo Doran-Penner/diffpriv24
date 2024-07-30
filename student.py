@@ -62,10 +62,10 @@ def student_train(training_data,valid_data, lr_start=1e-3,epochs=70,batch_size=1
         if valid_loss <= valid_loss_max:
             print('Validation loss decreased ({:.6f} --> {:.6f}).  Saving model ...'.format(
                 valid_loss_max, valid_loss))
-            torch.save(model.state_dict(),f"{globals.SAVE_DIR}/{globals.dataset.name}_{model}.ckp")
+            torch.save(model.state_dict(),f"{globals.SAVE_DIR}/{globals.dataset.name}_bayesian_student.ckp")
             valid_loss_max = valid_loss
 
-    st_dict = torch.load(f"{globals.SAVE_DIR}/{globals.dataset.name}_{model}.ckp",map_location=globals.device)
+    st_dict = torch.load(f"{globals.SAVE_DIR}/{globals.dataset.name}_bayesian_student.ckp",map_location=globals.device)
     model.load_state_dict(st_dict)
 
     return model, valid_loss_max
