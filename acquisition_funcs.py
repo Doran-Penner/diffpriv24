@@ -162,6 +162,7 @@ class BatchBALD(Acquirer):
         # create a mask to keep track of which indices we've chosen
         remaining_indices = torch.ones(len(sub_pool_data), dtype=bool).to(self.device)
         for n in range(self.batch_size):
+            breakpoint()
             # tensor of size [N x m x l]
             p_y_n = pool_p_y[:, c_1_to_n[:, n], :].to(self.device)
             # tensor of size [N x m x k]
