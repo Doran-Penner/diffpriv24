@@ -55,8 +55,8 @@ def student_train(training_data,valid_data, lr_start=1e-3,epochs=70,batch_size=1
     valid_loss_max = np.inf
     for e in range(epochs):
 
-        train_loss, train_acc, train_kl = train_model(model, optimizer, criterion, train_loader, epoch=e, num_epochs=epochs)
-        valid_loss, valid_acc = validate_model(model, criterion, valid_loader, epoch=e, num_epochs=epochs)
+        train_loss, train_acc, train_kl = train_model(model, optimizer, criterion, train_loader, num_ens=10,epoch=e, num_epochs=epochs)
+        valid_loss, valid_acc = validate_model(model, criterion, valid_loader, num_ens=10,epoch=e, num_epochs=epochs)
         lr_sched.step(valid_loss)
 
 
