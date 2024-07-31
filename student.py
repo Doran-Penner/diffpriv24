@@ -149,7 +149,7 @@ def active_learning(network=BBB3Conv3FC,acquisition_iterations=100,initial_size=
     pool_subset_size = 1000
     
     # this stores the algorithm we wish to use for the acquisition of datapoints
-    acquirer = acquisition_method(num_acquisitions,dat_obj,subset_size=pool_subset_size)
+    acquirer = acquisition_method(num_acquisitions,dat_obj) # add subset_size=pool_subset_size
 
     for round in range(acquisition_iterations):
         print("Round: ", round)
