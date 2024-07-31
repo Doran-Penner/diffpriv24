@@ -76,7 +76,7 @@ def student_train(training_data,valid_data, lr_start=1e-3,epochs=70,batch_size=1
     return model, valid_loss_max, valid_acc
 
 
-def active_learning(network=BBB3Conv3FC,acquisition_iterations=100,initial_size=100,acquisition_method=BatchBALD,num_acquisitions=20,print_summary=True,epochs=100):
+def active_learning(network=BBBAlexNet,acquisition_iterations=100,initial_size=100,acquisition_method=BatchBALD,num_acquisitions=20,print_summary=True,epochs=100):
 
     """
     Function to do active learning with a BayesianNet object. (a, hopefully, cleaner version of active_train)
@@ -137,7 +137,7 @@ def active_learning(network=BBB3Conv3FC,acquisition_iterations=100,initial_size=
     val_data.dataset.labels[val_data.indices] = val_ys
 
     # NOTE for CNN we are changing this to torch_teachers.train
-    model, valid_loss = train(X_train,val_data,dat_obj,model="student",net=network)
+    model, valid_loss = student_train(X_train,val_data,dat_obj,epochs=100,net=network)
 
     # saving relevant information for later (mainly for testing purposes)
     test_dict["valid_loss"].append(valid_loss)
@@ -171,7 +171,7 @@ def active_learning(network=BBB3Conv3FC,acquisition_iterations=100,initial_size=
 
         # retrain the student!
         # NOTE for CNN we are changing this to torch_teachers.train
-        model, valid_loss = train(X_train,val_data,dat_obj,model="student",net=network)
+        model, valid_loss = student_train(X_train,val_data,dat_obj,epochs=100,net=network)
 
         test_dict["valid_loss"].append(valid_loss)
         test_dict["test_acc"].append(calculate_test_accuracy(model,dat_obj.student_test))
@@ -278,7 +278,7 @@ def active_train(network=BayesCNN,dropout_iterations=100,acquisitions=25,acquisi
 
     # initial training before active loop:
     
-    model, val_acc = train(X_train, valid_data, dataset, epochs=200, model="student",net=network)
+    model, val_acc = student_train(X_train, valid_data, dataset, epochs=100,net=network)
 
 
     val_accs.append(val_acc)
@@ -349,7 +349,7 @@ def active_train(network=BayesCNN,dropout_iterations=100,acquisitions=25,acquisi
         data_pool.indices = [x for i,x in enumerate(data_pool.indices) if i not in dataset_indices]
         
         # retrain the model!
-        model, val_acc = train(X_train, valid_data, dataset, epochs=200, model="student",net=network)
+        model, val_acc = student_train(X_train, valid_data, dataset, epochs=200, model="student",net=network)
         
         val_accs.append(val_acc)
 
@@ -454,5 +454,5 @@ def old_student_train(training_data,lr=1e-3, epochs=70,batch_size=16,net=Bayesia
 #    torch.save(n.state_dict(), f"{globals.SAVE_DIR}/{dataset_name}_student_final.ckp")
 
 if __name__ == '__main__':
-    active_learning(network=CNN,acquisition_method=RandAcquire)
+    active_learning()
 
