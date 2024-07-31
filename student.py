@@ -154,7 +154,7 @@ def active_learning(network=BBB3Conv3FC,acquisition_iterations=100,initial_size=
 
     for round in range(acquisition_iterations):
         print("Round: ", round)
-
+        breakpoint()
         # get the best indices using our acquisition function
         # np array
         selected_indices = acquirer.select_batch(model,data_pool)
@@ -454,20 +454,5 @@ def old_student_train(training_data,lr=1e-3, epochs=70,batch_size=16,net=Bayesia
 #    torch.save(n.state_dict(), f"{globals.SAVE_DIR}/{dataset_name}_student_final.ckp")
 
 if __name__ == '__main__':
-    # active_learning(network=CNN,acquisition_method=RandAcquire)
+    active_learning(network=CNN,acquisition_method=RandAcquire)
 
-    dataset = globals.dataset
-
-    labels = np.load(f"{globals.SAVE_DIR}/{dataset.name}_{dataset.num_teachers}_agg_teacher_predictions.npy", allow_pickle=True)
-    train_set, valid_set = dataset.student_overwrite_labels(labels)
-
-    n, val_loss, val_acc = student_train(train_set,valid_set,net=BBBAlexNet)
-
-    torch.save(n.state_dict(), f"{globals.SAVE_DIR}/{dataset.name}_student_final.ckp")
-
-    print(f"Validation Loss:\t{val_loss:0.3f}")
-    print(f"Validation accuracy:\t{val_acc:0.3f}")
-
-    test_acc = calculate_test_accuracy(n,dataset.student_test)
-
-    print(f"Test accuracy:\t{test_acc:0.3f}")
