@@ -3,6 +3,8 @@ from torch import nn, optim
 from models import CNN
 import globals
 from copy import deepcopy
+import helper
+import math
 
 def train(training_data, valid_data, dat_obj, lr=1e-3, epochs=70, batch_size=16, momentum=0.9, model="teacher", arch=CNN):
     """
@@ -123,3 +125,89 @@ def train_ssl(training_data, unlabeled_data, valid_data, dat_obj, confidence_thr
         if len(unlabeled_data) == 0:
             break
     return train(torch.cat((training_data, self_labeled)), valid_data, dat_obj, lr=lr, epochs=epochs, batch_size=batch_size, momentum=momentum, model="student", arch=arch)
+
+def train_fm(labeled_data, unlabeled_data, valid_data, dat_obj, lr=1e-3, epochs=70, batch_size=16, momentum=0.9, model="teacher", arch=CNN, tau = 0.95, lmbd = 1):
+    """
+    This is a function that trains the model on a specified dataset beep boop fixmatch.
+    :param training_data: dataset containing the training data for the model
+    :param valid_data: dataset containing the validation data for the model
+    :param dat_obj: datasets._Dataset object representing the dataset being trained on
+    :param device: string specifying which device the code is running on, so that the code can be appropriately optimized
+    :param lr: float specifying the learning rate for the model
+    :param epochs: int specifying the length of training
+    :param batch_size: int specifying the amount of data being trained on per batch
+    :param momentum: float specifying the momentum of the learning process. Carter says to set it at 0.9 and not worry about it
+    :param padding: boolean specifying whether we want to do padding
+    :param model: string representing whether the model is meant to be a teacher or a student, which changes what is saved
+    :return: Tuple containing the model being trained and the accuracy of the model on the validation set at the end of training
+    """
+    assert model in ["teacher", "student"], "misnamed model parameter!"
+    print("training...")
+    #print("training data size:",np.shape(training_data))
+
+    num_iters = math.ceil(len(labeled_data) / batch_size)
+    unlab_batch_size = len(unlabeled_data) // num_iters
+    train_loader = torch.utils.data.DataLoader(labeled_data, shuffle=True, batch_size=batch_size)
+    valid_loader = torch.utils.data.DataLoader(valid_data, shuffle=True, batch_size=batch_size)
+    unlab_loader = torch.utils.data.Dataloader(unlabeled_data, shuffle=True, batch_size=unlab_batch_size)
+    
+
+    network = arch(dat_obj).to(globals.device)
+    opt = optim.SGD(network.parameters(), lr=lr, momentum=momentum)
+    loss = nn.CrossEntropyLoss()
+
+    train_accs = []
+    valid_accs = []  # only used for student
+
+    for i in range(epochs):
+        if i % 5 == 0:
+            print("Epoch",i)
+            ### check valid accuracy
+            network.eval()
+            accs = []
+            for batch_xs, batch_ys in valid_loader:
+                batch_xs = batch_xs.to(globals.device)
+                batch_ys = batch_ys.to(globals.device)
+                preds = network(batch_xs)
+                accs.append((preds.argmax(dim=1) == batch_ys.argmax(dim=1)).float().mean())
+            acc = torch.tensor(accs).mean()
+            print("Valid acc:",acc)
+            valid_accs.append(acc)
+            torch.save(network.state_dict(),f"{globals.SAVE_DIR}/{globals.prefix}_{dat_obj.name}_{model}_{i}.ckp")
+            ### end check
+        network.train()
+        train_acc = []
+        for train_data, unlab_data in zip(train_loader, unlab_loader):
+            batch_xs, batch_ys = train_data
+            unlab_batch_xs, _ = unlab_data
+            len_unlab = len(unlab_batch_xs)
+            opt.zero_grad()
+            batch_xs = batch_xs.to(globals.device)
+            batch_ys = batch_ys.to(globals.device)
+            unlab_batch_xs =unlab_batch_xs.to(globals.device)
+
+            preds = network(helper.weak_batch_augment(batch_xs))
+            super_acc = (preds.argmax(dim=1) == batch_ys.argmax(dim=1)).float().mean()
+
+            super_loss = loss(preds, batch_ys)/len(batch_xs)
+
+            weak_preds = network(helper.weak_batch_augment(unlab_batch_xs))
+            unlab_batch_xs = unlab_batch_size[weak_preds.max(dim=1) >= tau]
+            weak_preds = dat_obj.one_hot(weak_preds[weak_preds.max(dim=1) >= tau].argmax(dim=1))
+            strong_preds = network(helper.strong_batch_augment(unlab_batch_xs))
+
+            unsuper_acc = (strong_preds.argmax(dim = 1) == weak_preds.argmax(dim = 1)).float().mean()
+
+            acc = (super_acc + unsuper_acc)/2
+
+            train_acc.append(acc)
+
+            unsuper_loss = loss(strong_preds,weak_preds)/len_unlab
+            
+            loss_val = super_loss + unsuper_loss*lmbd
+            loss_val.backward()
+            opt.step()
+
+        acc = torch.tensor(train_acc).mean()
+        print(acc)  # see trianing accuracy
+        train_accs.append(acc)

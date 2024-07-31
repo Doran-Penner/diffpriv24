@@ -81,7 +81,7 @@ def weak_augment(img, dat_obj, translate_max=1/8):
     Needs the data object to disable flipping for SVHN.
     """
     trans = transforms.Compose([
-        transforms.RandomHorizontalFlip(0.5 if dat_obj.name != "svhn" else 0),
+        transforms.RandomHorizontalFlip(0.5 if dat_obj.name not in ["svhn","mnist"] else 0),
         transforms.RandomAffine(degrees=0, translate=(translate_max, translate_max))
     ])
     return trans(img)
@@ -92,3 +92,17 @@ def strong_augment(img, num_ops=4, magnitude=9):
     STRONGLY augments the image, again for FixMatch.
     """
     return transforms.RandAugment(num_ops=num_ops, magnitude=magnitude)
+
+def weak_batch_augment(batch, dat_obj, translate_max=1/8):
+    ret = []
+    for img in batch:
+        ret.append(weak_augment(img, dat_obj, translate_max))
+    ret = torch.tensor(ret)
+    return ret
+
+def strong_batch_augment(batch, num_ops, magnitude):
+    ret = []
+    for img in batch:
+        ret.append(strong_augment(img, num_ops, magnitude))
+    ret = torch.tensor(ret)
+    return ret
