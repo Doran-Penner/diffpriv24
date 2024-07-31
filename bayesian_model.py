@@ -303,7 +303,7 @@ class BBBAlexNet(ModuleWrapper):
         self.pool3 = nn.MaxPool2d(kernel_size=2, stride=2)
 
         self.flatten = FlattenLayer(1 * 1 * 128)
-        self.classifier = BBBLinear(1 * 1 * 128, outputs, bias=True, priors=self.priors)
+        self.classifier = BBBLinear(1 * 1 * 128, self.num_classes, bias=True, priors=self.priors)
 
 
 # from [1]/models/BayesianModels/BayesianLeNet
