@@ -9,10 +9,12 @@ from privacy_accounting import gnmax_epsilon
 from models import BayesCNN
 from bayesian_model import BayesianNet, BBB3Conv3FC
 from torch.optim import Adam, lr_scheduler
-from acquisition_funcs import BatchBALD
+from acquisition_funcs import BatchBALD, RandAcquire
 from matplotlib import pyplot as plt
 import Bayes_utils as utils
 from bayesian_learning import train_model, validate_model
+
+from models import CNN
 
 def calculate_test_accuracy(network, test_data):
     """
@@ -121,7 +123,7 @@ def active_learning(network=BBB3Conv3FC,acquisition_iterations=100,initial_size=
 
     
     # get the validation set!
-    val_inds = np.random.choice(data_pool.indices,size = 2000) # smallish validation set :)
+    val_inds = np.random.choice(data_pool.indices,size = 800)
     val_data = torch.utils.data.Subset(dataset,val_inds)
 
     # remove the valid data from the data_pool
@@ -132,7 +134,8 @@ def active_learning(network=BBB3Conv3FC,acquisition_iterations=100,initial_size=
     data_dep_eps_costs += val_qs
     val_data.dataset.labels[val_data.indices] = val_ys
 
-    model, valid_loss = student_train(X_train,val_data,epochs=epochs,net=network)
+    # NOTE for CNN we are changing this to torch_teachers.train
+    model, valid_loss = train(X_train,val_data,epochs=epochs,net=network)
 
     # saving relevant information for later (mainly for testing purposes)
     test_dict["valid_loss"].append(valid_loss)
@@ -165,7 +168,8 @@ def active_learning(network=BBB3Conv3FC,acquisition_iterations=100,initial_size=
         data_dep_eps_costs += new_qs
 
         # retrain the student!
-        model, valid_loss = student_train(X_train,val_data, epochs=epochs,net=network)
+        # NOTE for CNN we are changing this to torch_teachers.train
+        model, valid_loss = train(X_train,val_data, epochs=epochs,net=network)
 
         test_dict["valid_loss"].append(valid_loss)
         test_dict["test_acc"].append(calculate_test_accuracy(model,dat_obj.student_test))
@@ -178,14 +182,19 @@ def active_learning(network=BBB3Conv3FC,acquisition_iterations=100,initial_size=
     return model, test_dict
 
 
-def print_assessment(test_dict,initial_size,acquisition_iterations,num_acquisitions):
-    acqusitions = np.linspace(initial_size+2000,2000+initial_size+acquisition_iterations * num_acquisitions, num = num_acquisitions+1)
+def print_assessment(test_dict,initial_size,num_acquisitions):
     accuracies = test_dict["test_acc"]
     epsilons = test_dict["epsilon"]
+    valid_loss = test_dict["valid_loss"]
     # print out results:
-    print("acquisitions:\ttest_acc\t\tepsilon")
+
+    #starting point:
+    intercept = initial_size+2000
+    xs = []
+    print("acquisitions:\ttest_acc\t\tepsilon\t\tvalid_loss")
     for i in range(len(test_dict["epsilon"])):
-        print(f"{acqusitions[i]}\t\t{accuracies[i]}\t\t{epsilons[i]}")
+        xs.append(intercept + i*num_acquisitions)
+        print(f"{intercept + i*num_acquisitions}\t\t{accuracies[i]}\t{epsilons[i]}\t{valid_loss[i]}")
 
     # plot it because plots are fun :)
     fig, ax1 = plt.subplots()
@@ -193,14 +202,14 @@ def print_assessment(test_dict,initial_size,acquisition_iterations,num_acquisiti
     color = 'tab:purple'
     ax1.set_xlabel("Acquisition Iterations")
     ax1.set_ylabel("Test Accuracy", color=color)
-    ax1.plot(acqusitions,test_dict["test_acc"],color=color)
+    ax1.plot(xs,test_dict["test_acc"],color=color)
     ax1.tick_params(axis='y', labelcolor=color)
 
     ax2 = ax1.twinx()
     color = 'tab:cyan'
     color = 'tab:blue'
     ax2.set_ylabel('epsilon_cost', color=color)
-    ax2.plot(acqusitions, test_dict["epsilon"], color=color)
+    ax2.plot(xs, test_dict["epsilon"], color=color)
     ax2.tick_params(axis='y', labelcolor=color)
 
     fig.tight_layout() 
@@ -443,4 +452,4 @@ def old_student_train(training_data,lr=1e-3, epochs=70,batch_size=16,net=Bayesia
 #    torch.save(n.state_dict(), f"{globals.SAVE_DIR}/{dataset_name}_student_final.ckp")
 
 if __name__ == '__main__':
-    active_learning()
+    active_learning(network=CNN,acquisition_method=RandAcquire)
