@@ -33,7 +33,7 @@ def calculate_test_accuracy(network, test_data):
         preds = network(batch_xs)
         # preds is a tuple of (tensor[64,10],) for some reason
         # NOTE changed for CNN as well (deal with this later)
-        accs.append((torch.argmax(preds,dim=1) == torch.argmax(batch_ys,dim=1)).float())
+        accs.append((torch.argmax(preds[0],dim=1) == torch.argmax(batch_ys,dim=1)).float())
     acc = torch.cat(accs).mean()
     return acc  # we don't see that :)
 
