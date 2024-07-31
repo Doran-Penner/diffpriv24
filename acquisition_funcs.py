@@ -145,7 +145,7 @@ class BatchBALD(Acquirer):
                 batch_size=self.processing_batch_size, pin_memory=True, shuffle=False)
             pool_p_y = torch.zeros(len(sub_pool_data), c, k)
             for batch_idx, (data, _) in enumerate(pool_loader):
-                end_idx = batch_idx + data.shape[0]
+                end_idx = batch_idx * self.processing_batch_size + data.shape[0]
                 pool_p_y[batch_idx:end_idx] = torch.stack([model(data.to(self.device))[0] for i in range(k)], dim=1).permute(0,2,1)
 
         # this only need to be calculated once so we pull it out of the loop
