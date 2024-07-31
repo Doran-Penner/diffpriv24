@@ -175,8 +175,9 @@ class BatchBALD(Acquirer):
             # scores is a vector of scores for each element in the pool.
             # mask by the remaining indices and find the highest scoring element
             scores = H1 - H2
+            scores[~remaining_indices] = -np.inf
             # print(scores)
-            best_local_index = torch.argmax(scores - np.inf*(~remaining_indices)).item()
+            best_local_index = torch.argmax(scores).item()
             # print(f'Best idx {best_local_index}')
             best_sub_local_indices.append(best_local_index)
             # save the computation for the next batch
