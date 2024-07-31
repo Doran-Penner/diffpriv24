@@ -135,7 +135,7 @@ def active_learning(network=BBB3Conv3FC,acquisition_iterations=100,initial_size=
     val_data.dataset.labels[val_data.indices] = val_ys
 
     # NOTE for CNN we are changing this to torch_teachers.train
-    model, valid_loss = train(X_train,val_data,epochs=epochs,net=network)
+    model, valid_loss = train(X_train,val_data,dat_obj,model="student",net=network)
 
     # saving relevant information for later (mainly for testing purposes)
     test_dict["valid_loss"].append(valid_loss)
@@ -169,7 +169,7 @@ def active_learning(network=BBB3Conv3FC,acquisition_iterations=100,initial_size=
 
         # retrain the student!
         # NOTE for CNN we are changing this to torch_teachers.train
-        model, valid_loss = train(X_train,val_data, epochs=epochs,net=network)
+        model, valid_loss = train(X_train,val_data,dat_obj,model="student",net=network)
 
         test_dict["valid_loss"].append(valid_loss)
         test_dict["test_acc"].append(calculate_test_accuracy(model,dat_obj.student_test))
