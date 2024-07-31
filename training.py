@@ -149,7 +149,7 @@ def train_fm(labeled_data, unlabeled_data, valid_data, dat_obj, lr=1e-3, epochs=
     unlab_batch_size = len(unlabeled_data) // num_iters
     train_loader = torch.utils.data.DataLoader(labeled_data, shuffle=True, batch_size=batch_size)
     valid_loader = torch.utils.data.DataLoader(valid_data, shuffle=True, batch_size=batch_size)
-    unlab_loader = torch.utils.data.Dataloader(unlabeled_data, shuffle=True, batch_size=unlab_batch_size)
+    unlab_loader = torch.utils.data.DataLoader(unlabeled_data, shuffle=True, batch_size=unlab_batch_size)
     
 
     network = arch(dat_obj).to(globals.device)
@@ -177,6 +177,7 @@ def train_fm(labeled_data, unlabeled_data, valid_data, dat_obj, lr=1e-3, epochs=
             ### end check
         network.train()
         train_acc = []
+        unsuper_acc = []
         for train_data, unlab_data in zip(train_loader, unlab_loader):
             batch_xs, batch_ys = train_data
             unlab_batch_xs, _ = unlab_data
@@ -186,28 +187,31 @@ def train_fm(labeled_data, unlabeled_data, valid_data, dat_obj, lr=1e-3, epochs=
             batch_ys = batch_ys.to(globals.device)
             unlab_batch_xs =unlab_batch_xs.to(globals.device)
 
-            preds = network(helper.weak_batch_augment(batch_xs))
+            preds = network(helper.weak_augment(batch_xs, dat_obj))
             super_acc = (preds.argmax(dim=1) == batch_ys.argmax(dim=1)).float().mean()
 
-            super_loss = loss(preds, batch_ys)/len(batch_xs)
+            super_loss = loss(preds, batch_ys)
 
-            weak_preds = network(helper.weak_batch_augment(unlab_batch_xs))
-            unlab_batch_xs = unlab_batch_size[weak_preds.max(dim=1) >= tau]
-            weak_preds = dat_obj.one_hot(weak_preds[weak_preds.max(dim=1) >= tau].argmax(dim=1))
-            strong_preds = network(helper.strong_batch_augment(unlab_batch_xs))
+            weak_preds = network(helper.weak_augment(unlab_batch_xs, dat_obj))
+            weak_preds_max, weak_preds_argmax = weak_preds.max(dim=1)
 
-            unsuper_acc = (strong_preds.argmax(dim = 1) == weak_preds.argmax(dim = 1)).float().mean()
+            unlab_batch_xs = unlab_batch_xs[weak_preds_max >= tau]
+            weak_preds = dat_obj.one_hot(weak_preds_argmax[weak_preds_max >= tau])
 
-            acc = (super_acc + unsuper_acc)/2
+            strong_preds = network(helper.strong_augment(unlab_batch_xs))
 
-            train_acc.append(acc)
+            uns_acc = (strong_preds.argmax(dim = 1) == weak_preds_argmax[weak_preds_max >= tau]).float().mean()
+
+            train_acc.append(super_acc)
+            unsuper_acc.append(uns_acc)
 
             unsuper_loss = loss(strong_preds,weak_preds)/len_unlab
             
-            loss_val = super_loss + unsuper_loss*lmbd
+            loss_val = super_loss + (unsuper_loss*lmbd)
             loss_val.backward()
             opt.step()
 
         acc = torch.tensor(train_acc).mean()
-        print(acc)  # see trianing accuracy
+        un_acc = torch.tensor(unsuper_acc).mean()
+        print(acc, un_acc)  # see trianing accuracy
         train_accs.append(acc)

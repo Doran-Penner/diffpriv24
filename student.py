@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from training import train
+from training import train_fm
 import globals
 
 def calculate_test_accuracy(network, test_data):
@@ -31,10 +31,10 @@ def main():
 
     labels = np.load(f"{globals.SAVE_DIR}/{globals.prefix}_{dataset_name}_{num_teachers}_agg_teacher_predictions.npy", allow_pickle=True)
 
-    train_set, valid_set = ds.student_overwrite_labels(labels)
+    train_set, valid_set, unlab_set = ds.student_overwrite_labels(labels, semi_supervise=True)
     test_set = ds.student_test
 
-    n, val_acc = train(train_set, valid_set, ds, epochs=200, model="student")
+    n, val_acc = train_fm(train_set, unlab_set, valid_set, ds, epochs=200, model="student", lmbd=0)
 
     print(f"Validation Accuracy: {val_acc:0.3f}")
     test_acc = calculate_test_accuracy(n, test_set)

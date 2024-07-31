@@ -77,7 +77,7 @@ def data_dependent_cost(votes, num_labels, scale2):
 
 def weak_augment(img, dat_obj, translate_max=1/8):
     """
-    Weakly augments the image; for FixMatch.
+    Weakly augments the image(s); for FixMatch.
     Needs the data object to disable flipping for SVHN.
     """
     trans = transforms.Compose([
@@ -89,20 +89,7 @@ def weak_augment(img, dat_obj, translate_max=1/8):
 
 def strong_augment(img, num_ops=4, magnitude=9):
     """
-    STRONGLY augments the image, again for FixMatch.
+    STRONGLY augments the image(s), again for FixMatch.
     """
-    return transforms.RandAugment(num_ops=num_ops, magnitude=magnitude)
-
-def weak_batch_augment(batch, dat_obj, translate_max=1/8):
-    ret = []
-    for img in batch:
-        ret.append(weak_augment(img, dat_obj, translate_max))
-    ret = torch.tensor(ret)
-    return ret
-
-def strong_batch_augment(batch, num_ops, magnitude):
-    ret = []
-    for img in batch:
-        ret.append(strong_augment(img, num_ops, magnitude))
-    ret = torch.tensor(ret)
-    return ret
+    trans = transforms.RandAugment(num_ops=num_ops, magnitude=magnitude)
+    return trans(img)

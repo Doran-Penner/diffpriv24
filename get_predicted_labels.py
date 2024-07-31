@@ -32,7 +32,7 @@ def main():
 
     dat_obj = globals.dataset
     max_epsilon = 10
-    agg = aggregate.NoisyVectorAggregator(50, dat_obj, alpha_set=list(range(2,21)))
+    agg = aggregate.ConfidentGNMax(100,35,195,dat_obj)
 
     student_data = dat_obj.student_data
     

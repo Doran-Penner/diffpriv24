@@ -99,7 +99,10 @@ class _Dataset:
         # eye = np.eye(self.num_labels)
         # label_vecs[labels != None] = eye[labels[labels != None].astype(int)]  # noqa: E711
         # return label_vecs
-        eye = np.eye(self.num_labels)
+        if isinstance(labels, np.ndarray):
+            eye = np.eye(self.num_labels)
+        else:  # it's a tensor
+            eye = torch.eye(self.num_labels, device=labels.device)
         return eye[labels]
 
 
