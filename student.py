@@ -68,12 +68,11 @@ def student_train(training_data,valid_data,lr_start=1e-3,epochs=70,batch_size=16
                 valid_loss_max, valid_loss))
             torch.save(model.state_dict(),f"{globals.SAVE_DIR}/{globals.dataset.name}_bayesian_student.ckp")
             valid_loss_max = valid_loss
-            saved_valid_acc = valid_acc
 
     st_dict = torch.load(f"{globals.SAVE_DIR}/{globals.dataset.name}_bayesian_student.ckp",map_location=globals.device)
     model.load_state_dict(st_dict)
 
-    return model, valid_loss_max, valid_acc
+    return model, valid_loss_max
 
 
 def active_learning(network=BBBAlexNet,acquisition_iterations=100,initial_size=100,acquisition_method=BatchBALD,num_acquisitions=20,print_summary=True,epochs=100):
@@ -137,7 +136,7 @@ def active_learning(network=BBBAlexNet,acquisition_iterations=100,initial_size=1
     val_data.dataset.labels[val_data.indices] = val_ys
 
     # NOTE for CNN we are changing this to torch_teachers.train
-    model, valid_loss, _ = student_train(X_train,val_data,epochs=100,net=network)
+    model, valid_loss = student_train(X_train,val_data,epochs=100,net=network)
 
     # saving relevant information for later (mainly for testing purposes)
     test_dict["valid_loss"].append(valid_loss)
@@ -171,7 +170,7 @@ def active_learning(network=BBBAlexNet,acquisition_iterations=100,initial_size=1
 
         # retrain the student!
         # NOTE for CNN we are changing this to torch_teachers.train
-        model, valid_loss, _ = student_train(X_train,val_data,epochs=100,net=network)
+        model, valid_loss = student_train(X_train,val_data,epochs=100,net=network)
 
         test_dict["valid_loss"].append(valid_loss)
         test_dict["test_acc"].append(calculate_test_accuracy(model,dat_obj.student_test))
