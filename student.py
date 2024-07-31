@@ -7,7 +7,7 @@ import aggregate
 from get_predicted_labels import label_by_indices
 from privacy_accounting import gnmax_epsilon
 from models import BayesCNN
-from bayesian_model import BayesianNet, BBB3Conv3FC
+from bayesian_model import BayesianNet, BBB3Conv3FC, BBBAlexNet
 from torch.optim import Adam, lr_scheduler
 from acquisition_funcs import BatchBALD, RandAcquire
 from matplotlib import pyplot as plt
@@ -68,11 +68,12 @@ def student_train(training_data,valid_data, lr_start=1e-3,epochs=70,batch_size=1
                 valid_loss_max, valid_loss))
             torch.save(model.state_dict(),f"{globals.SAVE_DIR}/{globals.dataset.name}_bayesian_student.ckp")
             valid_loss_max = valid_loss
+            saved_valid_acc = valid_acc
 
     st_dict = torch.load(f"{globals.SAVE_DIR}/{globals.dataset.name}_bayesian_student.ckp",map_location=globals.device)
     model.load_state_dict(st_dict)
 
-    return model, valid_loss_max
+    return model, valid_loss_max, valid_acc
 
 
 def active_learning(network=BBB3Conv3FC,acquisition_iterations=100,initial_size=100,acquisition_method=BatchBALD,num_acquisitions=20,print_summary=True,epochs=100):
@@ -453,4 +454,20 @@ def old_student_train(training_data,lr=1e-3, epochs=70,batch_size=16,net=Bayesia
 #    torch.save(n.state_dict(), f"{globals.SAVE_DIR}/{dataset_name}_student_final.ckp")
 
 if __name__ == '__main__':
-    active_learning(network=CNN,acquisition_method=RandAcquire)
+    # active_learning(network=CNN,acquisition_method=RandAcquire)
+
+    dataset = globals.dataset
+
+    labels = np.load(f"{globals.SAVE_DIR}/{dataset.name}_{dataset.num_teachers}_agg_teacher_predictions.npy", allow_pickle=True)
+    train_set, valid_set = dataset.student_overwrite_labels(labels)
+
+    n, val_loss, val_acc = student_train(train_set,valid_set,net=BBBAlexNet)
+
+    torch.save(n.state_dict(), f"{globals.SAVE_DIR}/{dataset.name}_student_final.ckp")
+
+    print(f"Validation Loss:\t{val_loss:0.3f}")
+    print(f"Validation accuracy:\t{val_acc:0.3f}")
+
+    test_acc = calculate_test_accuracy(n,dataset.student_test)
+
+    print(f"Test accuracy:\t{test_acc:0.3f}")

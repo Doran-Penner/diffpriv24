@@ -262,10 +262,10 @@ class BBB3Conv3FC(ModuleWrapper):
 class BBBAlexNet(ModuleWrapper):
     '''The architecture of AlexNet with Bayesian Layers'''
 
-    def __init__(self, outputs, inputs, priors, layer_type='lrt', activation_type='softplus'):
+    def __init__(self, dat_obj, priors = None, layer_type='lrt', activation_type='softplus'):
         super(BBBAlexNet, self).__init__()
 
-        self.num_classes = outputs
+        self.num_classes = dat_obj.num_labels
         self.layer_type = layer_type
         self.priors = priors
 
@@ -284,7 +284,7 @@ class BBBAlexNet(ModuleWrapper):
         else:
             raise ValueError("Only softplus or relu supported")
 
-        self.conv1 = BBBConv2d(inputs, 64, 11, stride=4, padding=5, bias=True, priors=self.priors)
+        self.conv1 = BBBConv2d(3, 64, 11, stride=4, padding=5, bias=True, priors=self.priors)
         self.act1 = self.act()
         self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
 
