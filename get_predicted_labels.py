@@ -16,8 +16,8 @@ def load_predicted_labels(aggregator, votes, dat_obj, max_epsilon):
     hist = np.zeros(10)
     for vote in votes.T:
         label = aggregator.threshold_aggregate(vote,max_epsilon)
-        labels.append(aggregator.threshold_aggregate(vote, max_epsilon))
-        if not np.any(label == None):
+        labels.append(label)
+        if not np.any(label == None):  # noqa: E711
             hist += np.float64(label)
     print(hist)
     labels = np.asarray(labels)
