@@ -143,14 +143,14 @@ def train_fm(labeled_data, unlabeled_data, valid_data, dat_obj, lr=1e-3, epochs=
     """
     assert model in ["teacher", "student"], "misnamed model parameter!"
     print("training...")
-    #print("training data size:",np.shape(training_data))
 
+    # calculate batch size for unlab_loader to sync up with train_loader
     num_iters = math.ceil(len(labeled_data) / batch_size)
     unlab_batch_size = len(unlabeled_data) // num_iters
+
     train_loader = torch.utils.data.DataLoader(labeled_data, shuffle=True, batch_size=batch_size)
     valid_loader = torch.utils.data.DataLoader(valid_data, shuffle=True, batch_size=batch_size)
     unlab_loader = torch.utils.data.DataLoader(unlabeled_data, shuffle=True, batch_size=unlab_batch_size)
-    
 
     network = arch(dat_obj).to(globals.device)
     opt = optim.SGD(network.parameters(), lr=lr, momentum=momentum)
@@ -181,34 +181,34 @@ def train_fm(labeled_data, unlabeled_data, valid_data, dat_obj, lr=1e-3, epochs=
         for train_data, unlab_data in zip(train_loader, unlab_loader):
             batch_xs, batch_ys = train_data
             unlab_batch_xs, _ = unlab_data
-            len_unlab = len(unlab_batch_xs)
+
             opt.zero_grad()
             batch_xs = batch_xs.to(globals.device)
             batch_ys = batch_ys.to(globals.device)
-            unlab_batch_xs =unlab_batch_xs.to(globals.device)
+            unlab_batch_xs = unlab_batch_xs.to(globals.device)
 
             preds = network(helper.weak_augment(batch_xs, dat_obj))
             super_acc = (preds.argmax(dim=1) == batch_ys.argmax(dim=1)).float().mean()
 
-            super_loss = loss(preds, batch_ys)
-            with torch.no_grad():
-                weak_preds = network(helper.weak_augment(unlab_batch_xs, dat_obj))
+            super_loss = loss(preds, batch_ys) / len(preds)
+
+            weak_preds = network(helper.weak_augment(unlab_batch_xs, dat_obj))
             weak_preds_max, weak_preds_argmax = weak_preds.max(dim=1)
 
+            len_unlab = len(unlab_batch_xs)
             unlab_batch_xs = unlab_batch_xs[weak_preds_max >= tau]
             weak_preds = dat_obj.one_hot(weak_preds_argmax[weak_preds_max >= tau])
 
-            with torch.no_grad():
-                strong_preds = network(helper.strong_augment(unlab_batch_xs))
+            strong_preds = network(helper.strong_augment(unlab_batch_xs))
 
             uns_acc = (strong_preds.argmax(dim = 1) == weak_preds_argmax[weak_preds_max >= tau]).float().mean()
 
             train_acc.append(super_acc)
             unsuper_acc.append(uns_acc)
 
-            # unsuper_loss = loss(strlossong_preds,weak_preds)/len_unlab
+            unsuper_loss = loss(strong_preds, weak_preds) / len_unlab
             
-            loss_val = super_loss # + (unsuper_loss*lmbd)
+            loss_val = super_loss + (unsuper_loss * lmbd)
             loss_val.backward()
             opt.step()
 
