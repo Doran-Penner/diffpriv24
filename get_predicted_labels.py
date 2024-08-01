@@ -66,7 +66,7 @@ def main():
     if labeled_len != 0:
         print(f"label accuracy on labeled data: {correct/labeled_len:0.3f}")
     
-    np.save(f'{globals.SAVE_DIR}/{globals.prefix}_{dat_obj.name}_{dat_obj.num_teachers}_agg_teacher_predictions.npy', labels)
+    np.save(f'{globals.SAVE_DIR}/{dat_obj.name}_{dat_obj.num_teachers}_agg_teacher_predictions.npy', labels)
 
 if __name__ == "__main__":
     main()
