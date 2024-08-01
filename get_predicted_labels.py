@@ -36,7 +36,7 @@ def main():
 
     student_data = dat_obj.student_data
     
-    votes = np.load(f"{globals.SAVE_DIR}/{globals.prefix}_{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy", allow_pickle=True)
+    votes = np.load(f"{globals.SAVE_DIR}/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy", allow_pickle=True)
     
     labels = load_predicted_labels(agg, votes, dat_obj, max_epsilon)
     # safe access of tau_tally without crashing
