@@ -29,7 +29,7 @@ def main():
     dataset_name = ds.name
     num_teachers = ds.num_teachers
 
-    labels = np.load(f"{globals.SAVE_DIR}/{globals.prefix}_{dataset_name}_{num_teachers}_agg_teacher_predictions.npy", allow_pickle=True)
+    labels = np.load(f"{globals.SAVE_DIR}/{dataset_name}_{num_teachers}_agg_teacher_predictions.npy", allow_pickle=True)
 
     train_set, valid_set, unlab_set = ds.student_overwrite_labels(labels, semi_supervise=True)
     test_set = ds.student_test
