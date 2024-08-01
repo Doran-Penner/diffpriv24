@@ -191,23 +191,24 @@ def train_fm(labeled_data, unlabeled_data, valid_data, dat_obj, lr=1e-3, epochs=
             super_acc = (preds.argmax(dim=1) == batch_ys.argmax(dim=1)).float().mean()
 
             super_loss = loss(preds, batch_ys)
-
-            weak_preds = network(helper.weak_augment(unlab_batch_xs, dat_obj))
+            with torch.no_grad():
+                weak_preds = network(helper.weak_augment(unlab_batch_xs, dat_obj))
             weak_preds_max, weak_preds_argmax = weak_preds.max(dim=1)
 
             unlab_batch_xs = unlab_batch_xs[weak_preds_max >= tau]
             weak_preds = dat_obj.one_hot(weak_preds_argmax[weak_preds_max >= tau])
 
-            strong_preds = network(helper.strong_augment(unlab_batch_xs))
+            with torch.no_grad():
+                strong_preds = network(helper.strong_augment(unlab_batch_xs))
 
             uns_acc = (strong_preds.argmax(dim = 1) == weak_preds_argmax[weak_preds_max >= tau]).float().mean()
 
             train_acc.append(super_acc)
             unsuper_acc.append(uns_acc)
 
-            unsuper_loss = loss(strong_preds,weak_preds)/len_unlab
+            # unsuper_loss = loss(strlossong_preds,weak_preds)/len_unlab
             
-            loss_val = super_loss + (unsuper_loss*lmbd)
+            loss_val = super_loss # + (unsuper_loss*lmbd)
             loss_val.backward()
             opt.step()
 
@@ -215,3 +216,19 @@ def train_fm(labeled_data, unlabeled_data, valid_data, dat_obj, lr=1e-3, epochs=
         un_acc = torch.tensor(unsuper_acc).mean()
         print(acc, un_acc)  # see trianing accuracy
         train_accs.append(acc)
+    
+    # NOTE this does not work with multiple students in the same folder at the same time
+    best_num_epochs = torch.argmax(torch.tensor(valid_accs)) * 5
+    print("Final num epochs:", best_num_epochs)
+    st_dict = torch.load(f"{globals.SAVE_DIR}/{globals.prefix}_{dat_obj.name}_{model}_{best_num_epochs}.ckp",map_location=globals.device)
+    network.load_state_dict(st_dict)
+    
+    network.eval()
+    accs = []
+    for batch_xs, batch_ys in valid_loader:
+        batch_xs = batch_xs.to(globals.device)
+        batch_ys = batch_ys.to(globals.device)
+        preds = network(batch_xs)
+        accs.append((preds.argmax(dim=1) == batch_ys.argmax(dim=1)).float().mean())
+    acc = torch.tensor(accs).mean()
+    return (network, acc)
