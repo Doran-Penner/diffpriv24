@@ -453,5 +453,12 @@ def old_student_train(training_data,lr=1e-3, epochs=70,batch_size=16,net=Bayesia
 #    torch.save(n.state_dict(), f"{globals.SAVE_DIR}/{dataset_name}_student_final.ckp")
 
 if __name__ == '__main__':
-    active_learning()
+    #active_learning()
+
+
+    X_train, valid_data = torch.utils.data.random_split(globals.dataset.student_data, [0.8, 0.2])
+
+    model, _ = student_train(X_train,valid_data,net=BBBAlexNet)
+
+    print(calculate_test_accuracy(model,globals.dataset.student_test))
 
