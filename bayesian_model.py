@@ -81,7 +81,7 @@ class BBBConv2d(ModuleWrapper):
                 'prior_mu': 0,
                 'prior_sigma': 0.1,
                 'posterior_mu_initial': (0, 0.1),
-                'posterior_rho_initial': (-3, 0.1),
+                'posterior_rho_initial': (-3, 0.1), # NOTE in Configs, they give -5 as posterior_rho_initial
             }
         self.prior_mu = priors['prior_mu']
         self.prior_sigma = priors['prior_sigma']
@@ -152,7 +152,7 @@ class BBBLinear(ModuleWrapper):
                 'prior_mu': 0,
                 'prior_sigma': 0.1,
                 'posterior_mu_initial': (0, 0.1),
-                'posterior_rho_initial': (-3, 0.1),
+                'posterior_rho_initial': (-3, 0.1), # NOTE in Configs, they give -5 as posterior_rho_initial
             }
         self.prior_mu = priors['prior_mu']
         self.prior_sigma = priors['prior_sigma']
