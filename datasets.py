@@ -171,8 +171,8 @@ class _MNIST(_Dataset):
             download=True,
             transform=self._transform
         )
-        og_train.target = self.one_hot(og_train.target)
-        og_test.target = self.one_hot(og_test.target)
+        og_train.targets = self.one_hot(og_train.targets)
+        og_test.targets = self.one_hot(og_test.targets)
 
         all_teach_train, all_teach_valid = torch.utils.data.random_split(
             og_train,
