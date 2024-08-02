@@ -160,14 +160,14 @@ class _MNIST(_Dataset):
 
         og_train = MNISTVec(
             "./data/mnist",
-            split="train",
+            train = True,
             download=True,
             transform=self._transform_normalize,
         )
         
         og_test = MNISTVec(
             "./data/mnist",
-            split="test",
+            train=False,
             download=True,
             transform=self._transform
         )
