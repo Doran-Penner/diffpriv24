@@ -20,8 +20,6 @@ def train_model(net, optimizer, criterion, trainloader, num_ens=1, beta_type=0.1
     kl_list = []
     for i, (inputs, labels) in enumerate(trainloader, 1):
 
-        breakpoint()
-
         optimizer.zero_grad()
 
         inputs, labels = inputs.to(globals.device), labels.to(globals.device)
