@@ -39,7 +39,7 @@ def calculate_test_accuracy(network, test_data):
 
 
 
-def student_train(training_data,valid_data,lr_start=1e-3,epochs=70,batch_size=16,net=BBB3Conv3FC):
+def student_train(training_data,valid_data,lr_start=1e-3,epochs=70,batch_size=256,net=BBB3Conv3FC):
     """
     based on:
     https://github.com/kumar-shridhar/PyTorch-BayesianCNN/blob/master/main_bayesian.py
