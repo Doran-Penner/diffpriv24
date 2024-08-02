@@ -45,8 +45,8 @@ def student_train(training_data,valid_data,lr_start=1e-2,epochs=70,batch_size=25
     https://github.com/kumar-shridhar/PyTorch-BayesianCNN/blob/master/main_bayesian.py
     """
 
-    train_loader = torch.utils.data.DataLoader(training_data, shuffle=True, batch_size=batch_size)
-    valid_loader = torch.utils.data.DataLoader(valid_data, shuffle=True, batch_size=batch_size)
+    train_loader = torch.utils.data.DataLoader(training_data, shuffle=False, batch_size=batch_size)
+    valid_loader = torch.utils.data.DataLoader(valid_data, shuffle=False, batch_size=batch_size)
     model = net(globals.dataset).to(globals.device) 
 
     for param in model.parameters():
