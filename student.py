@@ -78,6 +78,68 @@ def student_train(training_data,valid_data,lr_start=1e-2,epochs=70,batch_size=25
     return model, valid_loss_max
 
 
+def non_private_active_learning(network=BBBAlexNet,acquisition_iterations=100,initial_size=100,acquisition_method=BatchBALD,num_acquisitions=20,print_summary=True,epochs=100):
+    
+    
+    
+    dat_obj = globals.dataset
+    dataset = dat_obj.student_data.dataset
+
+
+    test_dict = {"test_acc":[],"valid_loss":[]}
+
+    # the pool of student training data that we can pull from!
+    data_pool = dat_obj.student_data
+
+    # initial training set randomly chosen
+    sample_indices = np.random.choice(data_pool.indices,size = initial_size)
+    X_train = torch.utils.data.Subset(dataset, sample_indices)
+
+    # remove the initial training data from data_pool
+    data_pool.indices = np.setdiff1d(data_pool.indices,sample_indices)
+
+    # get the validation set!
+    val_inds = np.random.choice(data_pool.indices,size = 800)
+    val_data = torch.utils.data.Subset(dataset,val_inds)
+
+    # remove the valid data from the data_pool
+    data_pool.indices = np.setdiff1d(data_pool.indices,val_inds)
+
+    # NOTE for CNN we are changing this to torch_teachers.train
+    model, valid_loss = student_train(X_train,val_data,epochs=100,net=network)
+    # saving relevant information for later (mainly for testing purposes)
+    test_dict["valid_loss"].append(valid_loss)
+    test_dict["test_acc"].append(calculate_test_accuracy(model,dat_obj.student_test))
+    # size of the subset of the pool we wish to acquire from
+    pool_subset_size = 1000
+
+     # this stores the algorithm we wish to use for the acquisition of datapoints
+    acquirer = acquisition_method(num_acquisitions,dat_obj,subset_size=pool_subset_size)
+
+    for round in range(acquisition_iterations):
+        print("Round: ", round)
+        breakpoint()
+        # get the best indices using our acquisition function
+        # np array
+        selected_indices = acquirer.select_batch(model,data_pool)
+
+        # add these indices to X_train, and remove them from data_pool
+        # make sure that having out-of-order indices doesn't severely mess things up
+        X_train.indices = np.concat((X_train.indices,selected_indices))
+        data_pool.indices = np.setdiff1d(data_pool.indices,selected_indices)
+        # retrain the student!
+        # NOTE for CNN we are changing this to torch_teachers.train
+        model, valid_loss = student_train(X_train,val_data,epochs=100,net=network)
+
+        test_dict["valid_loss"].append(valid_loss)
+        test_dict["test_acc"].append(calculate_test_accuracy(model,dat_obj.student_test))
+    
+    if print_summary:
+        print_assessment(test_dict,initial_size,acquisition_iterations,num_acquisitions)
+    
+
+    return model, test_dict
+
 def active_learning(network=BBBAlexNet,acquisition_iterations=100,initial_size=100,acquisition_method=BatchBALD,num_acquisitions=20,print_summary=True,epochs=100):
 
     """
@@ -456,13 +518,5 @@ def old_student_train(training_data,lr=1e-3, epochs=70,batch_size=16,net=Bayesia
 #    torch.save(n.state_dict(), f"{globals.SAVE_DIR}/{dataset_name}_student_final.ckp")
 
 if __name__ == '__main__':
-    x = len(globals.dataset.student_data)
-
-    small_samp, _ = torch.utils.data.random_split(globals.dataset.student_data, [4000,x-4000])
-
-    X_train, valid_data = torch.utils.data.random_split(small_samp, [0.8, 0.2])
-
-    model, _ = student_train(X_train,valid_data,net=BBBAlexNet)
-
-    print(calculate_test_accuracy(model,globals.dataset.student_test))
+    non_private_active_learning()
 
