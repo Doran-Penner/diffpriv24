@@ -49,6 +49,9 @@ def student_train(training_data,valid_data,lr_start=1e-3,epochs=70,batch_size=25
     valid_loader = torch.utils.data.DataLoader(valid_data, shuffle=True, batch_size=batch_size)
     model = net(globals.dataset).to(globals.device) 
 
+    for param in model.parameters():
+        print(param.size())
+
     criterion = utils.ELBO(len(training_data)).to(globals.device)
     optimizer = Adam(model.parameters(), lr=lr_start)
     lr_sched = lr_scheduler.ReduceLROnPlateau(optimizer, patience=6, verbose=True)
@@ -453,8 +456,11 @@ def old_student_train(training_data,lr=1e-3, epochs=70,batch_size=16,net=Bayesia
 #    torch.save(n.state_dict(), f"{globals.SAVE_DIR}/{dataset_name}_student_final.ckp")
 
 if __name__ == '__main__':
+    x = len(globals.dataset.student_data)
 
-    X_train, valid_data = torch.utils.data.random_split(globals.dataset.student_data, [0.8, 0.2])
+    small_samp, _ = torch.utils.data.random_split(globals.dataset.student_data, [4000,x-4000])
+
+    X_train, valid_data = torch.utils.data.random_split(small_samp, [0.8, 0.2])
 
     model, _ = student_train(X_train,valid_data,net=BBBAlexNet)
 
