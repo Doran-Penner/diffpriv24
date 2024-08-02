@@ -14,8 +14,6 @@ if "been_run" not in vars():
     print("using device", device)
 
     SAVE_DIR = "../saved"
-    
-    prefix = input("What experiment are you running, Carter? ")
 
     # note: here's our single place to hard-code the dataset & num_teachers,
     # if/when we change it we should be able to just change this

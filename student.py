@@ -23,6 +23,9 @@ def calculate_test_accuracy(network, test_data):
     return acc  # we don't see that :)
 
 def main():
+    experiment_name = "FILL ME IN"
+    print("IMPORTANT: your experiment is named " + experiment_name + 
+          ", cancel now if you want to name it something else!")
     # this is where we set the parameters that are used by the functions in this file (ie, if we
     # want to use a different database, we would change it here)
     ds = globals.dataset
@@ -39,7 +42,7 @@ def main():
     print(f"Validation Accuracy: {val_acc:0.3f}")
     test_acc = calculate_test_accuracy(n, test_set)
     print(f"Test Accuracy: {test_acc:0.3f}")
-    torch.save(n.state_dict(), f"{globals.SAVE_DIR}/{globals.prefix}_{dataset_name}_student_final.ckp")
+    torch.save(n.state_dict(), f"{globals.SAVE_DIR}/{experiment_name}_student_final.ckp")
 
 if __name__ == '__main__':
     main()

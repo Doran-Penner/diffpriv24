@@ -12,6 +12,7 @@ from training import train_ssl
 
 start_time = time.time()
 
+# FIXME remove prefix stuff
 SAVEFILE_NAME = f"{globals.SAVE_DIR}/{globals.prefix}_gnmax_optimizer_points.pkl"
 CSVPATH = f"{globals.SAVE_DIR}/{globals.prefix}_optimize.csv"
 

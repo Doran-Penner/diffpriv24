@@ -8,6 +8,7 @@ import math
 import time
 import os
 
+# this is currenlty broken since globals.prefix no longer exists, but we're not using it anymore so :shrug:
 def train(training_data, valid_data, dat_obj, lr=1e-3, epochs=70, batch_size=16, momentum=0.9, model="teacher", arch=CNN):
     """
     This is a function that trains the model on a specified dataset.
