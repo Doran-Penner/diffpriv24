@@ -217,7 +217,6 @@ def active_learning(network=BBBAlexNet,acquisition_iterations=100,initial_size=1
 
     for round in range(acquisition_iterations):
         print("Round: ", round)
-        breakpoint()
         # get the best indices using our acquisition function
         # np array
         selected_indices = acquirer.select_batch(model,data_pool)

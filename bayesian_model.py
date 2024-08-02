@@ -527,7 +527,6 @@ class MeanFieldGaussian2DConvolution(VIModule) :
 			mx = nn.functional.pad(x, padkernel, mode=self.padding_mode, value=0)
 		else :
 			mx = x
-		breakpoint()
 		return nn.functional.conv2d(mx, self.samples['weights'], bias = self.samples['bias'] if self.has_bias else None,stride=self.stride, padding='valid', dilation=self.dilation, groups=self.groups)
 		
 class BayesianNet(VIModule):
