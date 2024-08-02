@@ -33,10 +33,13 @@ def main():
     dat_obj = globals.dataset
     max_epsilon = 10
     agg = aggregate.ConfidentGNMax(100,35,195,dat_obj)
+    fm = True # whether or not we're using fm
+
 
     student_data = dat_obj.student_data
+
     
-    votes = np.load(f"{globals.SAVE_DIR}/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy", allow_pickle=True)
+    votes = np.load(f"{globals.SAVE_DIR}/{dat_obj.name}_{dat_obj.num_teachers}{"_fm" * fm}_teacher_predictions.npy", allow_pickle=True)
     
     labels = load_predicted_labels(agg, votes, dat_obj, max_epsilon)
     # safe access of tau_tally without crashing

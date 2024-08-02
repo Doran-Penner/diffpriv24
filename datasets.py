@@ -226,7 +226,7 @@ class _Svhn(_Dataset):
         assert len(labels) == len(student_data), 'input "labels" not the correct length'
 
         labeled_indices = np.any(labels != None, axis=1)  # noqa: E711
-        unlabeled_indices = np.any(labels == None, axis=1)
+        unlabeled_indices = np.any(labels == None, axis=1) # noqa: E711
         student_data.indices = student_data.indices[labeled_indices]
         unlabeled_data.indices = unlabeled_data.indices[unlabeled_indices]
         # FIXME below isn't happy because of shape

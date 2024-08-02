@@ -68,7 +68,7 @@ def train_all_fm(dat_obj):
         n, acc = train_fm(train_sets[i], unlab_set, valid_sets[i], dat_obj, epochs = 100)
         print("TEACHER",i,"ACC",acc)
         # torch.save(n.state_dict(),f"{globals.SAVE_DIR}/{dat_obj.name}_teacher_{i}_of_{dat_obj.num_teachers-1}.tch")
-
+        file_name = f"{globals.SAVE_DIR}/{dat_obj.name}_{dat_obj.num_teachers}_fm_teacher_predictions.npy"
 
         print("Model",str(i))
         n.eval()
@@ -89,12 +89,12 @@ def train_all_fm(dat_obj):
             ballot.append(preds.to(torch.device('cpu')))
         
         ballot = np.concatenate(ballot)
-        if isfile(f"{globals.SAVE_DIR}/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy"):
-            votes = np.load(f"{globals.SAVE_DIR}/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy", allow_pickle=True)
+        if isfile(file_name):
+            votes = np.load(file_name, allow_pickle=True)
             votes = np.append(votes, ballot)
         else:
             votes = ballot
-        np.save(f"{globals.SAVE_DIR}/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy", votes)
+        np.save(file_name, votes)
 
         print(f"teacher {i}'s accuracy:", correct/guessed)
 
