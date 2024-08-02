@@ -5,6 +5,8 @@ import globals
 from copy import deepcopy
 import helper
 import math
+import time
+import os
 
 def train(training_data, valid_data, dat_obj, lr=1e-3, epochs=70, batch_size=16, momentum=0.9, model="teacher", arch=CNN):
     """
@@ -144,6 +146,9 @@ def train_fm(labeled_data, unlabeled_data, valid_data, dat_obj, lr=1e-3, epochs=
     assert model in ["teacher", "student"], "misnamed model parameter!"
     print("training...")
 
+    # (hopefully) unique temporary filename for saving best model
+    savefile = f"{globals.SAVE_DIR}/{str(time.time_ns())}_{str(os.getpid())}.ckp"
+
     # calculate batch size for unlab_loader to sync up with train_loader
     num_iters = math.ceil(len(labeled_data) / batch_size)
     unlab_batch_size = len(unlabeled_data) // num_iters
@@ -157,7 +162,10 @@ def train_fm(labeled_data, unlabeled_data, valid_data, dat_obj, lr=1e-3, epochs=
     loss = nn.CrossEntropyLoss()
 
     train_accs = []
-    valid_accs = []  # only used for student
+
+    best_valid_acc = 0  # for comparison
+    best_num_epochs = 0  # for our info
+    torch.save(network.state_dict(), savefile)  # initialize in case model never improves
 
     for i in range(epochs):
         if i % 5 == 0:
@@ -172,8 +180,10 @@ def train_fm(labeled_data, unlabeled_data, valid_data, dat_obj, lr=1e-3, epochs=
                 accs.append((preds.argmax(dim=1) == batch_ys.argmax(dim=1)).float().mean())
             acc = torch.tensor(accs).mean()
             print("Valid acc:",acc)
-            valid_accs.append(acc)
-            torch.save(network.state_dict(),f"{globals.SAVE_DIR}/{globals.prefix}_{dat_obj.name}_{model}_{i}.ckp")
+            if acc > best_valid_acc:
+                torch.save(network.state_dict(), savefile)
+                best_valid_acc = acc
+                best_num_epochs = i
             ### end check
         network.train()
         train_acc = []
@@ -217,10 +227,9 @@ def train_fm(labeled_data, unlabeled_data, valid_data, dat_obj, lr=1e-3, epochs=
         print(acc, un_acc)  # see trianing accuracy
         train_accs.append(acc)
     
-    # NOTE this does not work with multiple students in the same folder at the same time
-    best_num_epochs = torch.argmax(torch.tensor(valid_accs)) * 5
     print("Final num epochs:", best_num_epochs)
-    st_dict = torch.load(f"{globals.SAVE_DIR}/{globals.prefix}_{dat_obj.name}_{model}_{best_num_epochs}.ckp",map_location=globals.device)
+
+    st_dict = torch.load(savefile, map_location=globals.device)
     network.load_state_dict(st_dict)
     
     network.eval()
@@ -231,4 +240,6 @@ def train_fm(labeled_data, unlabeled_data, valid_data, dat_obj, lr=1e-3, epochs=
         preds = network(batch_xs)
         accs.append((preds.argmax(dim=1) == batch_ys.argmax(dim=1)).float().mean())
     acc = torch.tensor(accs).mean()
+
+    os.remove(savefile)
     return (network, acc)
