@@ -18,7 +18,6 @@ def train_model(net, optimizer, criterion, trainloader, num_ens=1, beta_type=0.1
     training_loss = 0.0
     accs = []
     kl_list = []
-    breakpoint()
     for i, (inputs, labels) in enumerate(trainloader, 1):
 
         optimizer.zero_grad()
