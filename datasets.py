@@ -143,6 +143,7 @@ class _MNIST(_Dataset):
 
         tfs = [
             transforms.ToImage(),
+            transforms.Resize((32, 32)),
             transforms.ToDtype(torch.float32, scale=True),
         ]
 
