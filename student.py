@@ -48,7 +48,7 @@ def student_train(training_data,valid_data,lr_start=1e-3,epochs=70,batch_size=16
     train_loader = torch.utils.data.DataLoader(training_data, shuffle=True, batch_size=batch_size)
     valid_loader = torch.utils.data.DataLoader(valid_data, shuffle=True, batch_size=batch_size)
     model = net(globals.dataset).to(globals.device) 
-
+    breakpoint()
     criterion = utils.ELBO(len(training_data)).to(globals.device)
     optimizer = Adam(model.parameters(), lr=lr_start)
     lr_sched = lr_scheduler.ReduceLROnPlateau(optimizer, patience=6, verbose=True)
