@@ -5,14 +5,6 @@ old shit Code Taken from https://github.com/french-paragon/BayesianMnist/blob/ma
 
 """
 
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Mon May 17 13:05:55 2021
-
-@author: laurent
-"""
-
 import numpy as np
 
 import torch
@@ -349,9 +341,6 @@ class BBBLeNet(ModuleWrapper):
         self.act4 = self.act()
 
         self.fc3 = BBBLinear(84, outputs, bias=True, priors=self.priors)
-
-
-
 
 
 

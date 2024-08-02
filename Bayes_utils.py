@@ -26,6 +26,7 @@ def acc(outputs, targets):
 
 
 def calculate_kl(mu_q, sig_q, mu_p, sig_p):
+    # possible explanation: https://proceedings.neurips.cc/paper/2011/file/7eb3c8be3d411e8ebfab08eba5f49632-Paper.pdf
     kl = 0.5 * (2 * torch.log(sig_p / sig_q) - 1 + (sig_q / sig_p).pow(2) + ((mu_p - mu_q) / sig_p).pow(2)).sum()
     return kl
 
