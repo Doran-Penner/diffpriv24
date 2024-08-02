@@ -118,7 +118,6 @@ def non_private_active_learning(network=BBBAlexNet,acquisition_iterations=100,in
 
     for round in range(acquisition_iterations):
         print("Round: ", round)
-        breakpoint()
         # get the best indices using our acquisition function
         # np array
         selected_indices = acquirer.select_batch(model,data_pool)
