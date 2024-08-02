@@ -24,6 +24,31 @@ class SVHNVec(torchvision.datasets.svhn.SVHN):
         if self.target_transform is not None:
             target = self.target_transform(target)
         return img, target
+    
+
+class MNISTVec(torchvision.datasets.mnist.MNIST):
+
+    def __getitem__(self, index):
+        """
+        Args:
+            index (int): Index
+
+        Returns:
+            tuple: (image, target) where target is index of the target class.
+        """
+        img, target = self.data[index], self.targets[index]
+
+        # doing this so that it is consistent with all other datasets
+        # to return a PIL Image
+        img = Image.fromarray(img.numpy(), mode="L")
+
+        if self.transform is not None:
+            img = self.transform(img)
+
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        return img, target
 
 
 # todo: add fancy-formatted documentation
@@ -105,6 +130,94 @@ class _Dataset:
 
 # child classes will only have implementation code, not docstrings
 
+class _MNIST(_Dataset):
+    def __init__(self,num_teachers,seed=None):
+        self._generator = torch.Generator()
+        if seed is not None:
+            self._generator = self._generator.manual_seed(seed)
+
+        self.name = "mnist"
+        self.num_teachers = num_teachers
+        self.num_labels = 10
+        self.input_shape = (28,28,1)
+
+        tfs = [
+            transforms.ToImage(),
+            transforms.ToDtype(torch.float32, scale=True),
+        ]
+
+        self._transform = transforms.Compose(tfs)
+        
+        self._transform_normalize = transforms.Compose(
+            tfs
+            + [
+                transforms.Normalize(
+                    [0.1307],
+                    [0.3081],
+                )
+            ]
+        )
+
+        og_train = MNISTVec(
+            "./data/mnist",
+            split="train",
+            download=True,
+            transform=self._transform_normalize,
+        )
+        
+        og_test = MNISTVec(
+            "./data/mnist",
+            split="test",
+            download=True,
+            transform=self._transform
+        )
+        og_train.labels = self.one_hot(og_train.labels)
+        og_test.labels = self.one_hot(og_test.labels)
+
+        all_teach_train, all_teach_valid = torch.utils.data.random_split(
+            og_train,
+            [0.8, 0.2],
+            generator=self._generator,
+        )
+        train_size = len(all_teach_train)
+        valid_size = len(all_teach_valid)
+
+                # then partition them into num_teachers selections
+        train_partition = [
+            math.floor(train_size / num_teachers) + 1
+            for i in range(train_size % num_teachers)
+        ] + [
+            math.floor(train_size / num_teachers)
+            for i in range(num_teachers - (train_size % num_teachers))
+        ]
+        valid_partition = [
+            math.floor(valid_size / num_teachers) + 1
+            for i in range(valid_size % num_teachers)
+        ] + [
+            math.floor(valid_size / num_teachers)
+            for i in range(num_teachers - (valid_size % num_teachers))
+        ]
+
+        # now assign self variables to those (these are what the "user" will access!)
+        self.teach_train = torch.utils.data.random_split(
+            all_teach_train, train_partition, generator=self._generator
+        )
+        self.teach_valid = torch.utils.data.random_split(
+            all_teach_valid, valid_partition, generator=self._generator
+        )
+        self.teach_test = og_test
+
+        # future: can we randomly split the student learning and test data?
+        # would need to somehow keep track of the indices for teacher labeling
+        # NOTE changed the indices to a np.array for continuity with 
+        # the BALD code
+        student_data_len = math.floor(len(og_test) * 0.9)
+        self.student_data = torch.utils.data.Subset(
+            og_test, np.arange(student_data_len)
+        )
+        self.student_test = torch.utils.data.Subset(
+            og_test, np.arange(student_data_len, len(og_test))
+        )
 
 # note: this loads everything all at once, we could do
 # functools.cached_property stuff to make it nicer
@@ -247,6 +360,6 @@ def make_dataset(dataset_name, num_teachers, seed=None):
         case "svhn":
             return _Svhn(num_teachers, seed)
         case "mnist":
-            return None  # TODO: implement MNIST!
+            return _MNIST(num_teachers)  # TODO: implement MNIST!
         case _:
             raise Exception(f'no support for making dataset "{dataset_name}"')
