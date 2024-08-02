@@ -26,7 +26,7 @@ class SVHNVec(torchvision.datasets.svhn.SVHN):
         return img, target
     
 
-class MNISTVec(torchvision.datasets.mnist.MNIST):
+class MNISTVec(torchvision.datasets.MNIST):
 
     def __getitem__(self, index):
         """
@@ -171,7 +171,7 @@ class _MNIST(_Dataset):
             download=True,
             transform=self._transform
         )
-        og_train.labels = self.one_hot(og_train.labels)
+        og_train.target = self.one_hot(og_train.labels)
         og_test.labels = self.one_hot(og_test.labels)
 
         all_teach_train, all_teach_valid = torch.utils.data.random_split(
