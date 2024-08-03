@@ -83,7 +83,7 @@ def train_all_fm(dat_obj):
             batch, labels = batch.to(globals.device), labels.to(globals.device)
             pred_vectors = n(batch)  # 2-axis arr of model's prediction vectors
             preds = torch.argmax(pred_vectors, dim=1)  # gets highest-value indices e.g. [2, 4, 1, 1, 5, ...]
-            correct_arr = torch.eq(preds, labels)  # compare to true labels, e.g. [True, False, False, ...]
+            correct_arr = preds == labels.argmax(dim=1)  # compare to true labels, e.g. [True, False, False, ...]
             correct += torch.sum(correct_arr)  # finds number of correct labels
             guessed += len(batch)
             ballot.append(preds.to(torch.device('cpu')))
