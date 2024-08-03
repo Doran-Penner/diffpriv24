@@ -37,7 +37,7 @@ def main():
     train_set, valid_set, unlab_set = ds.student_overwrite_labels(labels, semi_supervise=True)
     test_set = ds.student_test
 
-    n, val_acc = train_fm(train_set, unlab_set, valid_set, ds, epochs=200, model="student", lmbd=0)
+    n, val_acc = train_fm(train_set, unlab_set, valid_set, ds, lr=0.03, epochs=200, model="student", lmbd=1)
 
     print(f"Validation Accuracy: {val_acc:0.3f}")
     test_acc = calculate_test_accuracy(n, test_set)

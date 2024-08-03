@@ -65,7 +65,7 @@ def train_all_fm(dat_obj):
     for i in range(dat_obj.num_teachers):
         print(f"Training teacher {i} now!")
         start_time = time.time()
-        n, acc = train_fm(train_sets[i], unlab_set, valid_sets[i], dat_obj, epochs = 100)
+        n, acc = train_fm(train_sets[i], unlab_set, valid_sets[i], dat_obj, lr=0.03, epochs = 400, lmbd=1)
         print("TEACHER",i,"ACC",acc)
         # torch.save(n.state_dict(),f"{globals.SAVE_DIR}/{dat_obj.name}_teacher_{i}_of_{dat_obj.num_teachers-1}.tch")
         file_name = f"{globals.SAVE_DIR}/{dat_obj.name}_{dat_obj.num_teachers}_fm_teacher_predictions.npy"
@@ -103,7 +103,7 @@ def train_all_fm(dat_obj):
 
 def main():
     dat_obj = globals.dataset
-    train_all(dat_obj)
+    train_all_fm(dat_obj)
 
 if __name__ == '__main__':
     main()
