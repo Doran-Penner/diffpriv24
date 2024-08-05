@@ -132,6 +132,9 @@ def non_private_active_learning(network=BBBAlexNet,acquisition_iterations=100,in
         if round % 10 == 9:
             model, valid_loss = student_train(X_train,val_data,epochs=100,net=network)
         else:
+            state_dict = model.state_dict()
+            breakpoint()
+            model_prime = network(dat_obj, priors=None)
             model, valid_loss = student_train(curr_train_batch,val_data,model=model)
 
         test_dict["valid_loss"].append(valid_loss)
@@ -260,7 +263,7 @@ def print_assessment(test_dict,initial_size,num_acquisitions):
     intercept = initial_size+2000
     xs = []
     print("acquisitions:\ttest_acc\t\tvalid_loss")
-    for i in range(len(test_dict["epsilon"])):
+    for i in range(len(test_dict["valid_loss"])):
         xs.append(intercept + i*num_acquisitions)
         print(f"{intercept + i*num_acquisitions}\t\t{accuracies[i]}\t{valid_loss[i]}")
 
