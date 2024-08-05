@@ -13,6 +13,7 @@ from torch.nn.parameter import Parameter
 import torch.nn.functional as F
 from torch.distributions.normal import Normal
 import Bayes_utils as utils
+import globals
 
 # from [1]/layers/misc.py
 
@@ -85,8 +86,8 @@ class BBBConv2d(ModuleWrapper):
         self.posterior_mu_initial = priors['posterior_mu_initial']
         self.posterior_rho_initial = priors['posterior_rho_initial']
 
-        self.W_mu = Parameter(torch.Tensor(out_channels, in_channels, *self.kernel_size))
-        self.W_rho = Parameter(torch.Tensor(out_channels, in_channels, *self.kernel_size))
+        self.W_mu = Parameter(torch.Tensor(out_channels, in_channels, *self.kernel_size).to(globals.device))
+        self.W_rho = Parameter(torch.Tensor(out_channels, in_channels, *self.kernel_size).to(globals.device))
         if self.use_bias:
             self.bias_mu = Parameter(torch.Tensor(out_channels))
             self.bias_rho = Parameter(torch.Tensor(out_channels))
@@ -161,8 +162,8 @@ class BBBLinear(ModuleWrapper):
         self.posterior_mu_initial = priors['posterior_mu_initial']
         self.posterior_rho_initial = priors['posterior_rho_initial']
 
-        self.W_mu = Parameter(torch.Tensor(out_features, in_features))
-        self.W_rho = Parameter(torch.Tensor(out_features, in_features))
+        self.W_mu = Parameter(torch.Tensor(out_features, in_features).to(globals.device))
+        self.W_rho = Parameter(torch.Tensor(out_features, in_features).to(globals.device))
         if self.use_bias:
             self.bias_mu = Parameter(torch.Tensor(out_features))
             self.bias_rho = Parameter(torch.Tensor(out_features))

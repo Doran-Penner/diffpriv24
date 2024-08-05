@@ -9,7 +9,7 @@ from privacy_accounting import gnmax_epsilon
 from models import BayesCNN
 from bayesian_model import BayesianNet, BBB3Conv3FC, BBBAlexNet
 from torch.optim import Adam, lr_scheduler
-from acquisition_funcs import BatchBALD, RandAcquire
+from acquisition_funcs import BatchBALD, RandAcquire, BALD
 from matplotlib import pyplot as plt
 import Bayes_utils as utils
 from bayesian_learning import train_model, validate_model
@@ -136,10 +136,10 @@ def non_private_active_learning(network=BBBAlexNet,acquisition_iterations=100,in
             priors = []
             for layer in ["conv1", "conv2", "conv3", "conv4", "conv5", "classifier"]:
                 d = {}
-                d['prior_mu'] = state_dict[layer + ".W_mu"].to(globals.device)
-                d['prior_sigma'] = torch.log1p(torch.exp(state_dict[layer + ".W_rho"])).to(globals.device)
-                d['prior_mu_bias'] = state_dict[layer + ".bias_mu"].to(globals.device)
-                d['prior_sigma_bias'] = torch.log1p(torch.exp(state_dict[layer + ".bias_rho"])).to(globals.device)
+                d['prior_mu'] = state_dict[layer + ".W_mu"]
+                d['prior_sigma'] = torch.log1p(torch.exp(state_dict[layer + ".W_rho"]))
+                d['prior_mu_bias'] = state_dict[layer + ".bias_mu"]
+                d['prior_sigma_bias'] = torch.log1p(torch.exp(state_dict[layer + ".bias_rho"]))
                 d['posterior_mu_initial'] = (0, 0.1)
                 d['posterior_rho_initial'] = (-3, 0.1)
                 priors.append(d)
