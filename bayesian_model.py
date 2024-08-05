@@ -98,12 +98,19 @@ class BBBConv2d(ModuleWrapper):
         self.reset_parameters()
 
     def reset_parameters(self):
-        self.W_mu.data = torch.normal(self.prior_mu,self.prior_sigma)
-        self.W_rho.data.normal_(*self.posterior_rho_initial)
+        if self.prior_mu == 0:
+            self.W_mu.data.normal_(self.prior_mu,self.prior_sigma)
+            self.W_rho.data.normal_(*self.posterior_rho_initial)
 
-        if self.use_bias:
-            self.bias_mu.data = torch.normal(self.prior_mu_bias,self.prior_sigma_bias)
-            self.bias_rho.data.normal_(*self.posterior_rho_initial)
+            if self.use_bias:
+                self.bias_mu.data.normal_(self.prior_mu_bias,self.prior_sigma_bias)
+                self.bias_rho.data.normal_(*self.posterior_rho_initial)
+        else:
+            self.W_mu.data = torch.normal(self.prior_mu,self.prior_sigma)
+            self.W_rho.data.normal_(*self.posterior_rho_initial)
+            if self.use_bias:
+                self.bias_mu.data = torch.normal(self.prior_mu_bias,self.prior_sigma_bias)
+                self.bias_rho.data.normal_(*self.posterior_rho_initial)
 
     def forward(self, x, sample=True):
 
@@ -174,12 +181,19 @@ class BBBLinear(ModuleWrapper):
         self.reset_parameters()
 
     def reset_parameters(self):
-        self.W_mu.data = torch.normal(self.prior_mu,self.prior_sigma)
-        self.W_rho.data.normal_(*self.posterior_rho_initial)
+        if self.prior_mu == 0:
+            self.W_mu.data.normal_(self.prior_mu,self.prior_sigma)
+            self.W_rho.data.normal_(*self.posterior_rho_initial)
 
-        if self.use_bias:
-            self.bias_mu.data = torch.normal(self.prior_mu_bias,self.prior_sigma_bias)
-            self.bias_rho.data.normal_(*self.posterior_rho_initial)
+            if self.use_bias:
+                self.bias_mu.data.normal_(self.prior_mu_bias,self.prior_sigma_bias)
+                self.bias_rho.data.normal_(*self.posterior_rho_initial)
+        else:
+            self.W_mu.data = torch.normal(self.prior_mu,self.prior_sigma)
+            self.W_rho.data.normal_(*self.posterior_rho_initial)
+            if self.use_bias:
+                self.bias_mu.data = torch.normal(self.prior_mu_bias,self.prior_sigma_bias)
+                self.bias_rho.data.normal_(*self.posterior_rho_initial)
 
     def forward(self, x, sample=True):
 
