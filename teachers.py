@@ -69,7 +69,7 @@ def train_all_fm(dat_obj):
     for i in range(dat_obj.num_teachers):
         print(f"Training teacher {i} now!")
         start_time = time.time()
-        n, acc = train_fm(train_sets[i], unlab_set, valid_sets[i], dat_obj, lr=0.03, epochs = 400, lmbd=1)
+        n, acc = train_fm(train_sets[i], unlab_set, valid_sets[i], dat_obj, lr=0.001, epochs = 100, lmbd=1)
         print("TEACHER",i,"ACC",acc)
 
         print("Model",str(i))
@@ -80,7 +80,7 @@ def train_all_fm(dat_obj):
         guessed = 0
 
         data_loader = torch.utils.data.DataLoader(dat_obj.student_data, shuffle=False, batch_size=256)
-
+        
         for batch, labels in data_loader:
             batch, labels = batch.to(globals.device), labels.to(globals.device)
             pred_vectors = n(batch)  # 2-axis arr of model's prediction vectors
