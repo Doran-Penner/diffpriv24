@@ -62,13 +62,15 @@ def train_all_fm(dat_obj):
     train_sets = dat_obj.teach_train
     valid_sets = dat_obj.teach_valid
     unlab_set = dat_obj.student_data
+
+    file_name = f"{globals.SAVE_DIR}/{dat_obj.name}_{dat_obj.num_teachers}_fm_teacher_predictions.npy"
+    np.save(file_name, np.arange(0))  # initialize to empty file, overwriting previous work
+
     for i in range(dat_obj.num_teachers):
         print(f"Training teacher {i} now!")
         start_time = time.time()
         n, acc = train_fm(train_sets[i], unlab_set, valid_sets[i], dat_obj, lr=0.03, epochs = 400, lmbd=1)
         print("TEACHER",i,"ACC",acc)
-
-        file_name = f"{globals.SAVE_DIR}/{dat_obj.name}_{dat_obj.num_teachers}_fm_teacher_predictions.npy"
 
         print("Model",str(i))
         n.eval()
@@ -87,13 +89,10 @@ def train_all_fm(dat_obj):
             correct += torch.sum(correct_arr)  # finds number of correct labels
             guessed += len(batch)
             ballot.append(preds.to(torch.device('cpu')))
-        
+
         ballot = np.concatenate(ballot)
-        if isfile(file_name):
-            votes = np.load(file_name, allow_pickle=True)
-            votes = np.append(votes, ballot)
-        else:
-            votes = ballot
+        votes = np.load(file_name, allow_pickle=True)
+        votes = np.append(votes, ballot)
         np.save(file_name, votes)
 
         print(f"teacher {i}'s accuracy:", correct/guessed)
