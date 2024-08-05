@@ -131,7 +131,7 @@ def train_ssl(training_data, unlabeled_data, valid_data, dat_obj, confidence_thr
             break
     return train(torch.cat((training_data, self_labeled)), valid_data, dat_obj, lr=lr, epochs=epochs, batch_size=batch_size, momentum=momentum, model="student", arch=arch)
 
-def train_fm(labeled_data, unlabeled_data, valid_data, dat_obj, lr=1e-3, epochs=70, batch_size=16, momentum=0.9, model="teacher", arch=CNN, tau = 0.95, lmbd = 1):
+def train_fm(labeled_data, unlabeled_data, valid_data, dat_obj, lr=1e-3, epochs=70, batch_size=16, max_unlab_ratio=7, momentum=0.9, model="teacher", arch=CNN, tau = 0.95, lmbd = 1):
     """
     This is a function that trains the model on a specified dataset beep boop fixmatch.
     :param training_data: dataset containing the training data for the model
@@ -155,6 +155,8 @@ def train_fm(labeled_data, unlabeled_data, valid_data, dat_obj, lr=1e-3, epochs=
     # calculate batch size for unlab_loader to sync up with train_loader
     num_iters = math.ceil(len(labeled_data) / batch_size)
     unlab_batch_size = len(unlabeled_data) // num_iters
+    # for ease of computation, we shrink the unlabeled dataset
+    unlab_batch_size = min(unlab_batch_size, max_unlab_ratio * batch_size)
 
     train_loader = torch.utils.data.DataLoader(labeled_data, shuffle=True, batch_size=batch_size)
     valid_loader = torch.utils.data.DataLoader(valid_data, shuffle=True, batch_size=batch_size)

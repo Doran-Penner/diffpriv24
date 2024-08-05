@@ -67,7 +67,7 @@ def train_all_fm(dat_obj):
         start_time = time.time()
         n, acc = train_fm(train_sets[i], unlab_set, valid_sets[i], dat_obj, lr=0.03, epochs = 400, lmbd=1)
         print("TEACHER",i,"ACC",acc)
-        # torch.save(n.state_dict(),f"{globals.SAVE_DIR}/{dat_obj.name}_teacher_{i}_of_{dat_obj.num_teachers-1}.tch")
+
         file_name = f"{globals.SAVE_DIR}/{dat_obj.name}_{dat_obj.num_teachers}_fm_teacher_predictions.npy"
 
         print("Model",str(i))
@@ -100,6 +100,10 @@ def train_all_fm(dat_obj):
 
         duration = time.time()- start_time
         print(f"It took {duration//60} minutes and {duration % 60} seconds to train teacher {i}.")
+    # at the end, re-shape the saved data
+    all_votes = np.load(file_name, allow_pickle=True)
+    correct_shape_votes = all_votes.reshape((dat_obj.num_teachers, len(dat_obj.student_data)))
+    np.save(file_name, correct_shape_votes)
 
 def main():
     dat_obj = globals.dataset
