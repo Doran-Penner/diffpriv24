@@ -30,6 +30,23 @@ class SVHNVec(torchvision.datasets.svhn.SVHN):
 # note: how can we document input arguments if the user doesn't directly call this?
 # solution: we document it in the helper/creation function, which will be defined in the end
 class _Dataset:
+    '''
+    This is a class that abstracts the torch dataset class.
+    TODO: finish documenting
+
+    ...
+
+    Attributes
+    ----------
+    name : string
+        communicating in a readable way which dataset we are using
+    num_teachers : int
+        representing the number of teachers
+    num_labels : int
+        representing the number of labels that the datapoints can have
+    input_shape : tuple
+        representing the shape of a datapoint
+    '''
     def __init__(self):
         """
         Initializer function for the _Dataset class.
@@ -113,11 +130,49 @@ class _Dataset:
 # functools.cached_property stuff to make it nicer
 # but that's not critical right now!
 class _Svhn(_Dataset):
-    # todo: docstrings not showing up for vscode? (gotta test more to be sure)
-    # possible solutions:
-    # __doc__ = super().__doc__
-    # doc argument to @property?
-    # ... (idk)
+    '''
+    This is a class that abstracts the torch dataset class.
+    TODO: finish documenting
+
+    ...
+
+    Attributes
+    ----------
+    name : string
+        communicating in a readable way which dataset we are using
+    num_teachers : int
+        representing the number of teachers
+    num_labels : int
+        representing the number of labels that the datapoints can have
+    input_shape : tuple
+        representing the shape of a datapoint
+    teach_train : list of torch.Subset objects
+        representing a partition of the dataset according to self.num_teachers
+        used for training data
+    teach_valid : list of torch.Subset objects
+        representing a partition of the dataset according to self.num_teachers
+        used for validation data
+    teach_test : SVHNVec object
+        used to test teacher accuracy
+    student_data : dataset
+        representing the data used to train the student model. note that this
+        has the true labels, and thus cannot be given to the student without
+        constituting a privacy violation
+    student_test : dataset
+        used to test the student model
+
+    Methods
+    ---------
+    one_hot(labels):
+        Function that takes in an array of labels and returns an array of
+        one-hot vectors that represent the labels
+    student_overwrite_labels(labels)
+        Function that takes in an array of labels which correspond to
+        datapoints in self.student_data, and then overwrites with the labels
+        that we have (not necessarily labelling every datapoint) and returns
+        the dataset partitioned into train and validation data
+
+    '''
 
     def __init__(self, num_teachers, seed=None):
         self._generator = torch.Generator()

@@ -11,3 +11,5 @@
   - fiddle with hyperparameters
 
 (we should update this sometime...)
+
+Note on attribution: we are currently not properly citing our copied code (e.g. just saying where it came from, not adding copy of MIT license or something). WE should change that!

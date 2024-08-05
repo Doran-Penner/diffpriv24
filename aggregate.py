@@ -512,6 +512,7 @@ class ConfidentGNMax(Aggregator):
         self.alpha = alpha_set[-1]
         self.delta = delta
         self.num_labels = dat_obj.num_labels
+        self.queries = []
         self.total_queries = 0
         self.queries = []
         self.gnmax = NoisyMaxAggregator(scale2,dat_obj,np.random.normal)
@@ -534,7 +535,7 @@ class ConfidentGNMax(Aggregator):
         hist = torch.zeros((self.num_labels,), device=globals.device)
         for v in votes:
             hist[v] += 1
-        noised_max = torch.max(hist) + torch.normal(torch.Tensor([0.0]), torch.Tensor([self.scale1])).to(globals.device)
+        noised_max = torch.max(hist) + torch.normal(torch.Tensor([0.0]), torch.Tensor([float(self.scale1)])).to(globals.device)
         if noised_max >= self.tau:
             q = data_dependent_cost(votes, self.num_labels, self.scale2)
             self.eps_ma += privacy_accounting.single_epsilon_ma(q, self.alpha, self.scale2)
