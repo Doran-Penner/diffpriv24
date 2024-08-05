@@ -1,4 +1,5 @@
 import torch
+from torchvision.transforms import v2 as transforms
 import numpy as np
 import math
 import globals
@@ -72,3 +73,23 @@ def data_dependent_cost(votes, num_labels, scale2):
         # turns this into 0 and then we divide by 0
         tot = 2*10e-16
     return tot/2
+
+
+def weak_augment(img, dat_obj, translate_max=1/8):
+    """
+    Weakly augments the image(s); for FixMatch.
+    Needs the data object to disable flipping for SVHN.
+    """
+    trans = transforms.Compose([
+        transforms.RandomHorizontalFlip(0.5 if dat_obj.name not in ["svhn","mnist"] else 0),
+        transforms.RandomAffine(degrees=0, translate=(translate_max, translate_max))
+    ])
+    return trans(img)
+
+
+def strong_augment(img, num_ops=4, magnitude=9):
+    """
+    STRONGLY augments the image(s), again for FixMatch.
+    """
+    trans = transforms.RandAugment(num_ops=num_ops, magnitude=magnitude)
+    return trans(img)

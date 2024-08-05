@@ -1,6 +1,5 @@
 import numpy as np
 import globals
-import pickle
 
 # NOTE: these are random utility functions for convenience,
 # not part of the pipeline and not guaranteed to work!
@@ -13,7 +12,7 @@ def avg_teacher_accuracy():
     :returns: nothing, but prints average teacher accuract on the test database
     """
     teach_test = globals.dataset.teach_test
-    teacher_preds = np.load("./saved/svhn_250_teacher_predictions.npy", allow_pickle=False)
+    teacher_preds = np.load(f"{globals.SAVE_DIR}/svhn_250_teacher_predictions.npy", allow_pickle=False)
     teacher_acc = np.empty((len(teach_test),))
 
     for i in range(len(teach_test)):

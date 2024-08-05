@@ -4,25 +4,30 @@ import get_predicted_labels
 import torch
 import os
 from os.path import isfile
-import torch_teachers
 import time
 import pickle
 import csv
 import globals
+from training import train_ssl
 
 start_time = time.time()
 
-SAVEFILE_NAME = "./saved/gnmax_optimizer_points.pkl"
-CSVPATH = "./saved/optimize.csv"
+# FIXME remove prefix stuff
+SAVEFILE_NAME = f"{globals.SAVE_DIR}/{globals.prefix}_gnmax_optimizer_points.pkl"
+CSVPATH = f"{globals.SAVE_DIR}/{globals.prefix}_optimize.csv"
 
 rng = np.random.default_rng()
 
-NUM_POINTS = 20  # changed for our custom checking
+NUM_POINTS = 21 # changed for our custom checking
 
-_gauss_scale = np.linspace(start=10, stop=200, num=NUM_POINTS)
+_gauss_scale = np.full(NUM_POINTS, 100)
+_scale2 = np.full(NUM_POINTS, 40)
+_tau = np.linspace(start=100, stop=200, num=NUM_POINTS)
 
 points = np.asarray([
     _gauss_scale,
+    _scale2,
+    _tau
 ])
 
 points = points.transpose()  # get transposed idiot
@@ -44,18 +49,19 @@ else:
 
 ds = globals.dataset
 
-votes = np.load(f"./saved/{ds.name}_{ds.num_teachers}_teacher_predictions.npy", allow_pickle=True)
+votes = np.load(f"{globals.SAVE_DIR}/{ds.name}_{ds.num_teachers}_teacher_predictions.npy", allow_pickle=True)
 
 for point in points:
-    gnmax_scale = point
+    confidence_scale, argmax_scale, tau = point
 
-    agg = aggregate.NoisyVectorAggregator(
-        gnmax_scale,
+    agg = aggregate.ConfidentGNMax(
+        confidence_scale,
+        argmax_scale,
+        tau,
         ds,
-        noise_fn=rng.normal,
         alpha_set=list(range(2, 21)),
     )
-    max_epsilon = 10
+    max_epsilon = 1
    
     labels = get_predicted_labels.load_predicted_labels(agg, votes, ds, max_epsilon)
 
@@ -75,9 +81,9 @@ for point in points:
     if labeled_len != 0:
         print(f"label accuracy on labeled data: {correct/labeled_len:0.3f}")
 
-    student_train, student_valid = ds.student_overwrite_labels(labels)
-
-    n, val_acc = torch_teachers.train(student_train, student_valid, ds, epochs=100, batch_size=16, model="student")
+    student_train, student_valid, unlabeled = ds.student_overwrite_labels(labels, semi_supervise=True)
+    
+    n, val_acc = train_ssl(student_train, unlabeled, student_valid, ds, 0.95, num_rounds=10, epochs=500, batch_size=16)
 
     # NOTE: this is really bad practice since we're optimizing w.r.t. the test data,
     # but for now we just need to see if things actually work

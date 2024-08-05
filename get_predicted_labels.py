@@ -13,8 +13,13 @@ def load_predicted_labels(aggregator, votes, dat_obj, max_epsilon):
     :returns: list containing the privately aggregated labels
     """
     labels = []
+    hist = np.zeros(10)
     for vote in votes.T:
-        labels.append(aggregator.threshold_aggregate(vote, max_epsilon))
+        label = aggregator.threshold_aggregate(vote,max_epsilon)
+        labels.append(label)
+        if not np.any(label == None):  # noqa: E711
+            hist += np.float64(label)
+    print(hist)
     labels = np.asarray(labels)
     return labels
 
@@ -27,11 +32,14 @@ def main():
 
     dat_obj = globals.dataset
     max_epsilon = 10
-    agg = aggregate.NoisyVectorAggregator(50, dat_obj, alpha_set=list(range(2,21)))
+    agg = aggregate.ConfidentGNMax(100,35,195,dat_obj)
+    fm = True # whether or not we're using fm
+
 
     student_data = dat_obj.student_data
+
     
-    votes = np.load(f"./saved/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy", allow_pickle=True)
+    votes = np.load(f"{globals.SAVE_DIR}/{dat_obj.name}_{dat_obj.num_teachers}{"_fm" * fm}_teacher_predictions.npy", allow_pickle=True)
     
     labels = load_predicted_labels(agg, votes, dat_obj, max_epsilon)
     # safe access of tau_tally without crashing
@@ -61,7 +69,7 @@ def main():
     if labeled_len != 0:
         print(f"label accuracy on labeled data: {correct/labeled_len:0.3f}")
     
-    np.save(f'./saved/{dat_obj.name}_{dat_obj.num_teachers}_agg_teacher_predictions.npy', labels)
+    np.save(f'{globals.SAVE_DIR}/{dat_obj.name}_{dat_obj.num_teachers}_agg_teacher_predictions.npy', labels)
 
 if __name__ == "__main__":
     main()

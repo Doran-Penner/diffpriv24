@@ -514,6 +514,7 @@ class ConfidentGNMax(Aggregator):
         self.num_labels = dat_obj.num_labels
         self.queries = []
         self.total_queries = 0
+        self.queries = []
         self.gnmax = NoisyMaxAggregator(scale2,dat_obj,np.random.normal)
         self.eprime = alpha / (scale1 * scale1) 
         self.eps_ma = 0

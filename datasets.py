@@ -98,7 +98,7 @@ class _Dataset:
         """
 
     # future: can maybe pass "semi_supervise=True" and return both labeled and unlabeled data
-    def student_overwrite_labels(self, labels):
+    def student_overwrite_labels(self, labels, semi_supervise=False):
         """
         Given a set of labels which correspond by index to the data given by `student_data`,
         this copies the data, overwrites the labels, and returns *both the student training
@@ -116,7 +116,10 @@ class _Dataset:
         # eye = np.eye(self.num_labels)
         # label_vecs[labels != None] = eye[labels[labels != None].astype(int)]  # noqa: E711
         # return label_vecs
-        eye = np.eye(self.num_labels)
+        if isinstance(labels, np.ndarray):
+            eye = np.eye(self.num_labels)
+        else:  # it's a tensor
+            eye = torch.eye(self.num_labels, device=labels.device)
         return eye[labels]
 
 
@@ -264,7 +267,7 @@ class _Svhn(_Dataset):
             og_test, torch.arange(student_data_len, len(og_test))
         )
 
-    def student_overwrite_labels(self, labels):
+    def student_overwrite_labels(self, labels, semi_supervise=False):
         # note: this is some duplicated code
         # we re-load so we don't modify labels of other references
         og_test = SVHNVec(
@@ -272,22 +275,28 @@ class _Svhn(_Dataset):
         )
         student_data_len = math.floor(len(og_test) * 0.9)
         student_data = torch.utils.data.Subset(og_test, torch.arange(student_data_len))
+        unlabeled_data = torch.utils.data.Subset(og_test, torch.arange(student_data_len))
         # end duplicated code
         # note: labels should be length of full test set
         assert len(labels) == len(student_data), 'input "labels" not the correct length'
 
         labeled_indices = np.any(labels != None, axis=1)  # noqa: E711
+        unlabeled_indices = np.any(labels == None, axis=1) # noqa: E711
         student_data.indices = student_data.indices[labeled_indices]
+        unlabeled_data.indices = unlabeled_data.indices[unlabeled_indices]
         # FIXME below isn't happy because of shape
         student_data.dataset.labels = np.eye(self.num_labels)[
             student_data.dataset.labels
         ]
         student_data.dataset.labels[student_data.indices] = labels[labeled_indices]
+        unlabeled_data.dataset.labels[unlabeled_data.indices] = np.full((len(unlabeled_data.indices),self.num_labels), None)
 
         # check: does this work? I think so but not 100% sure
         stud_train, stud_valid = torch.utils.data.random_split(
             student_data, [0.8, 0.2], generator=self._generator
         )
+        if semi_supervise:
+            return stud_train, stud_valid, unlabeled_data
         return stud_train, stud_valid
 
 
