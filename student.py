@@ -38,7 +38,7 @@ def calculate_test_accuracy(network, test_data):
     return acc  # we don't see that :)
 
 
-def student_train(training_data,valid_data,lr_start=1e-3,epochs=70,batch_size=256,net=BBB3Conv3FC):
+def student_train(training_data,valid_data,lr_start=1e-3,epochs=70,batch_size=256,net=BBB3Conv3FC,model=None):
     """
     based on:
     https://github.com/kumar-shridhar/PyTorch-BayesianCNN/blob/master/main_bayesian.py
@@ -46,10 +46,8 @@ def student_train(training_data,valid_data,lr_start=1e-3,epochs=70,batch_size=25
 
     train_loader = torch.utils.data.DataLoader(training_data, shuffle=False, batch_size=batch_size)
     valid_loader = torch.utils.data.DataLoader(valid_data, shuffle=False, batch_size=batch_size)
-    model = net(globals.dataset).to(globals.device) 
-
-    for param in model.parameters():
-        print(param.size())
+    if model is None:
+        model = net(globals.dataset).to(globals.device)
 
     criterion = utils.ELBO(len(training_data)).to(globals.device)
     optimizer = Adam(model.parameters(), lr=lr_start)
@@ -57,8 +55,8 @@ def student_train(training_data,valid_data,lr_start=1e-3,epochs=70,batch_size=25
     valid_loss_max = np.inf
     for e in range(epochs):
 
-        train_loss, train_acc, train_kl = train_model(model, optimizer, criterion, train_loader, num_ens=10,epoch=e, num_epochs=epochs)
-        valid_loss, valid_acc = validate_model(model, criterion, valid_loader, num_ens=10,epoch=e, num_epochs=epochs)
+        train_loss, train_acc, train_kl = train_model(model, optimizer, criterion, train_loader, num_ens=4,epoch=e, num_epochs=epochs)
+        valid_loss, valid_acc = validate_model(model, criterion, valid_loader, num_ens=4,epoch=e, num_epochs=epochs)
         lr_sched.step(valid_loss)
 
 
@@ -121,19 +119,26 @@ def non_private_active_learning(network=BBBAlexNet,acquisition_iterations=100,in
         # np array
         selected_indices = acquirer.select_batch(model,data_pool)
 
+        # keep track of current batch to learn from
+        curr_train_batch = torch.utils.data.Subset(dataset, sample_indices)
+
         # add these indices to X_train, and remove them from data_pool
         # make sure that having out-of-order indices doesn't severely mess things up
         X_train.indices = np.concat((X_train.indices,selected_indices))
         data_pool.indices = np.setdiff1d(data_pool.indices,selected_indices)
-        # retrain the student!
-        # NOTE for CNN we are changing this to torch_teachers.train
-        model, valid_loss = student_train(X_train,val_data,epochs=100,net=network)
+        
+        
+        # naively do a few acquisitions and then a normal retrain (for now, lets do 10)
+        if round % 10 == 9:
+            model, valid_loss = student_train(X_train,val_data,epochs=100,net=network)
+        else:
+            model, valid_loss = student_train(curr_train_batch,val_data,model=model)
 
         test_dict["valid_loss"].append(valid_loss)
         test_dict["test_acc"].append(calculate_test_accuracy(model,dat_obj.student_test))
     
     if print_summary:
-        print_assessment(test_dict,initial_size,acquisition_iterations,num_acquisitions)
+        print_assessment(test_dict,initial_size,num_acquisitions)
     
 
     return model, test_dict
@@ -172,7 +177,7 @@ def active_learning(network=BBBAlexNet,acquisition_iterations=100,initial_size=1
 
     # the pool of student training data that we can pull from!
     data_pool = dat_obj.student_data
-
+    
     # initial training set randomly chosen
     sample_indices = np.random.choice(data_pool.indices,size = initial_size)
     X_train = torch.utils.data.Subset(dataset, sample_indices)
@@ -247,17 +252,17 @@ def active_learning(network=BBBAlexNet,acquisition_iterations=100,initial_size=1
 
 def print_assessment(test_dict,initial_size,num_acquisitions):
     accuracies = test_dict["test_acc"]
-    epsilons = test_dict["epsilon"]
+    #epsilons = test_dict["epsilon"]
     valid_loss = test_dict["valid_loss"]
     # print out results:
 
     #starting point:
     intercept = initial_size+2000
     xs = []
-    print("acquisitions:\ttest_acc\t\tepsilon\t\tvalid_loss")
+    print("acquisitions:\ttest_acc\t\tvalid_loss")
     for i in range(len(test_dict["epsilon"])):
         xs.append(intercept + i*num_acquisitions)
-        print(f"{intercept + i*num_acquisitions}\t\t{accuracies[i]}\t{epsilons[i]}\t{valid_loss[i]}")
+        print(f"{intercept + i*num_acquisitions}\t\t{accuracies[i]}\t{valid_loss[i]}")
 
     # plot it because plots are fun :)
     fig, ax1 = plt.subplots()
@@ -267,14 +272,14 @@ def print_assessment(test_dict,initial_size,num_acquisitions):
     ax1.set_ylabel("Test Accuracy", color=color)
     ax1.plot(xs,test_dict["test_acc"],color=color)
     ax1.tick_params(axis='y', labelcolor=color)
-
+    """
     ax2 = ax1.twinx()
     color = 'tab:cyan'
     color = 'tab:blue'
     ax2.set_ylabel('epsilon_cost', color=color)
     ax2.plot(xs, test_dict["epsilon"], color=color)
     ax2.tick_params(axis='y', labelcolor=color)
-
+    """
     fig.tight_layout() 
     plt.show()
 
