@@ -68,7 +68,7 @@ class BBBConv2d(ModuleWrapper):
         self.use_bias = bias
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-        if priors is None:
+        if priors == []:
             priors = {
                 'prior_mu': 0,
                 'prior_sigma': 0.1,
@@ -139,7 +139,7 @@ class BBBLinear(ModuleWrapper):
         self.use_bias = bias
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-        if priors is None:
+        if priors == []:
                 priors = {
                 'prior_mu': 0,
                 'prior_sigma': 0.1,
@@ -254,7 +254,7 @@ class BBB3Conv3FC(ModuleWrapper):
 class BBBAlexNet(ModuleWrapper):
     '''The architecture of AlexNet with Bayesian Layers'''
 
-    def __init__(self, dat_obj, priors = None, layer_type='lrt', activation_type='softplus'):
+    def __init__(self, dat_obj, priors = [], layer_type='lrt', activation_type='softplus'):
         super(BBBAlexNet, self).__init__()
 
         shape = dat_obj.input_shape
