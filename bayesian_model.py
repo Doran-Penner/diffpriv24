@@ -89,8 +89,8 @@ class BBBConv2d(ModuleWrapper):
         self.W_mu = Parameter(torch.Tensor(out_channels, in_channels, *self.kernel_size).to(globals.device))
         self.W_rho = Parameter(torch.Tensor(out_channels, in_channels, *self.kernel_size).to(globals.device))
         if self.use_bias:
-            self.bias_mu = Parameter(torch.Tensor(out_channels))
-            self.bias_rho = Parameter(torch.Tensor(out_channels))
+            self.bias_mu = Parameter(torch.Tensor(out_channels).to(globals.device))
+            self.bias_rho = Parameter(torch.Tensor(out_channels).to(globals.device))
         else:
             self.register_parameter('bias_mu', None)
             self.register_parameter('bias_rho', None)
@@ -165,8 +165,8 @@ class BBBLinear(ModuleWrapper):
         self.W_mu = Parameter(torch.Tensor(out_features, in_features).to(globals.device))
         self.W_rho = Parameter(torch.Tensor(out_features, in_features).to(globals.device))
         if self.use_bias:
-            self.bias_mu = Parameter(torch.Tensor(out_features))
-            self.bias_rho = Parameter(torch.Tensor(out_features))
+            self.bias_mu = Parameter(torch.Tensor(out_features).to(globals.device))
+            self.bias_rho = Parameter(torch.Tensor(out_features).to(globals.device))
         else:
             self.register_parameter('bias_mu', None)
             self.register_parameter('bias_rho', None)
