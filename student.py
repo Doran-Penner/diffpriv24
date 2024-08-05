@@ -38,7 +38,7 @@ def calculate_test_accuracy(network, test_data):
     return acc  # we don't see that :)
 
 
-def student_train(training_data,valid_data,lr_start=1e-3,epochs=70,batch_size=256,net=BBB3Conv3FC,model=None):
+def student_train(training_data,valid_data,lr_start=1e-3,epochs=100,batch_size=256,net=BBB3Conv3FC,model=None):
     """
     based on:
     https://github.com/kumar-shridhar/PyTorch-BayesianCNN/blob/master/main_bayesian.py
@@ -171,7 +171,7 @@ def active_learning(network=BBBAlexNet,acquisition_iterations=100,initial_size=1
 
     :returns model: a fully trained student model
     :returns test_dict: a dictionary of form {"epsilon":[],"test_acc":[]} that stores values per acquisition iteration
-    """
+    """ 
 
     # start with the initial training!
     dat_obj = globals.dataset
@@ -274,7 +274,7 @@ def print_assessment(test_dict,initial_size,num_acquisitions):
     print("acquisitions:\ttest_acc\t\tvalid_loss")
     for i in range(len(test_dict["valid_loss"])):
         xs.append(intercept + i*num_acquisitions)
-        print(f"{intercept + i*num_acquisitions}\t\t{accuracies[i]}\t{valid_loss[i]}")
+        print(f"{intercept + i*num_acquisitions}\t\t{accuracies[i]:.4f}\t{valid_loss[i]:.4f}")
 
     # plot it because plots are fun :)
     fig, ax1 = plt.subplots()
@@ -282,7 +282,7 @@ def print_assessment(test_dict,initial_size,num_acquisitions):
     color = 'tab:purple'
     ax1.set_xlabel("Acquisition Iterations")
     ax1.set_ylabel("Test Accuracy", color=color)
-    ax1.plot(xs,test_dict["test_acc"],color=color)
+    ax1.plot(xs,test_dict["test_acc"].to("cpu"),color=color)
     ax1.tick_params(axis='y', labelcolor=color)
     """
     ax2 = ax1.twinx()
