@@ -75,8 +75,13 @@ class BBBConv2d(ModuleWrapper):
                 'posterior_mu_initial': (0, 0.1),
                 'posterior_rho_initial': (-3, 0.1), # NOTE in Configs, they give -5 as posterior_rho_initial
             }
+            if self.use_bias:
+                 priors['prior_mu_bias'] = 0
+                 priors['prior_sigma_bias'] = 0.1
         self.prior_mu = priors['prior_mu']
         self.prior_sigma = priors['prior_sigma']
+        self.prior_mu_bias = priors['prior_mu_bias']
+        self.prior_sigma_bias = priors['prior_sigma_bias']
         self.posterior_mu_initial = priors['posterior_mu_initial']
         self.posterior_rho_initial = priors['posterior_rho_initial']
 
@@ -123,7 +128,7 @@ class BBBConv2d(ModuleWrapper):
     def kl_loss(self):
         kl = utils.calculate_kl(self.prior_mu, self.prior_sigma, self.W_mu, self.W_sigma)
         if self.use_bias:
-            kl += utils.calculate_kl(self.prior_mu, self.prior_sigma, self.bias_mu, self.bias_sigma)
+            kl += utils.calculate_kl(self.prior_mu_bias, self.prior_sigma_bias, self.bias_mu, self.bias_sigma)
         return kl
 
 
@@ -140,14 +145,19 @@ class BBBLinear(ModuleWrapper):
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
         if priors is None:
-                priors = {
+            priors = {
                 'prior_mu': 0,
                 'prior_sigma': 0.1,
                 'posterior_mu_initial': (0, 0.1),
                 'posterior_rho_initial': (-3, 0.1), # NOTE in Configs, they give -5 as posterior_rho_initial
             }
+            if self.use_bias:
+                 priors['prior_mu_bias'] = 0
+                 priors['prior_sigma_bias'] = 0.1
         self.prior_mu = priors['prior_mu']
         self.prior_sigma = priors['prior_sigma']
+        self.prior_mu_bias = priors['prior_mu_bias']
+        self.prior_sigma_bias = priors['prior_sigma_bias']
         self.posterior_mu_initial = priors['posterior_mu_initial']
         self.posterior_rho_initial = priors['posterior_rho_initial']
 
@@ -192,7 +202,7 @@ class BBBLinear(ModuleWrapper):
     def kl_loss(self):
         kl = utils.calculate_kl(self.prior_mu, self.prior_sigma, self.W_mu, self.W_sigma)
         if self.use_bias:
-            kl += utils.calculate_kl(self.prior_mu, self.prior_sigma, self.bias_mu, self.bias_sigma)
+            kl += utils.calculate_kl(self.prior_mu_bias, self.prior_sigma_bias, self.bias_mu, self.bias_sigma)
         return kl
 
 # from [1]/models/BayesianModels/Bayesian3Conv3FC.py

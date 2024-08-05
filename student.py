@@ -133,9 +133,18 @@ def non_private_active_learning(network=BBBAlexNet,acquisition_iterations=100,in
             model, valid_loss = student_train(X_train,val_data,epochs=100,net=network)
         else:
             state_dict = model.state_dict()
-            breakpoint()
-            model_prime = network(dat_obj, priors=None)
-            model, valid_loss = student_train(curr_train_batch,val_data,model=model)
+            priors = []
+            for layer in ["conv1", "conv2", "conv3", "conv4", "conv5", "classifier"]:
+                d = {}
+                d['prior_mu'] = state_dict[layer + ".W_mu"]
+                d['prior_sigma'] = torch.log1p(torch.exp(state_dict[layer + ".W_rho"]))
+                d['prior_mu_bias'] = state_dict[layer + ".bias_mu"]
+                d['prior_sigma_bias'] = torch.log1p(torch.exp(state_dict[layer + ".bias_rho"]))
+                d['posterior_mu_initial'] = (0, 0.1)
+                d['posterior_rho_initial'] = (-3, 0.1)
+                priors.append(d)
+            model_prime = network(dat_obj, priors=priors)
+            model, valid_loss = student_train(curr_train_batch,val_data,model=model_prime)
 
         test_dict["valid_loss"].append(valid_loss)
         test_dict["test_acc"].append(calculate_test_accuracy(model,dat_obj.student_test))
