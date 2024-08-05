@@ -68,7 +68,7 @@ class BBBConv2d(ModuleWrapper):
         self.groups = 1
         self.use_bias = bias
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
+        self.default_prior = False
         if priors is None:
             priors = {
                 'prior_mu': 0,
@@ -79,6 +79,7 @@ class BBBConv2d(ModuleWrapper):
             if self.use_bias:
                  priors['prior_mu_bias'] = 0
                  priors['prior_sigma_bias'] = 0.1
+            self.default_prior = True
         self.prior_mu = priors['prior_mu']
         self.prior_sigma = priors['prior_sigma']
         self.prior_mu_bias = priors['prior_mu_bias']
@@ -98,7 +99,7 @@ class BBBConv2d(ModuleWrapper):
         self.reset_parameters()
 
     def reset_parameters(self):
-        if self.prior_mu == 0:
+        if self.default_prior:
             self.W_mu.data.normal_(self.prior_mu,self.prior_sigma)
             self.W_rho.data.normal_(*self.posterior_rho_initial)
 
@@ -151,7 +152,7 @@ class BBBLinear(ModuleWrapper):
         self.out_features = out_features
         self.use_bias = bias
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
+        self.default_prior = False
         if priors is None:
             priors = {
                 'prior_mu': 0,
@@ -162,6 +163,7 @@ class BBBLinear(ModuleWrapper):
             if self.use_bias:
                  priors['prior_mu_bias'] = 0
                  priors['prior_sigma_bias'] = 0.1
+            self.default_prior = True
         self.prior_mu = priors['prior_mu']
         self.prior_sigma = priors['prior_sigma']
         self.prior_mu_bias = priors['prior_mu_bias']
@@ -181,7 +183,7 @@ class BBBLinear(ModuleWrapper):
         self.reset_parameters()
 
     def reset_parameters(self):
-        if self.prior_mu == 0:
+        if self.default_prior:
             self.W_mu.data.normal_(self.prior_mu,self.prior_sigma)
             self.W_rho.data.normal_(*self.posterior_rho_initial)
 
