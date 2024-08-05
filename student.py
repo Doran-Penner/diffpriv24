@@ -145,6 +145,7 @@ def non_private_active_learning(network=BBBAlexNet,acquisition_iterations=100,in
                 priors.append(d)
             model_prime = network(dat_obj, priors=priors)
             model, valid_loss = student_train(curr_train_batch,val_data,model=model_prime)
+            model = model.to(globals.device)
 
         test_dict["valid_loss"].append(valid_loss)
         test_dict["test_acc"].append(calculate_test_accuracy(model,dat_obj.student_test))
