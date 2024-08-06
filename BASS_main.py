@@ -164,7 +164,7 @@ def main():
 
         # get trainer:
         torch_rng = torch.Generator(globals.device).manual_seed(rng.choice(int(1e6)))
-        trainer = PyTorchClassificationLaplaceTrainer(model = net, torch_rng = torch_rng, laplace_approx=laplace.Laplace(model= ParametricLaplace, likelihood = 'classification', hessian_structure = 'diag'))
+        trainer = PyTorchClassificationLaplaceTrainer(model = net, torch_rng = torch_rng, laplace_approx=laplace.Laplace(model=net, likelihood = 'classification', hessian_structure = 'diag'))
 
         # train it?
         train_step, train_log = trainer.train(
