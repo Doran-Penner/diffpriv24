@@ -172,24 +172,34 @@ def train_fm(labeled_data, unlabeled_data, valid_data, dat_obj, lr=1e-3, epochs=
     best_num_epochs = 0  # for our info
     torch.save(network.state_dict(), savefile)  # initialize in case model never improves
 
-    for i in range(epochs):
+    for i in range(epochs + 1):
         if i % 5 == 0:
-            print("Epoch",i)
+            print(f"Epoch {i}")
             ### check valid accuracy
             network.eval()
             accs = []
             for batch_xs, batch_ys in valid_loader:
-                batch_xs = batch_xs.to(globals.device)
-                batch_ys = batch_ys.to(globals.device)
-                preds = network(batch_xs)
-                accs.append((preds.argmax(dim=1) == batch_ys.argmax(dim=1)).float().mean())
+                accs.append(
+                    (
+                        (
+                            network(batch_xs.to(globals.device))
+                            .argmax(dim=1)
+                            .to(batch_ys.device)
+                        )
+                        == batch_ys.argmax(dim=1)
+                    )
+                    .float()
+                    .mean()
+                )
             acc = torch.tensor(accs).mean()
-            print("Valid acc:",acc)
+            print(f"Valid acc: {acc:0.4f}")
             if acc > best_valid_acc:
                 torch.save(network.state_dict(), savefile)
                 best_valid_acc = acc
                 best_num_epochs = i
             ### end check
+            if i == epochs:
+                break
         network.train()
         train_acc = []
         unsuper_acc = []
@@ -199,29 +209,30 @@ def train_fm(labeled_data, unlabeled_data, valid_data, dat_obj, lr=1e-3, epochs=
 
             opt.zero_grad()
             batch_xs = batch_xs.to(globals.device)
-            batch_ys = batch_ys.to(globals.device)
+            batch_ys = batch_ys.to(globals.device).argmax(dim=1)
             unlab_batch_xs = unlab_batch_xs.to(globals.device)
 
             preds = network(helper.weak_augment(batch_xs, dat_obj))
-            super_acc = (preds.argmax(dim=1) == batch_ys.argmax(dim=1)).float().mean()
+            super_acc = (preds.argmax(dim=1) == batch_ys).float().mean()
 
             super_loss = loss(preds, batch_ys) / len(preds)
 
             weak_preds = network(helper.weak_augment(unlab_batch_xs, dat_obj))
+            
             weak_preds_max, weak_preds_argmax = weak_preds.max(dim=1)
+            confident_unlab_indices = weak_preds_max >= tau
 
-            len_unlab = len(unlab_batch_xs)
-            unlab_batch_xs = unlab_batch_xs[weak_preds_max >= tau]
-            weak_preds = dat_obj.one_hot(weak_preds_argmax[weak_preds_max >= tau])
+            unlab_batch_new = unlab_batch_xs[confident_unlab_indices]
+            weak_preds_new = weak_preds_argmax[confident_unlab_indices]
 
-            strong_preds = network(helper.strong_augment(unlab_batch_xs))
+            strong_preds = network(helper.strong_augment(unlab_batch_new))
 
-            uns_acc = (strong_preds.argmax(dim = 1) == weak_preds_argmax[weak_preds_max >= tau]).float().mean()
+            uns_acc = (strong_preds.argmax(dim = 1) == weak_preds_new).float().mean()
 
             train_acc.append(super_acc)
             unsuper_acc.append(uns_acc)
 
-            unsuper_loss = loss(strong_preds, weak_preds) / len_unlab
+            unsuper_loss = loss(strong_preds, weak_preds_new) / len(unlab_batch_xs)
             
             loss_val = super_loss + (unsuper_loss * lmbd)
             loss_val.backward()

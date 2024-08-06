@@ -69,36 +69,32 @@ def train_all_fm(dat_obj):
     for i in range(dat_obj.num_teachers):
         print(f"Training teacher {i} now!")
         start_time = time.time()
-        n, acc = train_fm(train_sets[i], unlab_set, valid_sets[i], dat_obj, lr=0.001, epochs = 100, lmbd=1)
-        print("TEACHER",i,"ACC",acc)
+        n, acc = train_fm(train_sets[i], unlab_set, valid_sets[i], dat_obj, lr=0.03, epochs = 100, lmbd=1)
+        print(f"TEACHER {i} FINAL VALID ACC: {acc:0.4f}")
 
-        print("Model",str(i))
         n.eval()
-
-        ballot = [] # user i's voting record: 2-axis array
+        ballot = []
         correct = 0
-        guessed = 0
-
-        data_loader = torch.utils.data.DataLoader(dat_obj.student_data, shuffle=False, batch_size=256)
+        unlab_loader = torch.utils.data.DataLoader(unlab_set, shuffle=False, batch_size=256)
         
-        for batch, labels in data_loader:
-            batch, labels = batch.to(globals.device), labels.to(globals.device)
-            pred_vectors = n(batch)  # 2-axis arr of model's prediction vectors
-            preds = torch.argmax(pred_vectors, dim=1)  # gets highest-value indices e.g. [2, 4, 1, 1, 5, ...]
-            correct_arr = preds == labels.argmax(dim=1)  # compare to true labels, e.g. [True, False, False, ...]
-            correct += torch.sum(correct_arr)  # finds number of correct labels
-            guessed += len(batch)
-            ballot.append(preds.to(torch.device('cpu')))
+        for batch, labels in unlab_loader:
+            preds = (
+                n(batch.to(globals.device))
+                .argmax(dim=1)
+                .to(torch.device("cpu"))
+            )
+            correct += (preds == labels.argmax(dim=1)).sum()
+            ballot.append(preds)
 
         ballot = np.concatenate(ballot)
-        votes = np.load(file_name, allow_pickle=True)
-        votes = np.append(votes, ballot)
+        votes = np.load(file_name)
+        votes = np.append(votes, ballot)  # NOTE this is still 1d array, we reshape it at the end
         np.save(file_name, votes)
 
-        print(f"teacher {i}'s accuracy:", correct/guessed)
+        print(f"teacher {i}'s accuracy: {correct / len(unlab_set):0.4f}")
 
-        duration = time.time()- start_time
-        print(f"It took {duration//60} minutes and {duration % 60} seconds to train teacher {i}.")
+        duration = time.time() - start_time
+        print(f"It took {duration // 60} minutes and {duration % 60} seconds to train teacher {i}.")
     # at the end, re-shape the saved data
     all_votes = np.load(file_name, allow_pickle=True)
     correct_shape_votes = all_votes.reshape((dat_obj.num_teachers, len(dat_obj.student_data)))
