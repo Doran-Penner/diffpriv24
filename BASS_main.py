@@ -22,6 +22,7 @@ from BASS_utils import Dictionary
 from BASS_model import PyTorchClassificationLaplaceTrainer, FullyConnectedNet
 
 # figure out laplace STILL
+import laplace
 from laplace import ParametricLaplace
 from BASS_utils import *
 from BASS_model import *
@@ -163,7 +164,7 @@ def main():
 
         # get trainer:
         torch_rng = torch.Generator(globals.device).manual_seed(rng.choice(int(1e6)))
-        trainer = PyTorchClassificationLaplaceTrainer(model = net, torch_rng = torch_rng)
+        trainer = PyTorchClassificationLaplaceTrainer(model = net, torch_rng = torch_rng, laplace_approx=laplace.Laplace(likelihood = 'classification', hessian_structure = 'diag'))
 
         # train it?
         train_step, train_log = trainer.train(
