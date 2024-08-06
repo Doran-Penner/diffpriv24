@@ -130,7 +130,7 @@ def non_private_active_learning(network=BBBAlexNet,acquisition_iterations=100,in
         
         # naively do a few acquisitions and then a normal retrain (for now, lets do 10)
         if round % 10 == 9:
-            model, valid_loss = student_train(X_train,val_data,epochs=100,net=network)
+            model, valid_loss = student_train(X_train,val_data,epochs=200,net=network)
         else:
             state_dict = model.state_dict()
             priors = []
@@ -144,10 +144,10 @@ def non_private_active_learning(network=BBBAlexNet,acquisition_iterations=100,in
                 d['posterior_rho_initial'] = (-3, 0.1)
                 priors.append(d)
             model_prime = network(dat_obj, priors=priors)
-            model, valid_loss = student_train(curr_train_batch,val_data,model=model_prime)
+            model, valid_loss = student_train(curr_train_batch,val_data,epochs=200,model=model_prime)
 
-        test_dict["valid_loss"].append(valid_loss)
-        test_dict["test_acc"].append(calculate_test_accuracy(model,dat_obj.student_test))
+        test_dict["valid_loss"].append(float(valid_loss))
+        test_dict["test_acc"].append(float(calculate_test_accuracy(model,dat_obj.student_test)))
     
     if print_summary:
         print_assessment(test_dict,initial_size,num_acquisitions)
@@ -274,7 +274,7 @@ def print_assessment(test_dict,initial_size,num_acquisitions):
     print("acquisitions:\ttest_acc\t\tvalid_loss")
     for i in range(len(test_dict["valid_loss"])):
         xs.append(intercept + i*num_acquisitions)
-        print(f"{intercept + i*num_acquisitions}\t\t{accuracies[i]:.4f}\t{valid_loss[i]:.4f}")
+        print(f"{intercept + i*num_acquisitions}\t\t{accuracies[i]:.4f}\t\t{valid_loss[i]:.4f}")
 
     # plot it because plots are fun :)
     fig, ax1 = plt.subplots()
@@ -282,7 +282,7 @@ def print_assessment(test_dict,initial_size,num_acquisitions):
     color = 'tab:purple'
     ax1.set_xlabel("Acquisition Iterations")
     ax1.set_ylabel("Test Accuracy", color=color)
-    ax1.plot(xs,test_dict["test_acc"].to("cpu"),color=color)
+    ax1.plot(xs,test_dict["test_acc"],color=color)
     ax1.tick_params(axis='y', labelcolor=color)
     """
     ax2 = ax1.twinx()
