@@ -216,7 +216,10 @@ class _Svhn(_Dataset):
             transform=self._transform_normalize,
         )
         og_test = SVHNVec(
-            "./data/svhn", split="test", download=True, transform=self._transform
+            "./data/svhn",
+            split="test",
+            download=True,
+            transform=self._transform
         )
         # make all labels one-hot
         og_train.labels = self.one_hot(og_train.labels)
@@ -229,24 +232,17 @@ class _Svhn(_Dataset):
             generator=self._generator,
         )
 
-        train_size = len(all_teach_train)
-        valid_size = len(all_teach_valid)
+        def make_teach_partition(set_size, num_teachers):
+            """
+            Our own helper function to make partitions for random_split, since
+            that function's default behavior can't handle the small decimals.
+            """
+            ret = torch.full((num_teachers,), set_size // num_teachers)
+            ret[:set_size % num_teachers] += 1
+            return ret
 
-        # then partition them into num_teachers selections
-        train_partition = [
-            math.floor(train_size / num_teachers) + 1
-            for i in range(train_size % num_teachers)
-        ] + [
-            math.floor(train_size / num_teachers)
-            for i in range(num_teachers - (train_size % num_teachers))
-        ]
-        valid_partition = [
-            math.floor(valid_size / num_teachers) + 1
-            for i in range(valid_size % num_teachers)
-        ] + [
-            math.floor(valid_size / num_teachers)
-            for i in range(num_teachers - (valid_size % num_teachers))
-        ]
+        train_partition = make_teach_partition(len(all_teach_train), num_teachers)
+        valid_partition = make_teach_partition(len(all_teach_valid), num_teachers)
 
         # now assign self variables to those (these are what the "user" will access!)
         self.teach_train = torch.utils.data.random_split(

@@ -18,8 +18,8 @@ def eval_model_preds(network, data_loader, device):
     Assumes that the network is on `device` and labels are vectors.
     """
     preds = []
-    total_correct = torch.tensor(0)
-    total_seen = torch.tensor(0)
+    total_correct = torch.zeros((), dtype=int)
+    total_seen = torch.zeros((), dtype=int)
     with torch.no_grad():
         for batch_xs, labels in data_loader:
             batch_preds = network(batch_xs.to(device))
@@ -195,8 +195,22 @@ def train_fm(labeled_data, unlabeled_data, valid_data, dat_obj, lr=1e-3, epochs=
     best_num_epochs = 0  # for our info
     torch.save(network.state_dict(), savefile)  # initialize in case model never improves
 
+    _train_accs = []
+    _valid_accs = []
+    _unlab_accs = []
+
     network.train()
     for i in range(epochs + 1):  # +1 to get final valid acc at i == epochs
+        ### BEGIN DEBUGGING BLOCK
+        network.eval()
+        _, _train_acc = eval_model_preds(network, train_loader, globals.device)
+        _, _valid_acc = eval_model_preds(network, valid_loader, globals.device)
+        _, _unlab_acc = eval_model_preds(network, unlab_loader, globals.device)
+        _train_accs.append(_train_acc)
+        _valid_accs.append(_valid_acc)
+        _unlab_accs.append(_unlab_acc)
+        network.train()
+        ### END DEBUGGING BLOCK
         if i % 5 == 0:
             print(f"Epoch {i}")
             ### check valid accuracy
@@ -253,6 +267,16 @@ def train_fm(labeled_data, unlabeled_data, valid_data, dat_obj, lr=1e-3, epochs=
         print(acc, un_acc)  # see trianing accuracy
         train_accs.append(acc)
     
+    ### BEGIN DEBUGGING BLOCK
+    import csv
+    with open("debugging.csv", "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow((f"learningrate={lr} lambda={lmbd}", "train acc", "valid acc", "unlab acc"))
+        for epoch, (t, v, u) in enumerate(zip(_train_accs, _valid_accs, _unlab_accs)):
+            writer.writerow((epoch, float(t), float(v), float(u)))
+    breakpoint()
+    ### END DEBUGGING BLOCK
+
     print("Final num epochs:", best_num_epochs)
 
     st_dict = torch.load(savefile, map_location=globals.device)
