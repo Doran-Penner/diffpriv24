@@ -58,7 +58,7 @@ class FullyConnectedNet(Module):
     def __init__(
         self,
         input_shape: Sequence[int],
-        hidden_sizes: Sequence[int] = [128],
+        hidden_sizes: Sequence[int],
         output_size: int,
         activation_fn: Callable = ReLU,
         dropout_rate: float = 0.0,
