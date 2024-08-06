@@ -112,6 +112,7 @@ def main():
     agg = NoisyMaxAggregator(50,dat_obj,noise_fn=np.random.normal)
     votes = np.load(f"{globals.SAVE_DIR}/mnist_256_teacher_predictions.npy", allow_pickle=True)
     votes = votes.T
+    breakpoint()
     all_qs = []
     logging.info("setting up data")
     # the pool of student training data that we can pull from!
