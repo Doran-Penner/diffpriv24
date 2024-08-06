@@ -134,7 +134,9 @@ def train_all(dat_obj):
 
         duration = time.time()- start_time
         print(f"It took {duration//60} minutes and {duration % 60} seconds to train teacher {i}.")
-
+    all_votes = np.load(f"{globals.SAVE_DIR}/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy", allow_pickle=True)
+    correct_shape_votes = all_votes.reshape((dat_obj.num_teachers, len(dat_obj.student_data)))
+    np.save(f"{globals.SAVE_DIR}/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy",correct_shape_votes)
 def main():
     dat_obj = globals.dataset
     train_all(dat_obj)

@@ -132,7 +132,7 @@ def main():
     data_pool.indices = np.setdiff1d(data_pool.indices,val_inds)
 
     # get initial raining data!
-    train_inds = acquire_balanced_init(dat_obj, val_inds,5)
+    train_inds = acquire_balanced_init(val_inds,dat_obj,5)
     val_inds = np.setdiff1d(val_inds,train_inds)
     X_train = torch.utils.data.Subset(dataset, train_inds)
 
