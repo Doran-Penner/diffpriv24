@@ -110,7 +110,7 @@ def main():
     rng = np.random.default_rng(random.randint(0, int(1e6)))
 
     agg = NoisyMaxAggregator(50,dat_obj,noise_fn=np.random.normal)
-    votes = np.load(f"{globals.SAVE_DIR}/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy", allow_pickle=True)
+    votes = np.load(f"{globals.SAVE_DIR}/mnist_256_teacher_predictions.npy", allow_pickle=True)
     votes = votes.T
     all_qs = []
     logging.info("setting up data")
