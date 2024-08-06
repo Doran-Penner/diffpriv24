@@ -3,7 +3,7 @@ import time
 import globals
 import numpy as np
 from os.path import isfile
-from training import train, train_fm
+from training import train, train_fm, eval_model_preds
 
 
 def train_all(dat_obj):
@@ -73,25 +73,14 @@ def train_all_fm(dat_obj):
         print(f"TEACHER {i} FINAL VALID ACC: {acc:0.4f}")
 
         n.eval()
-        ballot = []
-        correct = 0
         unlab_loader = torch.utils.data.DataLoader(unlab_set, shuffle=False, batch_size=256)
-        
-        for batch, labels in unlab_loader:
-            preds = (
-                n(batch.to(globals.device))
-                .argmax(dim=1)
-                .to(torch.device("cpu"))
-            )
-            correct += (preds == labels.argmax(dim=1)).sum()
-            ballot.append(preds)
+        preds, acc = eval_model_preds(n, unlab_loader, globals.device)
 
-        ballot = np.concatenate(ballot)
         votes = np.load(file_name)
-        votes = np.append(votes, ballot)  # NOTE this is still 1d array, we reshape it at the end
+        votes = np.append(votes, preds.numpy())  # NOTE this is still 1d array, we reshape it at the end
         np.save(file_name, votes)
 
-        print(f"teacher {i}'s accuracy: {correct / len(unlab_set):0.4f}")
+        print(f"teacher {i}'s accuracy: {acc:0.4f}")
 
         duration = time.time() - start_time
         print(f"It took {duration // 60} minutes and {duration % 60} seconds to train teacher {i}.")

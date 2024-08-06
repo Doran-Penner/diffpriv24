@@ -8,6 +8,29 @@ import math
 import time
 import os
 
+
+def eval_model_preds(network, data_loader, device):
+    """
+    Outputs a tuple of the model's predictions and its accuracy;
+    meant for checking validation accuracy and final test accuracy
+    rather than training the model. Note that this function does not
+    use model.train() or model.eval() --- the calling code needs to handle that.
+    Assumes that the network is on `device` and labels are vectors.
+    """
+    preds = []
+    total_correct = torch.tensor(0)
+    total_seen = torch.tensor(0)
+    with torch.no_grad():
+        for batch_xs, labels in data_loader:
+            batch_preds = network(batch_xs.to(device))
+            preds.append(batch_preds.to(torch.device("cpu")))
+            total_seen += len(batch_xs)
+            total_correct += (
+                (batch_preds.argmax(dim=1).to(labels.device)) == labels.argmax(dim=1)
+            ).sum()
+    return torch.cat(preds), (total_correct / total_seen)
+
+
 # this is currenlty broken since globals.prefix no longer exists, but we're not using it anymore so :shrug:
 def train(training_data, valid_data, dat_obj, lr=1e-3, epochs=70, batch_size=16, momentum=0.9, model="teacher", arch=CNN):
     """
@@ -163,7 +186,7 @@ def train_fm(labeled_data, unlabeled_data, valid_data, dat_obj, lr=1e-3, epochs=
     unlab_loader = torch.utils.data.DataLoader(unlabeled_data, shuffle=True, batch_size=unlab_batch_size)
 
     network = arch(dat_obj).to(globals.device)
-    opt = optim.SGD(network.parameters(), lr=lr, momentum=momentum)
+    opt = optim.SGD(network.parameters(), lr=lr, momentum=momentum, nesterov=True)
     loss = nn.CrossEntropyLoss()
 
     train_accs = []
@@ -172,26 +195,13 @@ def train_fm(labeled_data, unlabeled_data, valid_data, dat_obj, lr=1e-3, epochs=
     best_num_epochs = 0  # for our info
     torch.save(network.state_dict(), savefile)  # initialize in case model never improves
 
-    for i in range(epochs + 1):
+    network.train()
+    for i in range(epochs + 1):  # +1 to get final valid acc at i == epochs
         if i % 5 == 0:
             print(f"Epoch {i}")
             ### check valid accuracy
             network.eval()
-            accs = []
-            for batch_xs, batch_ys in valid_loader:
-                accs.append(
-                    (
-                        (
-                            network(batch_xs.to(globals.device))
-                            .argmax(dim=1)
-                            .to(batch_ys.device)
-                        )
-                        == batch_ys.argmax(dim=1)
-                    )
-                    .float()
-                    .mean()
-                )
-            acc = torch.tensor(accs).mean()
+            _, acc = eval_model_preds(network, valid_loader, globals.device)
             print(f"Valid acc: {acc:0.4f}")
             if acc > best_valid_acc:
                 torch.save(network.state_dict(), savefile)
@@ -200,7 +210,7 @@ def train_fm(labeled_data, unlabeled_data, valid_data, dat_obj, lr=1e-3, epochs=
             ### end check
             if i == epochs:
                 break
-        network.train()
+            network.train()
         train_acc = []
         unsuper_acc = []
         for train_data, unlab_data in zip(train_loader, unlab_loader):
@@ -247,15 +257,6 @@ def train_fm(labeled_data, unlabeled_data, valid_data, dat_obj, lr=1e-3, epochs=
 
     st_dict = torch.load(savefile, map_location=globals.device)
     network.load_state_dict(st_dict)
-    
-    network.eval()
-    accs = []
-    for batch_xs, batch_ys in valid_loader:
-        batch_xs = batch_xs.to(globals.device)
-        batch_ys = batch_ys.to(globals.device)
-        preds = network(batch_xs)
-        accs.append((preds.argmax(dim=1) == batch_ys.argmax(dim=1)).float().mean())
-    acc = torch.tensor(accs).mean()
 
     os.remove(savefile)
-    return (network, acc)
+    return (network, best_valid_acc)
