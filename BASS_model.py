@@ -585,6 +585,9 @@ class PyTorchClassificationLaplaceTrainer(
             L_1(x_i,y_i,θ) = nll_loss(x_i,y_i,θ) = -log p(y_i|x_i,θ)
             L_2(x_i,y_i,θ) = binary_loss(x_i,y_i,θ) = {argmax p(y|x_i,θ) != y_i}
         """
+        # got an error with inputs and weights being on different devices
+        # so we are moving inputs to globals.device
+        inputs = inputs.to(globals.device)
         features = self.model(inputs)  # [N, Cl]
         logprobs = log_softmax(features, dim=-1)  # [N, Cl]
 
