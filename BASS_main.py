@@ -133,8 +133,18 @@ def main():
     targets, qs = label_by_indices(agg,votes,val_inds)
     all_qs.extend(qs)
     dataset.targets[val_inds] = targets
-
-    logger.info(f"Initial epsilon cost: {gnmax_epsilon(all_qs,agg.alpha,agg.scale,delta=1e-6):.04f}")
+    
+    # calculate epsilon:
+    best_eps = None
+    for item in agg.alpha_set:
+        temp_eps = gnmax_epsilon(all_qs,item,agg.scale,delta=1e-6)
+        if best_eps is None:
+            best_eps = temp_eps
+        elif best_eps > temp_eps:
+            best_eps = temp_eps
+    print(best_eps)
+    
+    logger.info(f"Initial epsilon cost: {best_eps:.04f}")
 
     # remove indices from the pool
     data_pool.indices = np.setdiff1d(data_pool.indices,val_inds)
@@ -161,7 +171,7 @@ def main():
     while True: # change probably
         n_train_labels = len(X_train)
         n_labels_str = f"{n_train_labels:04}_labels"
-        is_last_al_step = n_train_labels >= 2000 # big number at first?
+        is_last_al_step = n_train_labels >= 10 # big number at first?
 
 
         logger.info(f"Number of labels: {n_train_labels}")
@@ -199,12 +209,12 @@ def main():
             torch_rng = torch_rng,
             optimizer = torch.optim.SGD,
             n_optim_steps_min = 0,
-            n_optim_steps_max = 200, # VERY different than their value
+            n_optim_steps_max = 10000, # VERY different than their value
             n_samples_train = 1,
             n_samples_test = 100,
-            n_validations = 40, # every 5 will save validation accuracy
+            n_validations = 100, # every 5 will save validation accuracy
             early_stopping_metric = "val_nll",
-            early_stopping_patience = 5000,
+            early_stopping_patience = 1000,
             restore_best_model = True
         )
 
@@ -214,7 +224,7 @@ def main():
         )
 
         if train_step is not None:
-            if train_step < 199: # doing 200 epochs?
+            if train_step < trainer.n_optim_steps_max - 1: # doing 200 epochs?
                 logger.info(f"Training stopped early at step {train_step}")
             else:
                 logger.warning(f"Training stopped before convergence at step {train_step}")
@@ -270,11 +280,18 @@ def main():
         data_pool.indices = np.setdiff1d(data_pool.indices,acquired_pool_inds)
         X_train.indices = np.concat((X_train.indices,acquired_pool_inds))
 
-        logger.info(f"Epsilon: {gnmax_epsilon(all_qs,agg.alpha,agg.scale,delta=1e-6):.04f}")
+        #logger.info(f"Epsilon: {gnmax_epsilon(all_qs,agg.alpha,agg.scale,delta=1e-6):.04f}")
 
         is_first_al_step = False
-
-
+        
+    best_eps = None
+    for item in agg.alpha_set:
+        temp_eps = gnmax_epsilon(all_qs,item,agg.scale,delta=1e-6)
+        if best_eps is None:
+            best_eps = temp_eps
+        elif best_eps > temp_eps:
+            best_eps = temp_eps
+    logger.info(f"Final epsilon cost: {best_eps:.04f}")
     run_time = timedelta(seconds=(time() - start_time))
     np.savetxt("../saved/logs/BASS_run_time.txt", [str(run_time)], fmt="%s")
 
