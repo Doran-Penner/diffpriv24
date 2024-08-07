@@ -159,7 +159,7 @@ def main():
         logging.info(f"Number of labels: {n_train_labels}")
         logging.info("Setting up trainer")
         # get model:
-        net = FullyConnectedNet(input_shape=dat_obj.input_shape, output_size=dat_obj.num_labels, hidden_sizes=[128]).to(globals.device)
+        net = FullyConnectedNet(input_shape=dataset.data.shape[1:], output_size=dat_obj.num_labels, hidden_sizes=[128]).to(globals.device)
 
         # get trainer:
         torch_rng = torch.Generator(globals.device).manual_seed(rng.choice(int(1e6)))
