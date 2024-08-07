@@ -121,6 +121,8 @@ class Trainer:
         n_examples = 0
 
         for inputs, labels in loader:
+            inputs = inputs.to(globals.device)
+            labels = labels.to(globals.device)
             if n_classes is not None:
                 test_log_update = self.evaluate_test(inputs, labels, n_classes)
             else:
