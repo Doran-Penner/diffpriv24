@@ -782,10 +782,7 @@ class LogprobsClassificationStochasticTrainer(StochasticTrainer):
         logprobs_pool = logprobs[: len(inputs_pool)]  # [N_p, K, Cl]
         logprobs_targ = logprobs[len(inputs_pool) :]  # [N_t, K, Cl]
 
-        if self.epig_cfg.use_matmul:
-            scores = epig_from_logprobs_using_matmul(logprobs_pool, logprobs_targ)  # [N_p,]
-        else:
-            scores = epig_from_logprobs(logprobs_pool, logprobs_targ)  # [N_p,]
+        scores = epig_from_logprobs_using_matmul(logprobs_pool, logprobs_targ)  # [N_p,]
 
         return scores  # [N_p,]
 

@@ -67,7 +67,8 @@ def get_formatters() -> dict:
 def EPIG_acquire(
         data,
         trainer,
-        num_acquisitions
+        num_acquisitions,
+        input_targs
 ):
     # might only work with a certain version of torch
     # the documentation specifically calls this "new"
@@ -75,7 +76,7 @@ def EPIG_acquire(
     # if it does, this is almost analogy to .no_grad()
     # with the addition of disabling `forward-mode AD`
     with torch.inference_mode():
-        scores = trainer.estimate_uncertainty(loader=torch.utils.data.DataLoader(data, shuffle=False, batch_size=64),method="epig",seed=random.randint(0,1e6))
+        scores = trainer.estimate_uncertainty(loader=torch.utils.data.DataLoader(input_targs, shuffle=False, batch_size=64),method="epig",seed=random.randint(0,1e6))
 
     # Use stochastic batch acquisition (https://arxiv.org/abs/2106.12059). <- original comment
     scores = torch.log(scores) + Gumbel(loc=0, scale=1).sample(scores.shape)
@@ -116,6 +117,11 @@ def main():
     logging.info("setting up data")
     # the pool of student training data that we can pull from!
     data_pool = dat_obj.student_data
+
+
+    # gotta get some input_targets for epig:
+    inp_targ_inds = acquire_balanced_init(data_pool.indices,dat_obj,200)
+    inp_targ_dataset = torch.utils.data.Subset(dataset,inp_targ_inds)
 
     # choose a random set for validation and training set
     val_inds = np.random.choice(data_pool.indices,size = 850)
@@ -253,7 +259,7 @@ def main():
             f"Acquiring 10 label(s) using epig"
         )
 
-        acquired_pool_inds = EPIG_acquire(data_pool, trainer, 10)
+        acquired_pool_inds = EPIG_acquire(data_pool, trainer, 10,inp_targ_dataset)
 
         targets, qs = label_by_indices(agg,votes,acquired_pool_inds)
         all_qs.extend(qs)
