@@ -98,7 +98,11 @@ def acquire_balanced_init(indices,data_object,n_per_label):
             removed_inds.append(indices[i])
         i += 1
         if i == 850:
-            raise ValueError
+            print_temp = [0]*n_labels
+            labs = data_object.student_data.dataset.targets[indices]
+            for item in labs:
+                print_temp[item] += 1
+            print(print_temp)
 
     return np.asarray(removed_inds)
 
