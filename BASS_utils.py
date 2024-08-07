@@ -16,7 +16,7 @@ from copy import deepcopy
 import numpy as np
 import pandas as pd
 from pathlib import Path
-
+import globals
 
 # taken from ./src/metrics.py
 
@@ -41,7 +41,7 @@ def count_correct_from_marginals(predictions: Tensor, labels: Tensor) -> Tensor:
     Returns:
         Tensor[int], [1,]
     """
-    is_correct = torch.argmax(predictions, dim=-1) == torch.argmax(labels,dim=1)  # [N,]
+    is_correct = torch.argmax(predictions, dim=-1) == torch.argmax(labels,dim=1).to(globals.device)  # [N,]
     return torch.sum(is_correct)  #  [1,]
 
 def nll_loss_from_probs(probs: Tensor, labels: Tensor, **kwargs: Any) -> Tensor:
