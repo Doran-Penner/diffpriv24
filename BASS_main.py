@@ -76,7 +76,7 @@ def EPIG_acquire(
     # if it does, this is almost analogy to .no_grad()
     # with the addition of disabling `forward-mode AD`
     with torch.inference_mode():
-        scores = trainer.estimate_uncertainty(loader=torch.utils.data.DataLoader(input_targs, shuffle=False, batch_size=64),method="epig",seed=random.randint(0,1e6))
+        scores = trainer.estimate_uncertainty(loader=torch.utils.data.DataLoader(data, shuffle=False, batch_size=64),method="epig",seed=random.randint(0,1e6),input_targs=input_targs)
 
     # Use stochastic batch acquisition (https://arxiv.org/abs/2106.12059). <- original comment
     scores = torch.log(scores) + Gumbel(loc=0, scale=1).sample(scores.shape)
@@ -120,8 +120,9 @@ def main():
 
 
     # gotta get some input_targets for epig:
-    inp_targ_inds = acquire_balanced_init(data_pool.indices,dat_obj,200)
-    inp_targ_dataset = torch.utils.data.Subset(dataset,inp_targ_inds)
+    inp_targ_inds = np.random.choice(data_pool.indices,size = 1000)
+    inp_targ_dataset = dataset[inp_targ_inds]
+    data_pool.indices = np.setdiff1d(data_pool.indices,inp_targ_inds)
 
     # choose a random set for validation and training set
     val_inds = np.random.choice(data_pool.indices,size = 850)
