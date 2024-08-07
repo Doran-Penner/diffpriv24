@@ -212,10 +212,10 @@ def main():
                 logging.warning(f"Training stopped before convergence at step {train_step}")
 
         if train_log is not None:
-            train_log.save_to_csv(globals.SAVE_DIR / "training" / f"{n_labels_str}.csv", formatters)
+            train_log.save_to_csv(globals.SAVE_DIR + "training" + f"{n_labels_str}.csv", formatters)
 
         np.savetxt(
-            globals.SAVE_DIR / "data_indices" / "train.txt", X_train.indices, fmt="%d"
+            globals.SAVE_DIR + "data_indices" + "train.txt", X_train.indices, fmt="%d"
         )
 
 
@@ -229,7 +229,7 @@ def main():
             else:
                 model_state = trainer.model.state_dict()
 
-            torch.save(model_state, globals.SAVE_DIR / "models" / f"{n_labels_str}.pth")
+            torch.save(model_state, globals.SAVE_DIR + "models" + f"{n_labels_str}.pth")
 
 
         logging.info("Testing")
@@ -244,7 +244,7 @@ def main():
         logging.info(f"Test metrics: {test_metrics_str}")
 
         test_log.append({"n_labels": n_train_labels, **prepend_to_keys(test_metrics, "test")})
-        test_log.save_to_csv(globals.SAVE_DIR / "BASS_testing.csv", formatters)
+        test_log.save_to_csv(globals.SAVE_DIR + "BASS_testing.csv", formatters)
 
         if is_last_al_step:
             logging.info("Stopping active learning")
@@ -268,7 +268,7 @@ def main():
 
 
     run_time = timedelta(seconds=(time() - start_time))
-    np.savetxt(globals.SAVE_DIR / "BASS_run_time.txt", [str(run_time)], fmt="%s")
+    np.savetxt(globals.SAVE_DIR + "BASS_run_time.txt", [str(run_time)], fmt="%s")
 
 
 
