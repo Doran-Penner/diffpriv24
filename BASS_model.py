@@ -224,7 +224,7 @@ class StochasticTrainer(Trainer):
 
             for inputs_i, _ in loader:
                 self.set_rng_seed(seed)
-                breakpoint()
+
                 if method == "epig":
                     scores_i = self.estimate_epig_batch(inputs_i, inputs_targ)  # [B,]
                 else:
