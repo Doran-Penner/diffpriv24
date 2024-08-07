@@ -19,7 +19,7 @@ import logging
 import globals
 from time import time
 from BASS_utils import Dictionary
-from BASS_model import PyTorchClassificationLaplaceTrainer, FullyConnectedNet, PyTorchClassificationMCDropoutTrainer
+from BASS_model import PyTorchClassificationLaplaceTrainer, FullyConnectedNet, PyTorchClassificationMCDropoutTrainer, MCDropoutBatchBALD2BlockConvNet
 
 # figure out laplace STILL
 import laplace
@@ -159,7 +159,7 @@ def main():
         logging.info(f"Number of labels: {n_train_labels}")
         logging.info("Setting up trainer")
         # get model:
-        net = FullyConnectedNet(input_shape=dataset.data.shape[1:], output_size=dat_obj.num_labels, hidden_sizes=[128]).to(globals.device)
+        net = MCDropoutBatchBALD2BlockConvNet(input_shape=dataset.data.shape[1:], output_size=dat_obj.num_labels, hidden_sizes=[128],dropout_rate=0.5).to(globals.device)
 
         # get trainer:
         torch_rng = torch.Generator(globals.device).manual_seed(rng.choice(int(1e6)))
