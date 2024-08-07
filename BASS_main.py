@@ -75,7 +75,6 @@ def EPIG_acquire(
     # if it does, this is almost analogy to .no_grad()
     # with the addition of disabling `forward-mode AD`
     with torch.inference_mode():
-        assert True == False, "MAKE SURE THE ARGUMENTS ARE RIGHT FOR ESTIMATE_UNCERTAINTY"
         scores = trainer.estimate_uncertainty(loader=torch.data.utils.DataLoader(data, shuffle=False, batch_size=64),method="epig",seed=random.randint(0,1e6))
 
     # Use stochastic batch acquisition (https://arxiv.org/abs/2106.12059). <- original comment
