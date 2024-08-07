@@ -50,6 +50,7 @@ from BASS_uncertainty import (
     epig_from_probs_using_weights
 )
 
+import globals
 
 # Model Portion
 
