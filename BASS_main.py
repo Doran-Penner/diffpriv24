@@ -166,7 +166,13 @@ def main():
         trainer = PyTorchClassificationLaplaceTrainer(
             model = net,
             torch_rng = torch_rng,
-            laplace_approx=laplace.Laplace(model=net, likelihood = 'classification', hessian_structure = 'diag'),
+            laplace_approx=laplace.Laplace(
+                model=net,
+                likelihood = 'classification',
+                hessian_structure = 'diag',
+                subset_of_weights = "all",
+                prior_precision = 1
+            ),
             likelihood_temperature= "inverse_param_count",
             optimizer = torch.optim.SGD,
             n_optim_steps_min = 0,
