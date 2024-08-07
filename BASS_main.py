@@ -121,7 +121,8 @@ def main():
 
     # gotta get some input_targets for epig:
     inp_targ_inds = np.random.choice(data_pool.indices,size = 1000)
-    inp_targ_dataset = dataset[inp_targ_inds][0]
+    inp_targ_dataset = torch.utils.data.Subset(dataset,inp_targ_inds)
+    inp_targs, _ = next(iter(torch.utils.data.DataLoader(inp_targ_dataset,shuffle=False,batch_size=64)))
     data_pool.indices = np.setdiff1d(data_pool.indices,inp_targ_inds)
 
     # choose a random set for validation and training set
@@ -260,7 +261,7 @@ def main():
             f"Acquiring 10 label(s) using epig"
         )
 
-        acquired_pool_inds = EPIG_acquire(data_pool, trainer, 10,inp_targ_dataset)
+        acquired_pool_inds = EPIG_acquire(data_pool, trainer, 10,inp_targs)
 
         targets, qs = label_by_indices(agg,votes,acquired_pool_inds)
         all_qs.extend(qs)
