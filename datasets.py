@@ -171,8 +171,10 @@ class _MNIST(_Dataset):
             download=True,
             transform=self._transform
         )
-        og_train.targets = self.one_hot(og_train.targets)
-        og_test.targets = self.one_hot(og_test.targets)
+        # NOTE MNIST WILL NOT HAVE LABELS AS VECTORS, HOPEFULLY WE CAN FIX THIS LATER
+        # BUT FOR NOW I NEED TO GET THE BASS SHIT WORKING
+        #og_train.targets = self.one_hot(og_train.targets)
+        #og_test.targets = self.one_hot(og_test.targets)
 
         all_teach_train, all_teach_valid = torch.utils.data.random_split(
             og_train,
