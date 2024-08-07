@@ -125,7 +125,7 @@ def main():
     # apply labels, and then store labels and epsilon costs
     targets, qs = label_by_indices(agg,votes,val_inds)
     all_qs.extend(qs)
-    dataset.targets[val_inds] = targets
+    dataset.targets[val_inds] = np.argmax(targets,dim=1)
 
     logging.info(f"Initial epsilon cost: {gnmax_epsilon(all_qs,agg.alpha,agg.scale,delta=1e-6):.04f}")
 
@@ -238,7 +238,7 @@ def main():
 
         targets, qs = label_by_indices(agg,votes,acquired_pool_inds)
         all_qs.extend(qs)
-        dataset.targets[val_inds] = targets
+        dataset.targets[val_inds] = np.argmax(targets,dim=1)
         data_pool.indices = np.setdiff1d(data_pool.indices,acquired_pool_inds)
         X_train.indices = np.concat((X_train.indices,acquired_pool_inds))
 
