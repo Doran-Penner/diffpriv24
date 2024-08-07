@@ -139,7 +139,7 @@ class Trainer:
 
         if "n_correct" in test_log:
             test_log["acc"] = test_log.pop("n_correct")
-        print(test_log)
+
         return test_log
     
     
@@ -230,7 +230,7 @@ class PyTorchTrainer:
                     **prepend_to_keys(val_metrics, "val"),
                 }
                 log.append(log_update)
-                breakpoint()
+
                 latest_score = log_update[self.early_stopping_metric]
                 score_has_improved = early_stopping_operator(latest_score, best_score)
 

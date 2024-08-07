@@ -174,7 +174,7 @@ def main():
             n_samples_train = 1,
             n_samples_test = 100,
             n_validations = 40, # every 5 will save validation accuracy
-            early_stopping_metric = "vall_nll",
+            early_stopping_metric = "val_nll",
             early_stopping_patience = 5000,
             restore_best_model = True
         )
