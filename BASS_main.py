@@ -92,17 +92,11 @@ def acquire_balanced_init(indices,data_object,n_per_label):
     
     i = 0
     while len(removed_inds) < n_labels * n_per_label:
-        possible = np.argmax(data_object.student_data.dataset.targets[indices[i]])
+        possible = data_object.student_data.dataset.targets[indices[i]]
         if labels_counts[possible] < n_per_label:
             labels_counts[possible] += 1
             removed_inds.append(indices[i])
         i += 1
-        if i == 850:
-            print_temp = [0]*n_labels
-            labs = data_object.student_data.dataset.targets[indices]
-            for item in labs:
-                print_temp[item] += 1
-            print(print_temp)
 
     return np.asarray(removed_inds)
 
