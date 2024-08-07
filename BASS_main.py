@@ -121,7 +121,7 @@ def main():
 
     # gotta get some input_targets for epig:
     inp_targ_inds = np.random.choice(data_pool.indices,size = 1000)
-    inp_targ_dataset = dataset[inp_targ_inds]
+    inp_targ_dataset = dataset[inp_targ_inds][0]
     data_pool.indices = np.setdiff1d(data_pool.indices,inp_targ_inds)
 
     # choose a random set for validation and training set
