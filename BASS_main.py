@@ -76,7 +76,7 @@ def EPIG_acquire(
     # with the addition of disabling `forward-mode AD`
     with torch.inference_mode():
         assert True == False, "MAKE SURE THE ARGUMENTS ARE RIGHT FOR ESTIMATE_UNCERTAINTY"
-        scores = trainer.estimate_uncertainty(loader=data.get_loarder("pool"),method="epig")
+        scores = trainer.estimate_uncertainty(loader=torch.data.utils.DataLoader(data, shuffle=False, batch_size=64),method="epig",seed=random.randint(0,1e6))
 
     # Use stochastic batch acquisition (https://arxiv.org/abs/2106.12059). <- original comment
     scores = torch.log(scores) + Gumbel(loc=0, scale=1).sample(scores.shape)
@@ -254,7 +254,7 @@ def main():
             f"Acquiring 10 label(s) using epig"
         )
 
-        acquired_pool_inds = EPIG_acquire(dat_obj, trainer, 10)
+        acquired_pool_inds = EPIG_acquire(data_pool, trainer, 10)
 
         targets, qs = label_by_indices(agg,votes,acquired_pool_inds)
         all_qs.extend(qs)
