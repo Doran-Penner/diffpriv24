@@ -66,94 +66,51 @@ import globals
 
 # Model Portion
 
-# taken from ./src/models/conv_net_batchbald_mcdo.py
-class MCDropoutConvBlock(BayesianModule):
-    def __init__(self, n_in: int, n_out: int, kernel_size: int, dropout_rate: float) -> None:
-        super().__init__()
-
-        self.conv = Conv2d(in_channels=n_in, out_channels=n_out, kernel_size=kernel_size)
-        self.dropout = ConsistentMCDropout2d(p=dropout_rate)
-        self.maxpool = MaxPool2d(kernel_size=2)
-        self.activation_fn = ReLU()
-
-    def forward(self, x: Tensor) -> Tensor:
-        """
-        Arguments:
-            x: Tensor[float], [N, Ch_in, H_in, W_in]
-
-        Returns:
-            Tensor[float], [N, Ch_out, H_out, W_out]
-        """
-        x = self.conv(x)
-        x = self.dropout(x)
-        x = self.maxpool(x)
-        x = self.activation_fn(x)
-
-        return x
-
-
-class MCDropoutFullyConnectedBlock(BayesianModule):
-    def __init__(self, n_in: int, n_out: int, dropout_rate: float) -> None:
-        super().__init__()
-
-        self.fc = Linear(in_features=n_in, out_features=n_out)
-        self.dropout = ConsistentMCDropout(p=dropout_rate)
-        self.activation_fn = ReLU()
-
-    def forward(self, x: Tensor) -> Tensor:
-        """
-        Arguments:
-            x: Tensor[float], [N, F_in]
-
-        Returns:
-            Tensor[float], [N, F_out]
-        """
-        x = self.fc(x)
-        x = self.dropout(x)
-        x = self.activation_fn(x)
-
-        return x
-
-
-class MCDropoutBatchBALD2BlockConvNet(BayesianModule):
+# taken from ./src/models/fc_net_mcdo.py
+class MCDropoutFullyConnectedNet(BayesianModule):
     """
     References:
-        https://github.com/BlackHC/batchbald_redux/blob/master/03_consistent_mc_dropout.ipynb
+        https://github.com/yaringal/DropoutUncertaintyExps/blob/master/net/net.py#L74
     """
 
-    def __init__(self, input_shape: Sequence[int], output_size: int, dropout_rate: float) -> None:
+    def __init__(
+        self,
+        input_shape: Sequence[int],
+        hidden_sizes: Sequence[int],
+        output_size: int,
+        activation_fn: Callable = ReLU,
+        dropout_rate: float = 0.1,
+        use_input_dropout: bool = False,
+    ) -> None:
         super().__init__()
 
-        n_input_channels, _, image_width = input_shape
+        sizes = (math.prod(input_shape), *hidden_sizes)
+        layers = []
 
-        block3_size = compute_conv_output_size(
-            image_width, kernel_sizes=(2 * [5, 2]), strides=(2 * [1, 2]), n_output_channels=64
-        )
+        if use_input_dropout:
+            layers += [ConsistentMCDropout(p=dropout_rate)]
 
-        l_kwargs = dict(dropout_rate=dropout_rate)
+        for i in range(len(sizes) - 1):
+            layers += [Linear(in_features=sizes[i], out_features=sizes[i + 1])]
+            layers += [activation_fn()]
 
-        self.block1 = MCDropoutConvBlock(n_in=n_input_channels, n_out=32, kernel_size=5, **l_kwargs)
-        self.block2 = MCDropoutConvBlock(n_in=32, n_out=64, kernel_size=5, **l_kwargs)
-        self.block3 = MCDropoutFullyConnectedBlock(n_in=block3_size, n_out=128, **l_kwargs)
-        self.fc = Linear(in_features=128, out_features=output_size)
+            if i < len(sizes) - 2:
+                layers += [ConsistentMCDropout(p=dropout_rate)]
+
+        layers += [Linear(in_features=sizes[-1], out_features=output_size)]
+
+        self.layers = Sequential(*layers)
 
     def mc_forward_impl(self, x: Tensor) -> Tensor:
         """
         Arguments:
-            x: Tensor[float], [N, Ch, H, W]
+            x: Tensor[float], [N, *F]
 
         Returns:
             Tensor[float], [N, O]
         """
-        x = self.block1(x)
-        x = self.block2(x)
-
-        x = x.flatten(start_dim=1)
-
-        x = self.block3(x)
-        x = self.fc(x)
-
-        return x
+        x = x.flatten(start_dim=1)  # [N, F]
+        return self.layers(x)  # [N, O]
 # taken from ./src/models/fc_net.py
 class FullyConnectedNet(Module):
     def __init__(
