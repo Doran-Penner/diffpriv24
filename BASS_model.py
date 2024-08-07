@@ -316,7 +316,8 @@ class PyTorchTrainer:
 class PyTorchClassificationTrainer(PyTorchTrainer):
     def train_step(self, loader: DataLoader) -> dict:
         inputs, labels = get_next(loader)  # [N, ...], [N,]
-
+        inputs = inputs.to(globals.device)
+        labels = labels.to(globals.device)
         self.model.train()
         
         acc, nll = self.evaluate_train(inputs, labels)  # [1,], [1,]
