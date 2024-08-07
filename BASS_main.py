@@ -169,7 +169,7 @@ def main():
             torch_rng = torch_rng,
             laplace_approx=laplace.Laplace(model=net, likelihood = 'classification', hessian_structure = 'diag'),
             likelihood_temperature= "inverse_param_count",
-            optimizer = torch.optim.SGD(lr=0.01,weight_decay=0, momentum=0.95),
+            optimizer = torch.optim.SGD,
             n_optim_steps_min = 0,
             n_optim_steps_max = 200, # VERY different than their value
             n_samples_train = 1,

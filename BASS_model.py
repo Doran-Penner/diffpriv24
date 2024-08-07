@@ -195,7 +195,7 @@ class PyTorchTrainer:
     epig_cfg: dict = None
 
     def __post_init__(self) -> None:
-        self.optimizer = self.optimizer(params=self.model.parameters())
+        self.optimizer = self.optimizer(params=self.model.parameters(),lr=0.01,momentum=0.95,weight_decay=0) # defaults from github repo
         self.validation_gap = max(1, int(self.n_optim_steps_max / self.n_validations))
 
     def set_rng_seed(self, seed: int) -> None:
