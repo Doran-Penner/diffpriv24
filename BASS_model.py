@@ -259,7 +259,7 @@ class PyTorchClassificationTrainer(PyTorchTrainer):
         inputs, labels = get_next(loader)  # [N, ...], [N,]
 
         self.model.train()
-
+        breakpoint()
         acc, nll = self.evaluate_train(inputs, labels)  # [1,], [1,]
 
         self.optimizer.zero_grad()
