@@ -116,7 +116,7 @@ class NoisyMaxAggregator(Aggregator):
         self.alpha_set = alpha_set
         self.eps = 0
 
-    def aggregate(self,votes):
+    def aggregate(self,votes,vector=True):
         """
         Function for aggregating teacher votes according to the algorithm described
         in the original PATE paper. This function is essentially ReportNoisyMax with
@@ -133,7 +133,10 @@ class NoisyMaxAggregator(Aggregator):
             hist[int(v)] += 1
         hist += self.noise_fn(loc=0.0, scale=float(self.scale), size=(self.num_labels,))
         label = np.argmax(hist)
-        return np.eye(self.num_labels)[label]
+        if vector:
+            return np.eye(self.num_labels)[label]
+        else:
+            return label
 
     def threshold_aggregate(self, votes, max_epsilon):
         """

@@ -589,7 +589,7 @@ class PyTorchClassificationLaplaceTrainer(
         # got an error with inputs and weights being on different devices
         # so we are moving inputs to globals.device
         inputs = inputs.to(globals.device)
-        labels = torch.argmax(labels,dim=1).to(globals.device)
+        labels = labels.to(globals.device)
         features = self.model(inputs)  # [N, Cl]
         logprobs = log_softmax(features, dim=-1)  # [N, Cl]
 
