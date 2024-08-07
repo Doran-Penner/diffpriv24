@@ -142,7 +142,7 @@ def main():
             best_eps = temp_eps
         elif best_eps > temp_eps:
             best_eps = temp_eps
-    print(best_eps)
+
     
     logger.info(f"Initial epsilon cost: {best_eps:.04f}")
 
@@ -261,8 +261,21 @@ def main():
 
         logger.info(f"Test metrics: {test_metrics_str}")
 
+        
+        best_eps = None
+        for item in agg.alpha_set:
+            temp_eps = gnmax_epsilon(all_qs,item,agg.scale,delta=1e-6)
+            if best_eps is None:
+                best_eps = temp_eps
+            elif best_eps > temp_eps:
+                best_eps = temp_eps
+        logger.info(f"Epsilon: {best_eps:.04f}")
+        
+        test_metrics["epsilon"] = best_eps
+
         test_log.append({"n_labels": n_train_labels, **prepend_to_keys(test_metrics, "test")})
-        test_log.save_to_csv(globals.SAVE_DIR + "BASS_testing.csv", formatters)
+
+        test_log.save_to_csv("..saved/logs/BASS_testing.csv", formatters)
 
         if is_last_al_step:
             logger.info("Stopping active learning")
