@@ -19,7 +19,7 @@ import logging
 import globals
 from time import time
 from BASS_utils import Dictionary
-from BASS_model import PyTorchClassificationLaplaceTrainer, FullyConnectedNet
+from BASS_model import PyTorchClassificationLaplaceTrainer, FullyConnectedNet, PyTorchClassificationMCDropoutTrainer
 
 # figure out laplace STILL
 import laplace
@@ -163,6 +163,7 @@ def main():
 
         # get trainer:
         torch_rng = torch.Generator(globals.device).manual_seed(rng.choice(int(1e6)))
+        """
         trainer = PyTorchClassificationLaplaceTrainer(
             model = net,
             torch_rng = torch_rng,
@@ -174,6 +175,19 @@ def main():
                 prior_precision = 1
             ),
             likelihood_temperature= "inverse_param_count",
+            optimizer = torch.optim.SGD,
+            n_optim_steps_min = 0,
+            n_optim_steps_max = 200, # VERY different than their value
+            n_samples_train = 1,
+            n_samples_test = 100,
+            n_validations = 40, # every 5 will save validation accuracy
+            early_stopping_metric = "val_nll",
+            early_stopping_patience = 5000,
+            restore_best_model = True
+        )
+        """
+        trainer = PyTorchClassificationMCDropoutTrainer(
+            model = net,
             optimizer = torch.optim.SGD,
             n_optim_steps_min = 0,
             n_optim_steps_max = 200, # VERY different than their value

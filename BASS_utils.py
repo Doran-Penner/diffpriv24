@@ -7,6 +7,8 @@ https://github.com/fbickfordsmith/epig/tree/b11124d2dd48381a5756e14d920d401f1fd3
 
 from typing import Any, Tuple, Union, Sequence, Callable
 
+import math
+
 import torch
 from torch import Tensor
 from torch.nn.functional import nll_loss
@@ -141,3 +143,36 @@ class Dictionary(dict):
 
 def prepend_to_keys(dictionary: dict, string: str) -> dict:
     return {f"{string}_{key}": value for key, value in dictionary.items()}
+
+# taken from ./src/math.py
+
+def logmeanexp(x: Tensor, dim: int, keepdim: bool = False) -> Tensor:
+    """
+    Numerically stable implementation of log(mean(exp(x))).
+    """
+    return torch.logsumexp(x, dim=dim, keepdim=keepdim) - math.log(x.shape[dim])
+
+
+def accuracy_from_conditionals(predictions: Tensor, labels: Tensor) -> Tensor:
+    """
+    Arguments:
+        predictions: Tensor[float], [N, K, Cl]
+        labels: Tensor[int], [N,]
+
+    Returns:
+        Tensor[float], [1,]
+    """
+    return count_correct_from_conditionals(predictions, labels) / len(predictions)  # [K,]
+
+
+def count_correct_from_conditionals(predictions: Tensor, labels: Tensor) -> Tensor:
+    """
+    Arguments:
+        predictions: Tensor[float], [N, K, Cl]
+        labels: Tensor[int], [N,]
+
+    Returns:
+        Tensor[int], [1,]
+    """
+    is_correct = torch.argmax(predictions, dim=-1) == labels[:, None]  # [N, K]
+    return torch.sum(is_correct, dim=0)  #  [K,]

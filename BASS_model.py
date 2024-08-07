@@ -41,13 +41,18 @@ from BASS_utils import (
     count_correct_from_marginals,
     get_next,
     Dictionary,
-    prepend_to_keys
+    prepend_to_keys,
+    logmeanexp,
+    accuracy_from_conditionals
 )
 
 from BASS_uncertainty import (
     epig_from_probs,
     epig_from_probs_using_matmul,
-    epig_from_probs_using_weights
+    epig_from_probs_using_weights,
+    epig_from_logprobs,
+    epig_from_logprobs_using_matmul,
+    epig_from_logprobs_using_weights
 )
 
 import globals
@@ -198,7 +203,7 @@ class PyTorchTrainer:
     epig_cfg: dict = None
 
     def __post_init__(self) -> None:
-        self.optimizer = self.optimizer(params=self.model.parameters(),lr=0.01,momentum=0.95,weight_decay=0) # defaults from github repo
+        self.optimizer = self.optimizer(params=self.model.parameters(),lr=0.01,weight_decay=1e-4) # defaults from github repo
         self.validation_gap = max(1, int(self.n_optim_steps_max / self.n_validations))
 
     def set_rng_seed(self, seed: int) -> None:
@@ -678,5 +683,209 @@ class PyTorchClassificationLaplaceTrainer(
         return nll_loss(logprobs, pseudolabel)  # [1,]
 
 
+# taken from ./src/trainers/base_classif_logprobs.py
 
+class LogprobsClassificationStochasticTrainer(StochasticTrainer):
+    """
+    Base trainer for a stochastic classification model that outputs the logprobs of a categorical
+    predictive distribution.
+    """
+    """
+    uncertainty_estimators = {
+        "bald": bald_from_logprobs,
+        "marg_entropy": marginal_entropy_from_logprobs,
+        "mean_std": mean_standard_deviation_from_logprobs,
+        "pred_margin": predictive_margin_from_logprobs,
+        "var_ratio": variation_ratio_from_logprobs,
+    }
+    """
 
+    def evaluate_test(self, inputs: Tensor, labels: Tensor, n_classes: int = None) -> dict:
+        logprobs = self.marginal_predict(inputs, self.n_samples_test)  # [N, Cl]
+
+        if (n_classes is not None) and (n_classes < logprobs.shape[-1]):
+            logprobs = logprobs[:, :n_classes]  # [N, n_classes]
+            logprobs -= torch.logsumexp(logprobs, dim=-1, keepdim=True)  # [N, n_classes]
+
+        n_correct = count_correct_from_marginals(logprobs, labels)  # [1,]
+        nll = nll_loss(logprobs, labels, reduction="sum")  # [1,]
+
+        return {"n_correct": n_correct, "nll": nll}
+
+    def estimate_uncertainty_batch(self, inputs: Tensor, method: str) -> Tensor:
+        uncertainty_estimator = self.uncertainty_estimators[method]
+
+        logprobs = self.conditional_predict(
+            inputs, self.n_samples_test, independent=True
+        )  # [N, K, Cl]
+
+        return uncertainty_estimator(logprobs)  # [N,]
+
+    def estimate_epig_batch(self, inputs_pool: Tensor, inputs_targ: Tensor) -> Tensor:
+        logprobs = self.conditional_predict(
+            torch.cat((inputs_pool, inputs_targ)), self.n_samples_test, independent=False
+        )  # [N_p + N_t, K, Cl]
+
+        logprobs_pool = logprobs[: len(inputs_pool)]  # [N_p, K, Cl]
+        logprobs_targ = logprobs[len(inputs_pool) :]  # [N_t, K, Cl]
+
+        if self.epig_cfg.use_matmul:
+            scores = epig_from_logprobs_using_matmul(logprobs_pool, logprobs_targ)  # [N_p,]
+        else:
+            scores = epig_from_logprobs(logprobs_pool, logprobs_targ)  # [N_p,]
+
+        return scores  # [N_p,]
+
+    def estimate_epig_using_pool(self, loader: DataLoader, n_input_samples: int = None) -> Tensor:
+        logprobs_cond = []
+
+        for inputs, _ in loader:
+            logprobs_cond_i = self.conditional_predict(
+                inputs, self.n_samples_test, independent=True
+            )  # [B, K, Cl]
+            logprobs_cond += [logprobs_cond_i]
+
+        logprobs_cond = torch.cat(logprobs_cond)  # [N, K, Cl]
+        logprobs_marg = logmeanexp(logprobs_cond, dim=1)  # [N, Cl]
+        logprobs_marg_marg = logmeanexp(logprobs_marg, dim=0, keepdim=True)  # [1, Cl]
+
+        # Compute the weights, w(x_*) ~= ∑_{y_*} p_*(y_*) p_{pool}(y_*|x_*) / p_{pool}(y_*).
+        target_class_dist = self.epig_cfg.target_class_dist
+        target_class_dist = torch.tensor([target_class_dist], device=inputs.device)  # [1, Cl]
+        target_class_dist /= torch.sum(target_class_dist)  # [1, Cl]
+        log_ratio = logprobs_marg - logprobs_marg_marg  # [N, Cl]
+        weights = torch.sum(target_class_dist * torch.exp(log_ratio), dim=-1)  # [N,]
+
+        # Ensure that ∑_{x_*} w(x_*) == N.
+        assert math.isclose(torch.sum(weights).item(), len(weights), rel_tol=1e-3)
+
+        # Compute the weighted EPIG scores.
+        scores = []
+
+        if n_input_samples is not None:
+            # We do not need to normalize the weights before passing them to torch.multinomial().
+            inds = torch.multinomial(
+                weights, num_samples=n_input_samples, replacement=True
+            )  # [N_s,]
+
+            logprobs_targ = logprobs_cond[inds]  # [N_s, K, Cl]
+
+            for logprobs_cond_i in torch.split(logprobs_cond, len(inputs)):
+                if self.epig_cfg.use_matmul:
+                    scores_i = epig_from_logprobs_using_matmul(
+                        logprobs_cond_i, logprobs_targ
+                    )  # [B,]
+                else:
+                    scores_i = epig_from_logprobs(logprobs_cond_i, logprobs_targ)  # [B,]
+
+                scores += [scores_i.cpu()]
+
+        else:
+            logprobs_targ = logprobs_cond  # [N, K, Cl]
+
+            for logprobs_cond_i in torch.split(logprobs_cond, len(inputs)):
+                scores_i = epig_from_logprobs_using_weights(
+                    logprobs_cond_i, logprobs_targ, weights
+                )  # [B,]
+                scores += [scores_i.cpu()]
+
+        return torch.cat(scores)  # [N,]
+
+# taken from ./src/trainers/pytorch_classif_mcdo.py
+
+class PyTorchClassificationMCDropoutTrainer(
+    PyTorchClassificationTrainer, LogprobsClassificationStochasticTrainer
+):
+    """
+    Important: dropout masks are resampled at each call of self.eval_mode().
+    """
+
+    def eval_mode(self) -> None:
+        self.model.eval()
+
+    def conditional_predict(
+        self, inputs: Tensor, n_model_samples: int, independent: bool
+    ) -> Tensor:
+        """
+        Arguments:
+            inputs: Tensor[float], [N, *F]
+            n_model_samples: int
+            independent: bool
+
+        Returns:
+            Tensor[float], [N, K, Cl]
+        """
+        features = self.model(inputs, n_model_samples)  # [N, K, Cl]
+        return log_softmax(features, dim=-1)  # [N, K, Cl]
+
+    def marginal_predict(self, inputs: Tensor, n_model_samples: int) -> Tensor:
+        """
+        Arguments:
+            inputs: Tensor[float], [N, *F]
+            n_model_samples: int
+
+        Returns:
+            Tensor[float], [N, Cl]
+        """
+        logprobs = self.conditional_predict(inputs, n_model_samples, independent=True)  # [N, K, Cl]
+
+        if n_model_samples == 1:
+            return torch.squeeze(logprobs, dim=1)  # [N, Cl]
+        else:
+            return logmeanexp(logprobs, dim=1)  # [N, Cl]
+
+    def evaluate_train(self, inputs: Tensor, labels: Tensor) -> Tuple[Tensor, Tensor]:
+        """
+        loss = 1/KN ∑_{j=1}^K ∑_{i=1}^N L(x_i,y_i,θ_j) where θ_j ~ p(θ)
+
+        Here we use
+            L_1(x_i,y_i,θ_j) = nll_loss(x_i,y_i,θ_j) = -log p(y_i|x_i,θ_j)
+            L_2(x_i,y_i,θ_j) = binary_loss(x_i,y_i,θ_j) = {argmax p(y|x_i,θ_j) != y_i}
+        """
+        logprobs = self.conditional_predict(
+            inputs, self.n_samples_train, independent=False
+        )  # [N, K, Cl]
+
+        acc = accuracy_from_conditionals(logprobs, labels)  # [K,]
+        acc = torch.mean(acc)  # [1,]
+
+        nll_loss_fn = torch.vmap(nll_loss, in_dims=(1, None))
+
+        nll = nll_loss_fn(logprobs, labels)  # [K,]
+        nll = torch.mean(nll)  # [1,]
+
+        return acc, nll  # [1,], [1,]
+
+    def compute_badge_pseudoloss_v1(self, inputs: Tensor) -> Tensor:
+        """
+        Arguments:
+            inputs: Tensor[float], [N, *F]
+
+        Returns:
+            Tensor[float], [N,]
+        """
+        logprobs = self.marginal_predict(inputs, self.n_samples_test)  # [N, Cl]
+        pseudolabels = torch.argmax(logprobs, dim=-1)  # [N,]
+
+        return nll_loss(logprobs, pseudolabels, reduction="none")  # [N,]
+
+    def compute_badge_pseudoloss_v2(
+        self, _input: Tensor, grad_params: dict, no_grad_params: dict
+    ) -> Tensor:
+        """
+        Arguments:
+            inputs: Tensor[float], [1, *F]
+
+        Returns:
+            Tensor[float], [1,]
+        """
+        features = functional_call(
+            self.model, (grad_params, no_grad_params), _input[None, :], dict(k=self.n_samples_test)
+        )  # [1, K, Cl]
+
+        logprobs = log_softmax(features, dim=-1)  # [1, K, Cl]
+        logprobs = logmeanexp(logprobs, dim=1)  # [1, Cl]
+
+        pseudolabel = torch.argmax(logprobs, dim=-1)  # [1,]
+
+        return nll_loss(logprobs, pseudolabel)  # [1,]
