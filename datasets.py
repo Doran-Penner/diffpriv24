@@ -171,6 +171,11 @@ class _MNIST(_Dataset):
             download=True,
             transform=self._transform
         )
+
+        og_test.data = torch.tensor(np.load("data/mnist-embed/embeddings_simclr_test.npy"))
+        #og_test.embedded_targets = torch.tensor(np.load("data/mnist-embed/labels_test.npy"))
+
+
         # NOTE MNIST WILL NOT HAVE LABELS AS VECTORS, HOPEFULLY WE CAN FIX THIS LATER
         # BUT FOR NOW I NEED TO GET THE BASS SHIT WORKING
         #og_train.targets = self.one_hot(og_train.targets)
@@ -217,10 +222,11 @@ class _MNIST(_Dataset):
         self.student_data = torch.utils.data.Subset(
             og_test, np.arange(student_data_len)
         )
+        
         self.student_test = torch.utils.data.Subset(
             og_test, np.arange(student_data_len, len(og_test))
         )
-
+        
 # note: this loads everything all at once, we could do
 # functools.cached_property stuff to make it nicer
 # but that's not critical right now!
