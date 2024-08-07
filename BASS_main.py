@@ -265,7 +265,7 @@ def main():
 
         targets, qs = label_by_indices(agg,votes,acquired_pool_inds)
         all_qs.extend(qs)
-        dataset.targets[val_inds] = targets
+        dataset.targets[acquired_pool_inds] = targets
         data_pool.indices = np.setdiff1d(data_pool.indices,acquired_pool_inds)
         X_train.indices = np.concat((X_train.indices,acquired_pool_inds))
 
