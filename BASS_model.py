@@ -4,6 +4,7 @@ Code taken from (with some modification) https://github.com/fbickfordsmith/epig/
 
 The authors of the paper use a "trainer" and a "model" that work together to do their BASS framework
 
+As of 8/6/2024 at 1:49pm, this is transfered except for laplace bit!
 
 """
 import math
@@ -23,7 +24,6 @@ from torch.optim import Optimizer
 
 from tqdm import tqdm
 import numpy as np
-
 # need to figure this stuff out
 from laplace import DiagLaplace, DiagSubnetLaplace, ParametricLaplace
 from laplace.utils import (
@@ -122,9 +122,9 @@ class Trainer:
 
         for inputs, labels in loader:
             if n_classes is not None:
-                test_log_update = self.evaluate_test(inputs, np.argmax(np.argmax(labels,axis=1),axis=1), n_classes)
+                test_log_update = self.evaluate_test(inputs, labels, n_classes)
             else:
-                test_log_update = self.evaluate_test(inputs, np.argmax(np.argmax(labels,axis=1),axis=1))
+                test_log_update = self.evaluate_test(inputs, labels)
 
             test_log.append(test_log_update)
 
@@ -260,7 +260,7 @@ class PyTorchClassificationTrainer(PyTorchTrainer):
 
         self.model.train()
         breakpoint()
-        acc, nll = self.evaluate_train(inputs, np.argmax(labels,axis=1))  # [1,], [1,]
+        acc, nll = self.evaluate_train(inputs, labels)  # [1,], [1,]
 
         self.optimizer.zero_grad()
         nll.backward()
@@ -365,8 +365,8 @@ class ProbsClassificationStochasticTrainer(StochasticTrainer):
             probs = probs[:, :n_classes]  # [N, n_classes]
             probs /= torch.sum(probs, dim=-1, keepdim=True)  # [N, n_classes]
 
-        n_correct = count_correct_from_marginals(probs, np.argmax(labels,axis=1))  # [1,]
-        nll = nll_loss_from_probs(probs, np.argmax(labels,axis=1), reduction="sum")  # [1,]
+        n_correct = count_correct_from_marginals(probs, labels)  # [1,]
+        nll = nll_loss_from_probs(probs, labels, reduction="sum")  # [1,]
 
         return {"n_correct": n_correct, "nll": nll}
 
@@ -592,8 +592,8 @@ class PyTorchClassificationLaplaceTrainer(
         features = self.model(inputs)  # [N, Cl]
         logprobs = log_softmax(features, dim=-1)  # [N, Cl]
 
-        acc = accuracy_from_marginals(logprobs, np.argmax(labels,axis=1))  # [1,]
-        nll = nll_loss(logprobs, np.argmax(labels,axis=1))  # [1,]
+        acc = accuracy_from_marginals(logprobs, labels)  # [1,]
+        nll = nll_loss(logprobs, labels)  # [1,]
 
         return acc, nll  # [1,], [1,]
 
