@@ -92,7 +92,7 @@ class FullyConnectedNet(Module):
         Returns:
             Tensor[float], [N, O]
         """
-        x = x.flatten(start_dim=1)  # [N, F]
+        x = x.flatten(start_dim=1).to(globals.device)  # [N, F]
         return self.layers(x)  # [N, O]
     
 
