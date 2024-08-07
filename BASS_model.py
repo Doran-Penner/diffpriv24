@@ -695,7 +695,7 @@ class PyTorchClassificationLaplaceTrainer(
             laplace_approx_kwargs["temperature"] = self.likelihood_temperature
         else:
             raise NotImplementedError
-        breakpoint()
+
         self.model = self.laplace_approx(self.model, **laplace_approx_kwargs)
         self.model.fit(train_loader)
         self.model.optimize_prior_precision(method="marglik")
