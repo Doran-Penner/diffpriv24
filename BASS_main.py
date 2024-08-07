@@ -209,12 +209,12 @@ def main():
             torch_rng = torch_rng,
             optimizer = torch.optim.SGD,
             n_optim_steps_min = 0,
-            n_optim_steps_max = 10000, # VERY different than their value
+            n_optim_steps_max = 100000,
             n_samples_train = 1,
             n_samples_test = 100,
-            n_validations = 100, # every 5 will save validation accuracy
+            n_validations = 1000,
             early_stopping_metric = "val_nll",
-            early_stopping_patience = 1000,
+            early_stopping_patience = 5000,
             restore_best_model = True
         )
 
