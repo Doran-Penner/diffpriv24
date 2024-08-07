@@ -865,6 +865,7 @@ class PyTorchClassificationMCDropoutTrainer(
         Returns:
             Tensor[float], [N, K, Cl]
         """
+        inputs = inputs.to(globals.device)
         features = self.model(inputs, n_model_samples)  # [N, K, Cl]
         return log_softmax(features, dim=-1)  # [N, K, Cl]
 
