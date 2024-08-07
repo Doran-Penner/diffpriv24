@@ -275,7 +275,7 @@ def main():
 
         test_log.append({"n_labels": n_train_labels, **prepend_to_keys(test_metrics, "test")})
 
-        test_log.save_to_csv("..saved/logs/BASS_testing.csv", formatters)
+        test_log.save_to_csv("../saved/logs/BASS_testing.csv", formatters)
 
         if is_last_al_step:
             logger.info("Stopping active learning")
