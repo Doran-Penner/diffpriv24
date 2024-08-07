@@ -15,7 +15,7 @@ from time import time
 
 import torch
 from torch import Tensor, Generator
-from torch.nn import Dropout, Linear, Module, ReLU, Sequential
+from torch.nn import Dropout, Linear, Module, ReLU, Sequential, Conv2d,MaxPool2d
 from torch.func import functional_call, grad, vmap
 from torch.nn.functional import log_softmax, nll_loss, softmax
 from torch.nn.utils import vector_to_parameters
@@ -43,7 +43,8 @@ from BASS_utils import (
     Dictionary,
     prepend_to_keys,
     logmeanexp,
-    accuracy_from_conditionals
+    accuracy_from_conditionals,
+    compute_conv_output_size
 )
 
 from BASS_uncertainty import (
@@ -55,10 +56,104 @@ from BASS_uncertainty import (
     epig_from_logprobs_using_weights
 )
 
+from batchbald_redux.consistent_mc_dropout import (
+    BayesianModule,
+    ConsistentMCDropout,
+    ConsistentMCDropout2d,
+)
+
 import globals
 
 # Model Portion
 
+# taken from ./src/models/conv_net_batchbald_mcdo.py
+class MCDropoutConvBlock(BayesianModule):
+    def __init__(self, n_in: int, n_out: int, kernel_size: int, dropout_rate: float) -> None:
+        super().__init__()
+
+        self.conv = Conv2d(in_channels=n_in, out_channels=n_out, kernel_size=kernel_size)
+        self.dropout = ConsistentMCDropout2d(p=dropout_rate)
+        self.maxpool = MaxPool2d(kernel_size=2)
+        self.activation_fn = ReLU()
+
+    def forward(self, x: Tensor) -> Tensor:
+        """
+        Arguments:
+            x: Tensor[float], [N, Ch_in, H_in, W_in]
+
+        Returns:
+            Tensor[float], [N, Ch_out, H_out, W_out]
+        """
+        x = self.conv(x)
+        x = self.dropout(x)
+        x = self.maxpool(x)
+        x = self.activation_fn(x)
+
+        return x
+
+
+class MCDropoutFullyConnectedBlock(BayesianModule):
+    def __init__(self, n_in: int, n_out: int, dropout_rate: float) -> None:
+        super().__init__()
+
+        self.fc = Linear(in_features=n_in, out_features=n_out)
+        self.dropout = ConsistentMCDropout(p=dropout_rate)
+        self.activation_fn = ReLU()
+
+    def forward(self, x: Tensor) -> Tensor:
+        """
+        Arguments:
+            x: Tensor[float], [N, F_in]
+
+        Returns:
+            Tensor[float], [N, F_out]
+        """
+        x = self.fc(x)
+        x = self.dropout(x)
+        x = self.activation_fn(x)
+
+        return x
+
+
+class MCDropoutBatchBALD2BlockConvNet(BayesianModule):
+    """
+    References:
+        https://github.com/BlackHC/batchbald_redux/blob/master/03_consistent_mc_dropout.ipynb
+    """
+
+    def __init__(self, input_shape: Sequence[int], output_size: int, dropout_rate: float) -> None:
+        super().__init__()
+
+        n_input_channels, _, image_width = input_shape
+
+        block3_size = compute_conv_output_size(
+            image_width, kernel_sizes=(2 * [5, 2]), strides=(2 * [1, 2]), n_output_channels=64
+        )
+
+        l_kwargs = dict(dropout_rate=dropout_rate)
+
+        self.block1 = MCDropoutConvBlock(n_in=n_input_channels, n_out=32, kernel_size=5, **l_kwargs)
+        self.block2 = MCDropoutConvBlock(n_in=32, n_out=64, kernel_size=5, **l_kwargs)
+        self.block3 = MCDropoutFullyConnectedBlock(n_in=block3_size, n_out=128, **l_kwargs)
+        self.fc = Linear(in_features=128, out_features=output_size)
+
+    def mc_forward_impl(self, x: Tensor) -> Tensor:
+        """
+        Arguments:
+            x: Tensor[float], [N, Ch, H, W]
+
+        Returns:
+            Tensor[float], [N, O]
+        """
+        x = self.block1(x)
+        x = self.block2(x)
+
+        x = x.flatten(start_dim=1)
+
+        x = self.block3(x)
+        x = self.fc(x)
+
+        return x
 # taken from ./src/models/fc_net.py
 class FullyConnectedNet(Module):
     def __init__(
