@@ -188,6 +188,7 @@ def main():
         """
         trainer = PyTorchClassificationMCDropoutTrainer(
             model = net,
+            torch_rng = torch_rng,
             optimizer = torch.optim.SGD,
             n_optim_steps_min = 0,
             n_optim_steps_max = 200, # VERY different than their value
