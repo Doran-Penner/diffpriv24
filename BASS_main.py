@@ -102,7 +102,8 @@ def acquire_balanced_init(indices,data_object,n_per_label):
 
 
 def main():
-
+    logger = logging.getLogger(__name__)
+    logging.basicConfig(filename='../saved/logs/BASS.log', level=logging.INFO)
     # setup stuff:
     formatters = get_formatters()
     dat_obj = globals.dataset
@@ -114,7 +115,7 @@ def main():
     votes = votes.T
 
     all_qs = []
-    logging.info("setting up data")
+    logger.info("setting up data")
     # the pool of student training data that we can pull from!
     data_pool = dat_obj.student_data
 
@@ -133,7 +134,7 @@ def main():
     all_qs.extend(qs)
     dataset.targets[val_inds] = targets
 
-    logging.info(f"Initial epsilon cost: {gnmax_epsilon(all_qs,agg.alpha,agg.scale,delta=1e-6):.04f}")
+    logger.info(f"Initial epsilon cost: {gnmax_epsilon(all_qs,agg.alpha,agg.scale,delta=1e-6):.04f}")
 
     # remove indices from the pool
     data_pool.indices = np.setdiff1d(data_pool.indices,val_inds)
@@ -163,8 +164,8 @@ def main():
         is_last_al_step = n_train_labels >= 2000 # big number at first?
 
 
-        logging.info(f"Number of labels: {n_train_labels}")
-        logging.info("Setting up trainer")
+        logger.info(f"Number of labels: {n_train_labels}")
+        logger.info("Setting up trainer")
         # get model:
         net = MCDropoutFullyConnectedNet(input_shape=dataset.data.shape[1:], output_size=dat_obj.num_labels,dropout_rate=0.1,hidden_sizes=[128,128,128]).to(globals.device)
 
@@ -214,9 +215,9 @@ def main():
 
         if train_step is not None:
             if train_step < 199: # doing 200 epochs?
-                logging.info(f"Training stopped early at step {train_step}")
+                logger.info(f"Training stopped early at step {train_step}")
             else:
-                logging.warning(f"Training stopped before convergence at step {train_step}")
+                logger.warning(f"Training stopped before convergence at step {train_step}")
 
         if train_log is not None:
             train_log.save_to_csv(globals.SAVE_DIR + "training" + f"{n_labels_str}.csv", formatters)
@@ -229,7 +230,7 @@ def main():
         is_in_save_steps = n_train_labels % 50 == 0 # Hopefully we will be acquiring a lot less data!
 
         if is_first_al_step or is_last_al_step or is_in_save_steps:
-            logging.info("Saving model checkpoint")
+            logger.info("Saving model checkpoint")
 
             if isinstance(trainer.model, ParametricLaplace):
                 model_state = trainer.model.model.state_dict()
@@ -239,7 +240,7 @@ def main():
             torch.save(model_state, globals.SAVE_DIR + "models" + f"{n_labels_str}.pth")
 
 
-        logging.info("Testing")
+        logger.info("Testing")
         with torch.inference_mode():
             test_metrics = trainer.test(test_loader)
 
@@ -248,16 +249,16 @@ def main():
         )
 
 
-        logging.info(f"Test metrics: {test_metrics_str}")
+        logger.info(f"Test metrics: {test_metrics_str}")
 
         test_log.append({"n_labels": n_train_labels, **prepend_to_keys(test_metrics, "test")})
         test_log.save_to_csv(globals.SAVE_DIR + "BASS_testing.csv", formatters)
 
         if is_last_al_step:
-            logging.info("Stopping active learning")
+            logger.info("Stopping active learning")
             break
 
-        logging.info(
+        logger.info(
             f"Acquiring 10 label(s) using epig"
         )
 
@@ -269,13 +270,13 @@ def main():
         data_pool.indices = np.setdiff1d(data_pool.indices,acquired_pool_inds)
         X_train.indices = np.concat((X_train.indices,acquired_pool_inds))
 
-        logging.info(f"Epsilon: {gnmax_epsilon(all_qs,agg.alpha,agg.scale,delta=1e-6):.04f}")
+        logger.info(f"Epsilon: {gnmax_epsilon(all_qs,agg.alpha,agg.scale,delta=1e-6):.04f}")
 
         is_first_al_step = False
 
 
     run_time = timedelta(seconds=(time() - start_time))
-    np.savetxt(globals.SAVE_DIR + "BASS_run_time.txt", [str(run_time)], fmt="%s")
+    np.savetxt("../saved/logs/BASS_run_time.txt", [str(run_time)], fmt="%s")
 
 
 
