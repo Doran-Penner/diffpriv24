@@ -92,7 +92,7 @@ def acquire_balanced_init(indices,data_object,n_per_label):
     
     i = 0
     while len(removed_inds) < n_labels * n_per_label:
-
+        breakpoint()
         possible = np.argmax(data_object.student_data.dataset.targets[indices[i]])
         if labels_counts[possible] < n_per_label:
             labels_counts[possible] += 1
@@ -121,7 +121,7 @@ def main():
 
     # choose a random set for validation and training set
     val_inds = np.random.choice(data_pool.indices,size = 850)
-    
+
     # apply labels, and then store labels and epsilon costs
     targets, qs = label_by_indices(agg,votes,val_inds)
     all_qs.extend(qs)
