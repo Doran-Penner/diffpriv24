@@ -96,6 +96,8 @@ def train_all(dat_obj):
     """
     train_sets = dat_obj.teach_train
     valid_sets = dat_obj.teach_valid
+    # initialize empty state, overwriting previous work:
+    np.save(f"{globals.SAVE_DIR}/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy", np.empty(()))
     for i in range(dat_obj.num_teachers):
         print(f"Training teacher {i} now!")
         start_time = time.time()
@@ -123,11 +125,8 @@ def train_all(dat_obj):
             ballot.append(preds.to(torch.device('cpu')))
         
         ballot = np.concatenate(ballot)
-        if isfile(f"{globals.SAVE_DIR}/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy"):
-            votes = np.load(f"{globals.SAVE_DIR}/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy", allow_pickle=True)
-            votes = np.append(votes, ballot)
-        else:
-            votes = ballot
+        votes = np.load(f"{globals.SAVE_DIR}/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy", allow_pickle=True)
+        votes = np.append(votes, ballot)
         np.save(f"{globals.SAVE_DIR}/{dat_obj.name}_{dat_obj.num_teachers}_teacher_predictions.npy", votes)
 
         print(f"teacher {i}'s accuracy:", correct/guessed)
