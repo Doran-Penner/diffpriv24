@@ -209,7 +209,7 @@ def main():
             torch_rng = torch_rng,
             optimizer = torch.optim.SGD,
             n_optim_steps_min = 0,
-            n_optim_steps_max = 100000,
+            n_optim_steps_max = 2000,
             n_samples_train = 1,
             n_samples_test = 100,
             n_validations = 1000,
@@ -286,7 +286,7 @@ def main():
         )
 
         acquired_pool_inds = EPIG_acquire(data_pool, trainer, 10,inp_targs)
-
+        breakpoint()
         targets, qs = label_by_indices(agg,votes,acquired_pool_inds)
         all_qs.extend(qs)
         dataset.targets[acquired_pool_inds] = targets
