@@ -99,7 +99,9 @@ def train_all(dat_obj):
     for i in range(dat_obj.num_teachers):
         print(f"Training teacher {i} now!")
         start_time = time.time()
-        n, acc = train(train_sets[i], valid_sets[i], dat_obj, epochs = 100)
+        # n, acc = train(train_sets[i], valid_sets[i], dat_obj, epochs = 100)
+        n = CNN(dat_obj).to(globals.device)
+        acc = 0
         print("TEACHER",i,"ACC",acc)
         # torch.save(n.state_dict(),f"{globals.SAVE_DIR}/{dat_obj.name}_teacher_{i}_of_{dat_obj.num_teachers-1}.tch")
 
@@ -114,6 +116,7 @@ def train_all(dat_obj):
         data_loader = torch.utils.data.DataLoader(dat_obj.student_data, shuffle=False, batch_size=256)
 
         for batch, labels in data_loader:
+            breakpoint()
             batch, labels = batch.to(globals.device), labels.to(globals.device)
             pred_vectors = n(batch)  # 2-axis arr of model's prediction vectors
             preds = torch.argmax(pred_vectors, dim=1)  # gets highest-value indices e.g. [2, 4, 1, 1, 5, ...]
