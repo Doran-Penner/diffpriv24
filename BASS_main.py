@@ -116,7 +116,7 @@ def main():
     # setup stuff:
     formatters = get_formatters()
     dat_obj = globals.dataset
-    dataset = dat_obj.student_data.dataset
+    dataset = dat_obj.student_data
     rng = np.random.default_rng(random.randint(0, int(1e6)))
 
     agg = NoisyMaxAggregator(50,dat_obj,noise_fn=np.random.normal)

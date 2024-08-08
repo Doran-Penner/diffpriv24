@@ -180,10 +180,20 @@ class _MNIST(_Dataset):
         # BUT FOR NOW I NEED TO GET THE BASS SHIT WORKING
         #og_train.targets = self.one_hot(og_train.targets)
         #og_test.targets = self.one_hot(og_test.targets)
+        
+        new_train = torch.utils.data.Subset(
+            og_train,
+            np.arange(49000)
+        )
+        self.student_test = torch.utils.data.Subset(
+            og_train,
+            np.arange(49000,len(og_train))
+        )
+
 
         all_teach_train, all_teach_valid = torch.utils.data.random_split(
-            og_train,
-            [0.8, 0.2],
+            new_train,
+            [00.8,0.2],
             generator=self._generator,
         )
         train_size = len(all_teach_train)
@@ -218,15 +228,13 @@ class _MNIST(_Dataset):
         # would need to somehow keep track of the indices for teacher labeling
         # NOTE changed the indices to a np.array for continuity with 
         # the BALD code
-        student_data_len = math.floor(len(og_test) * 0.9)
-        self.student_data = torch.utils.data.Subset(
-            og_test, np.arange(student_data_len)
-        )
         
-        self.student_test = torch.utils.data.Subset(
-            og_test, np.arange(student_data_len, len(og_test))
-        )
-        
+        #student_data_len = math.floor(len(og_test) * 0.9)
+
+        # WE TOOK STUDENT TEST DATA FROM THE MNIST TRAINING SET!
+
+        self.student_data = og_test
+
 # note: this loads everything all at once, we could do
 # functools.cached_property stuff to make it nicer
 # but that's not critical right now!
