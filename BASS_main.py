@@ -236,8 +236,10 @@ def main():
         trainer = SKLearnRandomForestClassificationTrainer(model=net)
         trainer_type = "sklearn"
         # train it?
+        # We want batch_size to be the same size as the full inputs?
+        # there is an assert later on that wants them to be the same?
         train_step, train_log = trainer.train(
-            train_loader=torch.utils.data.DataLoader(X_train,shuffle=False,batch_size=64), val_loader=valid_loader
+            train_loader=torch.utils.data.DataLoader(X_train,shuffle=False,batch_size=len(X_train)), val_loader=valid_loader
         )
 
         if train_step is not None:
