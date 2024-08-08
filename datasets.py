@@ -172,7 +172,8 @@ class _MNIST(_Dataset):
             transform=self._transform
         )
 
-        og_test.data = torch.tensor(np.load("data/mnist-embed/embeddings_simclr_test.npy"))
+        # Will need to change this later!
+        #og_test.data = torch.tensor(np.load("data/mnist-embed/embeddings_simclr_test.npy"))
         #og_test.embedded_targets = torch.tensor(np.load("data/mnist-embed/labels_test.npy"))
 
 
@@ -193,7 +194,7 @@ class _MNIST(_Dataset):
 
         all_teach_train, all_teach_valid = torch.utils.data.random_split(
             new_train,
-            [00.8,0.2],
+            [0.8,0.2],
             generator=self._generator,
         )
         train_size = len(all_teach_train)
