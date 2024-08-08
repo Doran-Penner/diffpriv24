@@ -303,7 +303,7 @@ def main():
         )
 
         acquired_pool_inds = EPIG_acquire(data_pool, trainer, 10,inp_targs)
-        breakpoint()
+
         targets, qs = label_by_indices(agg,votes,acquired_pool_inds)
         all_qs.extend(qs)
         dataset.targets[acquired_pool_inds] = targets
