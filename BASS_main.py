@@ -19,7 +19,16 @@ import logging
 import globals
 from time import time
 from BASS_utils import Dictionary
-from BASS_model import PyTorchClassificationLaplaceTrainer, FullyConnectedNet, PyTorchClassificationMCDropoutTrainer, MCDropoutFullyConnectedNet
+from BASS_model import (
+    PyTorchClassificationLaplaceTrainer,
+    FullyConnectedNet,
+    PyTorchClassificationMCDropoutTrainer,
+    MCDropoutFullyConnectedNet,
+    SKLearnRandomForestClassificationTrainer
+)
+
+from sklearn.ensemble import RandomForestClassifier
+
 
 # figure out laplace STILL
 import laplace
@@ -171,17 +180,19 @@ def main():
     while True: # change probably
         n_train_labels = len(X_train)
         n_labels_str = f"{n_train_labels:04}_labels"
-        is_last_al_step = n_train_labels >= 4000 # big number at first?
+        is_last_al_step = n_train_labels >= 60 # big number at first?
 
 
         logger.info(f"Number of labels: {n_train_labels}")
         logger.info("Setting up trainer")
+
+        """
         # get model:
         net = MCDropoutFullyConnectedNet(input_shape=dataset.data.shape[1:], output_size=dat_obj.num_labels,dropout_rate=0.1,hidden_sizes=[128,128,128]).to(globals.device)
 
         # get trainer:
         torch_rng = torch.Generator(globals.device).manual_seed(rng.choice(int(1e6)))
-        """
+
         trainer = PyTorchClassificationLaplaceTrainer(
             model = net,
             torch_rng = torch_rng,
@@ -203,7 +214,7 @@ def main():
             early_stopping_patience = 5000,
             restore_best_model = True
         )
-        """
+        
         trainer = PyTorchClassificationMCDropoutTrainer(
             model = net,
             torch_rng = torch_rng,
@@ -217,6 +228,9 @@ def main():
             early_stopping_patience = 5000,
             restore_best_model = True
         )
+        """
+        net = RandomForestClassifier()
+        trainer = SKLearnRandomForestClassificationTrainer(model=net)
 
         # train it?
         train_step, train_log = trainer.train(
