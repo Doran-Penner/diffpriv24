@@ -176,8 +176,10 @@ def main():
     is_first_al_step = True
     start_time = time()
     test_log = Dictionary()
-
+    i = 0
     while True: # change probably
+        print("Round", i)
+        i += 1
         n_train_labels = len(X_train)
         n_labels_str = f"{n_train_labels:04}_labels"
         is_last_al_step = n_train_labels >= 4000 # big number at first?
