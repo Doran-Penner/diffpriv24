@@ -231,7 +231,7 @@ def main():
         """
         net = RandomForestClassifier()
         trainer = SKLearnRandomForestClassificationTrainer(model=net)
-
+        trainer_type = "sklearn"
         # train it?
         train_step, train_log = trainer.train(
             train_loader=torch.utils.data.DataLoader(X_train,shuffle=False,batch_size=64), val_loader=valid_loader
@@ -253,7 +253,7 @@ def main():
 
         is_in_save_steps = n_train_labels % 50 == 0 # Hopefully we will be acquiring a lot less data!
 
-        if is_first_al_step or is_last_al_step or is_in_save_steps:
+        if (is_first_al_step or is_last_al_step or is_in_save_steps) and trainer_type != "sklearn":
             logger.info("Saving model checkpoint")
 
             if isinstance(trainer.model, ParametricLaplace):
