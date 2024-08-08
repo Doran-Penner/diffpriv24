@@ -180,7 +180,7 @@ def main():
     while True: # change probably
         n_train_labels = len(X_train)
         n_labels_str = f"{n_train_labels:04}_labels"
-        is_last_al_step = n_train_labels >= 60 # big number at first?
+        is_last_al_step = n_train_labels >= 4000 # big number at first?
 
 
         logger.info(f"Number of labels: {n_train_labels}")
