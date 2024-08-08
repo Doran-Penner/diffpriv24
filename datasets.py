@@ -184,11 +184,11 @@ class _MNIST(_Dataset):
         
         new_train = torch.utils.data.Subset(
             og_train,
-            np.arange(49000)
+            np.arange(59000)
         )
         self.student_test = torch.utils.data.Subset(
             og_train,
-            np.arange(49000,len(og_train))
+            np.arange(59000,len(og_train))
         )
 
 
