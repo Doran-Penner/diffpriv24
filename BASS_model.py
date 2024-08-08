@@ -450,7 +450,7 @@ class ProbsClassificationStochasticTrainer(StochasticTrainer):
         probs_pool = probs[: len(inputs_pool)]  # [N_p, K, Cl]
         probs_targ = probs[len(inputs_pool) :]  # [N_t, K, Cl]
 
-        if self.epig_cfg.use_matmul:
+        if True:
             scores = epig_from_probs_using_matmul(probs_pool, probs_targ)  # [N_p,]
         else:
             scores = epig_from_probs(probs_pool, probs_targ)  # [N_p,]

@@ -229,6 +229,7 @@ def main():
             restore_best_model = True
         )
         """
+
         net = RandomForestClassifier()
         trainer = SKLearnRandomForestClassificationTrainer(model=net)
         trainer_type = "sklearn"
