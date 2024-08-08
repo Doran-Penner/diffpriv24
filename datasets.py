@@ -179,8 +179,8 @@ class _MNIST(_Dataset):
 
         # NOTE MNIST WILL NOT HAVE LABELS AS VECTORS, HOPEFULLY WE CAN FIX THIS LATER
         # BUT FOR NOW I NEED TO GET THE BASS SHIT WORKING
-        #og_train.targets = self.one_hot(og_train.targets)
-        #og_test.targets = self.one_hot(og_test.targets)
+        og_train.targets = self.one_hot(og_train.targets)
+        og_test.targets = self.one_hot(og_test.targets)
         
         new_train = torch.utils.data.Subset(
             og_train,
