@@ -101,7 +101,7 @@ def acquire_balanced_init(indices,data_object,n_per_label):
     
     i = 0
     while len(removed_inds) < n_labels * n_per_label:
-        possible = data_object.dataset.targets[indices[i]]
+        possible = data_object.student_data.dataset.targets[indices[i]]
         if labels_counts[possible] < n_per_label:
             labels_counts[possible] += 1
             removed_inds.append(indices[i])
