@@ -126,7 +126,10 @@ def main():
     all_qs = []
     logger.info("setting up data")
     # the pool of student training data that we can pull from!
-    data_pool = dat_obj.student_data
+    data_pool = torch.utils.data.Subset(
+        dat_obj.student_data,
+        np.arange(10000)
+    )
 
 
     # gotta get some input_targets for epig:
