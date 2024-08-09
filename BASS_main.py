@@ -116,7 +116,7 @@ def main():
     # setup stuff:
     formatters = get_formatters()
     dat_obj = globals.dataset
-    dataset = dat_obj.student_data
+    dataset = dat_obj.student_data.dataset
     rng = np.random.default_rng(random.randint(0, int(1e6)))
 
     agg = NoisyMaxAggregator(50,dat_obj,noise_fn=np.random.normal)
@@ -126,11 +126,7 @@ def main():
     all_qs = []
     logger.info("setting up data")
     # the pool of student training data that we can pull from!
-    data_pool = torch.utils.data.Subset(
-        dat_obj.student_data,
-        np.arange(10000)
-    )
-
+    data_pool = dat_obj.student_data
 
     # gotta get some input_targets for epig:
     inp_targ_inds = np.random.choice(data_pool.indices,size = 1000)

@@ -234,7 +234,7 @@ class _MNIST(_Dataset):
 
         # WE TOOK STUDENT TEST DATA FROM THE MNIST TRAINING SET!
 
-        self.student_data = og_test
+        self.student_data = torch.utils.data.Subset(og_test, np.arange(10000))
 
 # note: this loads everything all at once, we could do
 # functools.cached_property stuff to make it nicer
