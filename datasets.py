@@ -174,9 +174,9 @@ class _MNIST(_Dataset):
 
         # Will need to change this later!
         og_test.data = torch.tensor(np.load("data/mnist-embed/embeddings_simclr_test.npy"))
-        og_test.targets = torch.tensor(np.load("data/mnist-embed/labels_test.npy"))
+        # og_test.targets = torch.tensor(np.load("data/mnist-embed/labels_test.npy"))
         og_train.data = torch.tensor(np.load("../epig/data/mnist/embeddings_simclr_train.npy"))
-        og_train.targets = torch.tensor(np.load("../epig/data/mnist/labels_train.npy"))
+        # og_train.targets = torch.tensor(np.load("../epig/data/mnist/labels_train.npy"))
         # NOTE MNIST WILL NOT HAVE LABELS AS VECTORS, HOPEFULLY WE CAN FIX THIS LATER
         # BUT FOR NOW I NEED TO GET THE BASS SHIT WORKING
         # og_train.targets = self.one_hot(og_train.targets)

@@ -98,7 +98,7 @@ def acquire_balanced_init(indices,data_object,n_per_label):
     n_labels = data_object.num_labels
     labels_counts = [0] * n_labels
     removed_inds  = []
-    
+
     i = 0
     while len(removed_inds) < n_labels * n_per_label:
         possible = data_object.student_data.dataset.targets[indices[i]]
@@ -181,7 +181,7 @@ def main():
         i += 1
         n_train_labels = len(X_train)
         n_labels_str = f"{n_train_labels:04}_labels"
-        is_last_al_step = n_train_labels >= 4000 # big number at first?
+        is_last_al_step = n_train_labels >= 2000 # big number at first?
 
 
         logger.info(f"Number of labels: {n_train_labels}")
