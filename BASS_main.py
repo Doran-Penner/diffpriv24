@@ -112,7 +112,7 @@ def acquire_balanced_init(indices,data_object,n_per_label):
 
 def main():
     logger = logging.getLogger(__name__)
-    logging.basicConfig(filename='../saved/logs/BASS.log', level=logging.INFO)
+    logging.basicConfig(filename='../saved/logs/BASS_RF.log', level=logging.INFO)
     # setup stuff:
     formatters = get_formatters()
     dat_obj = globals.dataset
@@ -249,10 +249,10 @@ def main():
                 logger.warning(f"Training stopped before convergence at step {train_step}")
 
         if train_log is not None:
-            train_log.save_to_csv(globals.SAVE_DIR + "training" + f"{n_labels_str}.csv", formatters)
+            train_log.save_to_csv(f"../saved/logs/BASS_RF_training_{n_labels_str}.csv", formatters)
 
         np.savetxt(
-            globals.SAVE_DIR + "data_indices" + "train.txt", X_train.indices, fmt="%d"
+            "../saved/logs/RF_training_indices.npy", X_train.indices, fmt="%d"
         )
 
 
@@ -266,7 +266,7 @@ def main():
             else:
                 model_state = trainer.model.state_dict()
 
-            torch.save(model_state, globals.SAVE_DIR + "models" + f"{n_labels_str}.pth")
+            torch.save(model_state,f"../saved/BASS_models/BASS_RF_{n_labels_str}_st_dict.pth")
 
 
         logger.info("Testing")
@@ -294,7 +294,7 @@ def main():
 
         test_log.append({"n_labels": n_train_labels, **prepend_to_keys(test_metrics, "test")})
 
-        test_log.save_to_csv("../saved/logs/BASS_testing.csv", formatters)
+        test_log.save_to_csv("../saved/logs/BASS_RF_testing.csv", formatters)
 
         if is_last_al_step:
             logger.info("Stopping active learning")
@@ -325,7 +325,7 @@ def main():
             best_eps = temp_eps
     logger.info(f"Final epsilon cost: {best_eps:.04f}")
     run_time = timedelta(seconds=(time() - start_time))
-    np.savetxt("../saved/logs/BASS_run_time.txt", [str(run_time)], fmt="%s")
+    np.savetxt("../saved/logs/BASS_RF_run_time.txt", [str(run_time)], fmt="%s")
 
 
 
